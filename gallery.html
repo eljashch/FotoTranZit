@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Свадьба Марии и Ильи — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-guard="on">
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <header class="g-top">
+    <div class="back-bar">
+      <span>Вы фотограф</span>
+      <div class="row-actions">
+        <a class="btn btn-line" href="index.html">На главную</a>
+        <a class="btn btn-dark" href="cabinet.html">В кабинет</a>
+      </div>
+    </div>
+    <form class="secret-ask" id="secret-ask">
+      <label>Есть секретный код?<input id="secret-try" type="text" autocomplete="off" placeholder="Код от фотографа"></label>
+      <button class="btn btn-dark" type="submit">Показать скрытые</button>
+      <p class="hint" id="secret-note"></p>
+    </form>
+    <div class="g-cover">
+      <img data-gallery-cover src="img/p1.jpg" alt="">
+      <div class="veil">
+        <img class="cover-logo" data-use="logo" src="img/logo.svg" alt="Логотип фотографа">
+        <p class="kicker">Анна Соколова</p>
+        <h1 data-gallery-title>Свадьба Марии и Ильи</h1>
+        <p data-gallery-date>12 сентября</p>
+        <div class="contacts">
+          <a href="tel:+79030000000">Телефон</a>
+          <a href="https://anna-sokolova.ru">Сайт</a>
+          <a href="https://vk.com">ВК</a>
+          <a href="https://max.ru">MAX</a>
+          <a href="photographer.html">Страница фотографа</a>
+        </div>
+      </div>
+    </div>
+    <div class="row-actions" style="margin-top:14px">
+      <a class="btn btn-line" href="favorites.html">Отмеченное</a>
+      <button class="btn btn-line" type="button" data-download="review">Отзыв</button>
+    </div>
+    <div class="filters">
+      <button class="btn btn-line on" type="button" data-filter="all">Все</button>
+      <button class="btn btn-line" type="button" data-filter="photo">Фото</button>
+      <button class="btn btn-line" type="button" data-filter="video">Видео</button>
+      <button class="btn btn-line" type="button" data-filter="file">Файлы</button>
+      <button class="btn btn-line" type="button" data-filter="tall">Вертикальные</button>
+      <button class="btn btn-line" type="button" data-filter="wide">Горизонтальные</button>
+    </div>
+    <div class="g-grid">
+      <article class="shot tall" data-file="cover" data-in="wedding portrait" data-kind="photo tall" data-view="photo-view"><img src="img/cover.jpg" alt=""><button class="heart" type="button">♡</button></article>
+      <article class="shot" data-file="p2" data-in="wedding" data-kind="photo wide" data-view="photo-view"><img src="img/p2.jpg" alt=""><button class="heart" type="button">♡</button></article>
+      <article class="shot" data-file="p3" data-in="wedding kindergarten" data-kind="photo wide" data-view="photo-view"><img src="img/p3.jpg" alt=""><button class="heart" type="button">♡</button></article>
+      <article class="shot tall" data-file="p4" data-in="wedding" data-kind="video" data-view="video-view"><img src="img/p4.jpg" alt=""><button class="play" type="button">▶</button></article>
+      <article class="shot" data-file="p5" data-in="wedding kindergarten" data-kind="photo wide" data-view="photo-view"><img src="img/p5.jpg" alt=""><button class="heart" type="button">♡</button></article>
+      <article class="shot tall" data-file="p6" data-in="wedding portrait" data-kind="photo tall" data-view="photo-view"><img src="img/p6.jpg" alt=""><button class="heart" type="button">♡</button></article>
+      <article class="doc-card" data-file="pdf" data-in="wedding kindergarten" data-kind="file" data-view="pdf-view"><strong>Список гостей.pdf</strong><p class="hint">Открыть без скачивания</p></article>
+    </div>
+    <p class="hint" id="gallery-empty" hidden>В галерее не осталось файлов.</p>
+    <p class="hint" style="margin:18px 0 40px">Файлы принадлежат фотографу. <button class="btn btn-line" id="show-black" type="button">Показать закрытие кадра</button></p>
+  </header>
+
+  <div class="overlay" id="photo-view" hidden>
+    <div class="viewer">
+      <div class="ov-bar"><span>IMG_2044.jpg · 12 / 86</span><button class="btn btn-line" type="button" data-close="photo-view">Закрыть</button></div>
+      <img src="img/cover.jpg" alt="">
+      <em class="shot-wm" id="shot-wm">АННА</em>
+      <div class="row-actions">
+        <button class="btn btn-line" type="button" data-download="file">Оригинал</button>
+        <button class="btn btn-line" type="button" data-download="small">Уменьшенная</button>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="video-view" hidden>
+    <div class="viewer">
+      <div class="ov-bar"><span>first-dance.mp4</span><button class="btn btn-line" type="button" data-close="video-view">Закрыть</button></div>
+      <div class="player" style="background-image:url('img/p4.jpg')"><button class="btn btn-dark" type="button">Пауза</button><div class="time"></div><span>звук</span></div>
+    </div>
+  </div>
+  <div class="overlay" id="pdf-view" hidden>
+    <div class="viewer">
+      <div class="ov-bar"><span>Маршрут дня.pdf</span><button class="btn btn-line" type="button" data-close="pdf-view">Закрыть</button></div>
+      <article class="paper">
+        <h2>Маршрут дня</h2>
+        <p>15:00 сбор в саду. 16:00 церемония. 18:30 ужин. 21:00 первый танец.</p>
+        <p>Файл открыт на странице и на компьютер не скачивается.</p>
+      </article>
+    </div>
+  </div>
+  <div class="overlay" id="name-modal" hidden>
+    <form class="modal">
+      <h2>Как вас представить?</h2>
+      <label>Имя<input type="text" value="Мария"></label>
+      <button class="btn btn-dark" type="button" data-close="name-modal">Продолжить</button>
+    </form>
+  </div>
+  <div class="overlay" id="review-modal" hidden>
+    <form class="modal" action="favorites.html">
+      <h2>Вам понравилась съёмка?</h2>
+      <p class="hint">Напишите пару слов, это очень поможет. Скачивание уже запущено.</p>
+      <label>Имя<input type="text" value="Мария"></label>
+      <label>Отзыв<textarea>Очень красивая галерея, спасибо.</textarea></label>
+      <label>Ссылка на соцсеть<input type="text" placeholder="необязательно"></label>
+      <p class="stars">★★★★★</p>
+      <label class="check"><input type="checkbox" required> Согласен на обработку персональных данных</label>
+      <div class="row-actions">
+        <button class="btn btn-dark" type="submit">Оставить отзыв</button>
+        <button class="btn btn-line" type="button" data-close="review-modal">Не сейчас</button>
+      </div>
+    </form>
+  </div>
+  <div class="blackout" id="blackout" hidden>
+    <div>
+      <p>Вернитесь на вкладку, чтобы смотреть</p>
+      <button class="btn btn-line" type="button" id="hide-black">Я здесь</button>
+    </div>
+  </div>
+  <script src="site.js"></script>
+  <script>
+    document.getElementById("hide-black").addEventListener("click", () => {
+      document.getElementById("blackout").hidden = true;
+    });
+  </script>
+</body>
+</html>

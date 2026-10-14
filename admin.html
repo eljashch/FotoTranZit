@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Сводка — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="app">
+    <aside class="side">
+      <a class="logo" href="admin.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="item on" href="admin.html">Сводка</a>
+      <a class="item" href="admin.html">Фотографы</a>
+      <a class="item" href="billing.html">Тарифы</a>
+      <a class="item" href="admin.html">Платежи</a>
+      <a class="item" href="admin.html">Журнал</a>
+      <a class="item push" href="index.html">Выйти</a>
+    </aside>
+    <main class="app-main">
+      <section class="panel"><h1 style="font-size:40px">Сводка</h1></section>
+      <section class="metrics">
+        <article class="panel metric"><b>128</b><span>фотографов</span></article>
+        <article class="panel metric"><b>121</b><span>подтвердили почту</span></article>
+        <article class="panel metric"><b>34</b><span>на пробном</span></article>
+        <article class="panel metric"><b>70</b><span>оплатили</span></article>
+        <article class="panel metric"><b>184 220</b><span>файлов</span></article>
+        <article class="panel metric"><b>2,4 ТБ</b><span>объём</span></article>
+      </section>
+      <section class="panel">
+        <label>Поиск<input type="search" placeholder="Почта или имя"></label>
+        <table class="sheet">
+          <thead><tr><th>Почта</th><th>Имя</th><th>Пакет</th><th>Место</th><th>Файлы</th><th>Скачивания</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>anna@studio.ru</td><td>Анна Соколова</td><td>Пробный</td><td>6,4 ГБ</td><td>486</td><td>128</td><td><a href="cabinet.html">Открыть</a></td></tr>
+            <tr><td>igor@lens.ru</td><td>Игорь Левин</td><td>Профи</td><td>120 ГБ</td><td>2400</td><td>860</td><td><button class="btn btn-line" type="button">Заблокировать</button></td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

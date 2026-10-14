@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проект — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="app">
+    <aside class="side">
+      <a class="logo" href="cabinet.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="item on" href="cabinet.html">Галереи</a>
+      <a class="item" href="reviews.html">Отзывы</a>
+      <a class="item" href="profile.html">Профиль</a>
+      <a class="item" href="billing.html">Оплата</a>
+      <a class="item push" href="index.html">Выйти</a>
+    </aside>
+    <main class="app-main">
+      <section class="panel">
+        <div class="who">
+          <div>
+            <h1 data-project-title style="font-size:36px">Свадьба Марии и Ильи</h1>
+            <p class="hint">Удалится 12 ноября · скачали 46 раз</p>
+          </div>
+          <div class="row-actions">
+            <a class="btn btn-line" href="gallery.html">Как видит клиент</a>
+            <button class="btn btn-line" type="button" data-copy="http://фототранзит/галерея/свадьба">Ссылка</button>
+            <a class="btn btn-line" href="gallery.html">QR</a>
+          </div>
+        </div>
+        <nav class="tabs" style="margin-top:16px">
+          <a class="on" href="project.html">Файлы</a>
+          <a href="access.html">Доступ</a>
+          <a href="design.html">Оформление</a>
+          <a href="download.html">Скачивание</a>
+          <a href="reviews.html">Отзывы</a>
+        </nav>
+      </section>
+      <section class="panel">
+        <div class="drop">Перетащите файлы или папку с подпапками
+          <div class="row-actions" style="justify-content:center;margin-top:12px">
+            <button class="btn btn-line" type="button">Файлы</button>
+            <button class="btn btn-line" type="button">Папка</button>
+          </div>
+        </div>
+        <div class="jobs">
+          <div class="job"><span>ceremony-014.jpg</span><div class="bar"><i style="width:100%"></i></div></div>
+          <div class="job"><span>dance.mp4</span><div class="bar"><i style="width:64%"></i></div></div>
+          <div class="job"><span>list.pdf <button class="btn btn-line" type="button">Повторить</button></span><span>ошибка</span></div>
+        </div>
+      </section>
+      <section class="panel" id="file-manager" data-gallery="wedding">
+        <div class="who">
+          <div>
+            <h2>Кадры</h2>
+            <p class="hint">Скрытый кадр клиент не видит, пока не введёт секретный код.</p>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-line btn-danger" id="delete-gallery" type="button">Удалить галерею</button>
+            <button class="btn btn-line btn-danger" id="delete-all-files" type="button">Удалить все</button>
+          </div>
+        </div>
+        <label>Секретный код этой галереи<input id="secret-set" type="text" placeholder="Свой код для этой галереи" autocomplete="off"></label>
+        <div class="file-list" id="file-list">
+          <article class="file-row" data-file="cover" data-in="wedding portrait"><img src="img/cover.jpg" alt=""><span>portrait.jpg</span><button class="btn btn-line" type="button" data-hide>Скрыть</button><button class="btn btn-line btn-danger" type="button" data-del-file>Удалить</button></article>
+          <article class="file-row" data-file="p2" data-in="wedding"><img src="img/p2.jpg" alt=""><span>ceremony-014.jpg</span><button class="btn btn-line" type="button" data-hide>Скрыть</button><button class="btn btn-line btn-danger" type="button" data-del-file>Удалить</button></article>
+          <article class="file-row" data-file="p3" data-in="wedding kindergarten"><img src="img/p3.jpg" alt=""><span>hands.jpg</span><button class="btn btn-line" type="button" data-hide>Скрыть</button><button class="btn btn-line btn-danger" type="button" data-del-file>Удалить</button></article>
+          <article class="file-row" data-file="p4" data-in="wedding"><img src="img/p4.jpg" alt=""><span>dance.mp4</span><button class="btn btn-line" type="button" data-hide>Скрыть</button><button class="btn btn-line btn-danger" type="button" data-del-file>Удалить</button></article>
+          <article class="file-row" data-file="p5" data-in="wedding kindergarten"><img src="img/p5.jpg" alt=""><span>balloons.jpg</span><button class="btn btn-line" type="button" data-hide>Скрыть</button><button class="btn btn-line btn-danger" type="button" data-del-file>Удалить</button></article>
+          <article class="file-row" data-file="p6" data-in="wedding portrait"><img src="img/p6.jpg" alt=""><span>couple.jpg</span><button class="btn btn-line" type="button" data-hide>Скрыть</button><button class="btn btn-line btn-danger" type="button" data-del-file>Удалить</button></article>
+          <article class="file-row" data-file="pdf" data-in="wedding kindergarten"><span class="file-doc">PDF</span><span>Список гостей.pdf</span><button class="btn btn-line" type="button" data-hide>Скрыть</button><button class="btn btn-line btn-danger" type="button" data-del-file>Удалить</button></article>
+        </div>
+        <p class="hint" id="files-empty" hidden>В этой галерее не осталось файлов.</p>
+      </section>
+    </main>
+  </div>
+  <script src="site.js"></script>
+</body>
+</html>

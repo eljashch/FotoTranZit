@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Профиль — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="app">
+    <aside class="side">
+      <a class="logo" href="cabinet.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="item" href="cabinet.html">Галереи</a>
+      <a class="item" href="reviews.html">Отзывы</a>
+      <a class="item on" href="profile.html">Профиль</a>
+      <a class="item" href="billing.html">Оплата</a>
+      <a class="item push" href="index.html">Выйти</a>
+    </aside>
+    <main class="app-main">
+      <section class="panel">
+        <h1 style="font-size:40px">Профиль</h1>
+        <form>
+          <div class="brand-slots">
+            <label class="slot">
+              <span>Ваше фото</span>
+              <img class="portrait" data-use="photo" src="img/cover.jpg" alt="Фото фотографа">
+              <input type="file" accept="image/*" data-brand="photo">
+              <em>Заменить фото</em>
+            </label>
+            <label class="slot">
+              <span>Логотип</span>
+              <span class="logo-box"><img class="brand-logo" data-use="logo" src="img/logo.svg" alt="Логотип"></span>
+              <input type="file" accept="image/*" data-brand="logo">
+              <em>Заменить логотип</em>
+            </label>
+          </div>
+          <p class="hint">Фото и логотип видны клиенту на вашей странице и в шапке галереи.</p>
+          <label>Имя или студия<input type="text" value="Анна Соколова"></label>
+          <label>Род деятельности<input type="text" value="фотограф"></label>
+          <label>Город<input type="text" value="Москва"></label>
+          <label>О себе<textarea>Снимаю свадьбы и детские праздники. Отдаю кадры галереей, а не папкой.</textarea></label>
+          <label>Адрес страницы<input type="text" value="/p/anna-sokolova"></label>
+          <label class="switch"><span>Телефон +7 903 000-00-00</span><input type="checkbox" checked></label>
+          <label class="switch"><span>Email anna@studio.ru</span><input type="checkbox" checked></label>
+          <label class="switch"><span>Сайт anna-sokolova.ru</span><input type="checkbox" checked></label>
+          <label class="switch"><span>ВКонтакте</span><input type="checkbox" checked></label>
+          <label class="switch"><span>MAX</span><input type="checkbox" checked></label>
+          <h2>Пароль аккаунта</h2>
+          <label>Текущий пароль<input type="password"></label>
+          <label>Новый пароль<input type="password"></label>
+          <label>Повтор<input type="password"></label>
+          <div class="row-actions">
+            <button class="btn btn-line" type="button">Сменить пароль</button>
+            <a class="btn btn-dark" href="photographer.html">Открыть мою страницу</a>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <script src="site.js"></script>
+</body>
+</html>

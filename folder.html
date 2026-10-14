@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Аня Иванова — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <header class="g-top">
+    <p class="kicker">Садик «Ромашка», группа 5</p>
+    <h1>Аня Иванова</h1>
+    <div class="contacts"><a href="tel:+79030000000">Анна Соколова</a><a href="photographer.html">Написать фотографу</a></div>
+    <div class="filters">
+      <button class="btn btn-line on" type="button" data-filter="all">Все</button>
+      <button class="btn btn-line" type="button" data-filter="photo">Фото</button>
+    </div>
+    <div class="g-grid">
+      <article class="shot tall" data-kind="photo"><img src="img/cover.jpg" alt=""></article>
+      <article class="shot" data-kind="photo"><img src="img/p6.jpg" alt=""></article>
+      <article class="shot" data-kind="photo"><img src="img/p3.jpg" alt=""></article>
+      <article class="shot tall" data-kind="photo"><img src="img/p2.jpg" alt=""></article>
+    </div>
+    <div class="row-actions" style="margin:16px 0 40px">
+      <button class="btn btn-dark" type="button" data-download>Скачать папку</button>
+      <p class="hint">Соседние папки детей здесь не показываются.</p>
+    </div>
+  </header>
+  <div class="overlay" id="review-modal" hidden>
+    <form class="modal">
+      <h2>Скачивание началось</h2>
+      <button class="btn btn-line" type="button" data-close="review-modal">Закрыть</button>
+    </form>
+  </div>
+  <script src="site.js"></script>
+</body>
+</html>

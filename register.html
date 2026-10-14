@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Регистрация — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="logo" href="index.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="btn btn-line" href="login.html">Войти</a>
+    </div>
+  </header>
+  <main class="auth">
+    <h1>Регистрация</h1>
+    <p class="sub">7 дней бесплатно, карта не нужна. Пакет можно выбрать позже.</p>
+    <form action="check-email.html">
+      <label>Имя<input type="text" name="name" required placeholder="Анна Соколова"></label>
+      <label>Email<input type="email" name="email" required placeholder="anna@studio.ru"></label>
+      <label>Пароль<input type="password" name="password" required minlength="8" placeholder="Минимум 8 символов"></label>
+      <label>Пароль ещё раз<input type="password" name="password2" required minlength="8" placeholder="Повторите пароль"></label>
+      <label class="check"><input type="checkbox" required> <span>Согласен на <a href="consent.html">обработку персональных данных</a></span></label>
+      <label class="check"><input type="checkbox" required> <span>Принимаю <a href="offer.html">оферту</a></span></label>
+      <button class="btn btn-dark btn-wide" type="submit">Создать аккаунт</button>
+    </form>
+    <p class="hint">Уже есть аккаунт? <a href="login.html">Войти</a></p>
+  </main>
+</body>
+</html>

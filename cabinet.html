@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="app">
+    <aside class="side">
+      <a class="logo" href="index.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="item on" href="cabinet.html">Галереи</a>
+      <a class="item" href="reviews.html">Отзывы</a>
+      <a class="item" href="profile.html">Профиль</a>
+      <a class="item" href="billing.html">Оплата</a>
+      <a class="item push" href="admin.html">Админка</a>
+      <a class="item" href="index.html">Выйти</a>
+    </aside>
+    <main class="app-main">
+      <section class="panel who">
+        <div>
+          <h1 style="font-size:40px">Анна Соколова</h1>
+          <p class="hint">Занято 6,4 ГБ из 20 ГБ</p>
+        </div>
+        <span class="badge">Пробный период до 21 октября</span>
+      </section>
+      <section class="metrics">
+        <article class="panel metric"><b>3</b><span>галереи</span></article>
+        <article class="panel metric"><b>486</b><span>файлов</span></article>
+        <article class="panel metric"><b>128</b><span>скачиваний</span></article>
+      </section>
+      <section class="panel">
+        <div class="who">
+          <h2>Галереи</h2>
+          <div class="row-actions">
+            <button class="btn btn-line btn-danger" id="delete-all-galleries" type="button">Удалить все</button>
+            <a class="btn btn-dark" href="project.html">Новая галерея</a>
+          </div>
+        </div>
+        <div class="gallery-cards" id="gallery-cards" style="margin-top:16px">
+          <article class="gcard" data-gallery="wedding">
+            <div class="cover-wrap">
+              <img src="img/p1.jpg" alt="">
+              <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
+            </div>
+            <h3>Свадьба Марии и Ильи</h3>
+            <p>Удалится 12 ноября · 186 файлов · скачали 46</p>
+            <div class="row-actions">
+              <a class="btn btn-line" href="project.html?id=wedding">Открыть</a>
+              <a class="btn btn-line" href="gallery.html?id=wedding">Ссылка</a>
+              <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
+            </div>
+          </article>
+          <article class="gcard" data-gallery="kindergarten">
+            <div class="cover-wrap">
+              <img src="img/p5.jpg" alt="">
+              <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
+            </div>
+            <h3>Садик «Ромашка», группа 5</h3>
+            <p>Раздельная выдача · удалится 2 ноября · 240 файлов</p>
+            <div class="row-actions">
+              <a class="btn btn-line" href="access.html?id=kindergarten">Открыть</a>
+              <a class="btn btn-line" href="gallery.html?id=kindergarten">Ссылка</a>
+              <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
+            </div>
+          </article>
+          <article class="gcard" data-gallery="portrait">
+            <div class="cover-wrap">
+              <img src="img/cover.jpg" alt="">
+              <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
+            </div>
+            <h3>Портрет в студии</h3>
+            <p>Удалится 18 ноября · 60 файлов · скачали 12</p>
+            <div class="row-actions">
+              <a class="btn btn-line" href="project.html?id=portrait">Открыть</a>
+              <a class="btn btn-line" href="gallery.html?id=portrait">Ссылка</a>
+              <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
+            </div>
+          </article>
+        </div>
+        <p class="hint" id="galleries-empty" hidden>Галерей не осталось.</p>
+      </section>
+      <div class="overlay" id="card-settings" hidden>
+        <form class="modal">
+          <h2 id="card-settings-title">Настройки</h2>
+          <p class="hint">Эти переключатели действуют только на выбранную галерею.</p>
+          <label>Секретный код<input id="card-secret" type="text" autocomplete="off"></label>
+          <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
+          <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
+          <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
+          <label class="switch"><span>Водяной знак</span><input data-card-opt="watermark" type="checkbox"></label>
+          <label class="switch"><span>Закрывать кадр при уходе со вкладки</span><input data-card-opt="guard" type="checkbox"></label>
+          <div class="row-actions">
+            <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
+            <button class="btn btn-dark" type="button" data-close="card-settings">Готово</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+  <script src="site.js"></script>
+</body>
+</html>

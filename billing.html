@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Оплата — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="app">
+    <aside class="side">
+      <a class="logo" href="cabinet.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="item" href="cabinet.html">Галереи</a>
+      <a class="item" href="reviews.html">Отзывы</a>
+      <a class="item" href="profile.html">Профиль</a>
+      <a class="item on" href="billing.html">Оплата</a>
+      <a class="item push" href="index.html">Выйти</a>
+    </aside>
+    <main class="app-main">
+      <section class="panel who">
+        <div>
+          <h1 style="font-size:36px">Пробный период</h1>
+          <p class="hint">Осталось 5 дней. Занято 6,4 из 20 ГБ. После окончания новые загрузки закроются, уже выданные ссылки будут жить до своей даты удаления.</p>
+        </div>
+        <a class="btn btn-dark" href="#pay">Оплатить</a>
+      </section>
+      <section class="plans" id="pay">
+        <article class="plan"><div class="tag">Старт</div><h3>890 ₽</h3><p class="hint">30 дней · 100 ГБ</p><a class="btn btn-line" href="billing.html">Выбрать</a></article>
+        <article class="plan featured"><div class="tag">Профи</div><h3>2 290 ₽</h3><p class="hint">30 дней · 500 ГБ</p><a class="btn btn-dark" href="billing.html">Выбрать</a></article>
+        <article class="plan"><div class="tag">Студия</div><h3>5 400 ₽</h3><p class="hint">30 дней · 2 ТБ</p><a class="btn btn-line" href="billing.html">Выбрать</a></article>
+      </section>
+      <section class="panel">
+        <label class="check"><input type="checkbox"> Сохранить способ оплаты и продлевать пакет автоматически</label>
+        <table class="sheet">
+          <thead><tr><th>Дата</th><th>Пакет</th><th>Сумма</th><th>Статус</th></tr></thead>
+          <tbody><tr><td>1 октября</td><td>Пробный</td><td>0 ₽</td><td>Оплачен</td></tr></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

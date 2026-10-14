@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ФотоТранзит — передайте съёмку красивой галереей</title>
+  <meta name="description" content="Фотограф загружает съёмку, клиент открывает ссылку, смотрит и скачивает.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="logo" href="index.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <button class="menu-btn" type="button" aria-expanded="false">Меню</button>
+      <nav class="nav" id="nav">
+        <a href="#vozmozhnosti">Возможности</a>
+        <a href="#kak">Как это работает</a>
+        <a href="#tarify">Тарифы</a>
+        <div class="nav-actions">
+          <a class="btn btn-ghost" href="login.html">Войти</a>
+          <a class="btn btn-dark" href="register.html">Зарегистрироваться</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero">
+      <div>
+        <p class="kicker">Для фотографов и видеографов</p>
+        <h1><span>Передайте</span><span>съёмку</span><span>красивой</span><span><em>галереей</em></span></h1>
+        <p class="lead">Клиент открывает ссылку, смотрит фото и видео и скачивает то, что вы разрешили.</p>
+        <div class="hero-actions">
+          <a class="btn btn-dark" href="register.html">Попробовать 7 дней</a>
+          <a class="btn btn-line" href="#tarify">Смотреть пакеты</a>
+        </div>
+      </div>
+      <div class="stage" id="stage" aria-hidden="true">
+        <div class="cover-card">
+          <img src="img/cover.jpg" alt="">
+          <span class="cap">Пример галереи</span>
+        </div>
+        <div class="mosaic">
+          <img class="wide" src="img/p1.jpg" alt="">
+          <img src="img/p2.jpg" alt="">
+          <img src="img/p3.jpg" alt="">
+          <img class="wide" src="img/p4.jpg" alt="">
+          <img src="img/p5.jpg" alt="">
+          <img src="img/p6.jpg" alt="">
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="vozmozhnosti">
+      <div class="wrap">
+        <h2>Возможности</h2>
+        <div class="features">
+          <article class="feature reveal"><span class="num">01</span><b>Галерея</b><p>Вертикальные и горизонтальные кадры сами встают в плотную сетку.</p></article>
+          <article class="feature reveal"><span class="num">02</span><b>Пароль на папку</b><p>У каждой папки своя ссылка. Чужие фото не открываются.</p></article>
+          <article class="feature reveal"><span class="num">03</span><b>Скачивание</b><p>Один файл, папка или весь проект. Оригинал или уменьшенная версия.</p></article>
+          <article class="feature reveal"><span class="num">04</span><b>Отметки кадров</b><p>Клиент отмечает нужное сердечком, вы видите выбор в кабинете.</p></article>
+          <article class="feature reveal"><span class="num">05</span><b>Водяной знак</b><p>На просмотре, если скачивание закрыто. Размер и прозрачность задаёте вы.</p></article>
+          <article class="feature reveal"><span class="num">06</span><b>Отзывы</b><p>После скачивания клиенту предлагают оставить отзыв.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="kak" style="padding-top: 10px;">
+      <div class="wrap">
+        <h2>Как это работает</h2>
+        <div class="steps">
+          <article class="step reveal"><span class="num">01</span><strong>Регистрация</strong><p>Почта и пароль. Семь дней можно пользоваться без оплаты.</p></article>
+          <article class="step reveal"><span class="num">02</span><strong>Загрузка</strong><p>Файлы или папка с подпапками. Структура съёмки сохраняется.</p></article>
+          <article class="step reveal"><span class="num">03</span><strong>Ссылка клиенту</strong><p>Он смотрит, отмечает кадры и скачивает разрешённое.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tarify">
+      <div class="wrap">
+        <h2>Тарифы</h2>
+        <div class="plans">
+          <article class="plan reveal">
+            <div class="tag">Без карты</div>
+            <h3>Пробный</h3>
+            <div class="price">0 ₽ <span>/ 7 дней</span></div>
+            <ul>
+              <li>20 ГБ</li>
+              <li>Все функции сервиса</li>
+              <li>Галереи хранятся 30 дней</li>
+            </ul>
+            <a class="btn btn-line btn-wide" href="register.html">Попробовать 7 дней</a>
+          </article>
+          <article class="plan reveal">
+            <div class="tag">Для редких съёмок</div>
+            <h3>Старт</h3>
+            <div class="price">890 ₽ <span>/ 30 дней</span></div>
+            <ul>
+              <li>100 ГБ</li>
+              <li>Пароли на папки</li>
+              <li>Отзывы и выгрузка</li>
+            </ul>
+            <a class="btn btn-line btn-wide" href="register.html">Выбрать Старт</a>
+          </article>
+          <article class="plan featured reveal">
+            <div class="tag">Чаще выбирают</div>
+            <h3>Профи</h3>
+            <div class="price">2 290 ₽ <span>/ 30 дней</span></div>
+            <ul>
+              <li>500 ГБ</li>
+              <li>Видео и RAW</li>
+              <li>Водяной знак и отметки</li>
+            </ul>
+            <a class="btn btn-line btn-wide" href="register.html">Выбрать Профи</a>
+          </article>
+          <article class="plan reveal">
+            <div class="tag">Для студии</div>
+            <h3>Студия</h3>
+            <div class="price">5 400 ₽ <span>/ 30 дней</span></div>
+            <ul>
+              <li>2 ТБ</li>
+              <li>Несколько проектов сразу</li>
+              <li>Пакетная выдача по папкам</li>
+            </ul>
+            <a class="btn btn-line btn-wide" href="register.html">Выбрать Студию</a>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div>© 2026 ФотоТранзит</div>
+      <nav>
+        <a href="offer.html">Оферта</a>
+        <a href="privacy.html">Политика</a>
+        <a href="consent.html">Согласие на обработку данных</a>
+      </nav>
+    </div>
+  </footer>
+
+  <aside class="cookie" id="cookie">
+    <p>На сайте используются cookie</p>
+    <div class="row">
+      <button class="btn btn-dark" type="button" id="cookie-yes">Принять</button>
+      <button class="btn btn-line" type="button" id="cookie-no">Отклонить</button>
+    </div>
+  </aside>
+
+  <script>
+    const header = document.querySelector(".site-header");
+    const nav = document.getElementById("nav");
+    const menu = document.querySelector(".menu-btn");
+    menu.addEventListener("click", () => {
+      const open = nav.classList.toggle("open");
+      menu.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    nav.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => nav.classList.remove("open"));
+    });
+    document.addEventListener("scroll", () => {
+      header.classList.toggle("scrolled", window.scrollY > 4);
+    });
+    const cookie = document.getElementById("cookie");
+    if (localStorage.getItem("ft-cookie")) cookie.hidden = true;
+    function hideCookie(value) {
+      localStorage.setItem("ft-cookie", value);
+      cookie.hidden = true;
+    }
+    document.getElementById("cookie-yes").addEventListener("click", () => hideCookie("yes"));
+    document.getElementById("cookie-no").addEventListener("click", () => hideCookie("no"));
+    const stage = document.getElementById("stage");
+    if (stage && matchMedia("(pointer:fine)").matches) {
+      stage.addEventListener("mousemove", (event) => {
+        const box = stage.getBoundingClientRect();
+        const x = (event.clientX - box.left) / box.width - 0.5;
+        const y = (event.clientY - box.top) / box.height - 0.5;
+        stage.style.transform = `rotateY(${x * 8}deg) rotateX(${-y * 8}deg)`;
+      });
+      stage.addEventListener("mouseleave", () => {
+        stage.style.transform = "";
+      });
+    }
+  </script>
+</body>
+</html>
