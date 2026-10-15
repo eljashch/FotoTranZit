@@ -300,17 +300,88 @@ document.getElementById("show-black")?.addEventListener("click", () => {
 });
 
 const brandPending = {};
-const applyBrand = () => {
-  const photo = brandPending["ft-photo"] || localStorage.getItem("ft-photo");
-  const logo = brandPending["ft-logo"] || localStorage.getItem("ft-logo");
-  document.querySelectorAll("[data-use='photo']").forEach((img) => {
-    if (photo) {
-      img.src = photo;
-      img.hidden = false;
-    } else if (img.dataset.empty === "1") {
-      img.hidden = true;
+let logoCleared = false;
+let cropPending = null;
+const defaultCrop = () => ({ x: 0, y: 0, z: 1 });
+const storedCrop = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem("ft-photo-crop") || "null");
+    if (raw && typeof raw === "object") {
+      return {
+        x: Number(raw.x) || 0,
+        y: Number(raw.y) || 0,
+        z: Math.min(2.5, Math.max(1, Number(raw.z) || 1))
+      };
     }
+  } catch (error) { /* keep the default crop */ }
+  return defaultCrop();
+};
+const liveCrop = () => cropPending || storedCrop();
+const currentLogo = () => {
+  if (logoCleared) return "";
+  if (Object.prototype.hasOwnProperty.call(brandPending, "ft-logo")) return brandPending["ft-logo"] || "";
+  return localStorage.getItem("ft-logo") || "";
+};
+const currentPhoto = () => {
+  if (Object.prototype.hasOwnProperty.call(brandPending, "ft-photo")) return brandPending["ft-photo"] || "";
+  return localStorage.getItem("ft-photo") || "";
+};
+const placePortrait = (frame, img, crop) => {
+  const size = frame.clientWidth || 168;
+  const nw = img.naturalWidth || size;
+  const nh = img.naturalHeight || size;
+  const z = Math.min(2.5, Math.max(1, Number(crop.z) || 1));
+  const cover = Math.max(size / nw, size / nh);
+  const scale = cover * z;
+  const maxX = Math.max(0, (nw * scale - size) / 2);
+  const maxY = Math.max(0, (nh * scale - size) / 2);
+  const ox = Math.max(-maxX, Math.min(maxX, (Number(crop.x) || 0) * size));
+  const oy = Math.max(-maxY, Math.min(maxY, (Number(crop.y) || 0) * size));
+  img.style.width = `${nw}px`;
+  img.style.height = `${nh}px`;
+  img.style.transform = `translate(-50%, -50%) translate(${ox}px, ${oy}px) scale(${scale})`;
+  return { x: size ? ox / size : 0, y: size ? oy / size : 0, z };
+};
+const layoutPortraits = () => {
+  const crop = liveCrop();
+  let placed = null;
+  document.querySelectorAll("[data-portrait]").forEach((frame) => {
+    const img = frame.querySelector("[data-use='photo']");
+    if (!img || img.hidden || !img.naturalWidth) return;
+    const next = placePortrait(frame, img, crop);
+    if (frame.dataset.crop === "edit") placed = next;
   });
+  if (cropPending && placed) cropPending = placed;
+};
+const bindPortrait = (img, photo) => {
+  const draw = () => layoutPortraits();
+  if (!photo) {
+    img.hidden = true;
+    img.removeAttribute("src");
+    delete img.dataset.bound;
+    return;
+  }
+  img.hidden = false;
+  if (img.dataset.bound === photo && img.complete && img.naturalWidth) {
+    draw();
+    return;
+  }
+  img.dataset.bound = photo;
+  img.onload = draw;
+  img.src = photo;
+};
+const applyBrand = () => {
+  const photo = currentPhoto();
+  const logo = currentLogo();
+  document.querySelectorAll("[data-portrait]").forEach((frame) => {
+    const img = frame.querySelector("[data-use='photo']");
+    if (!img) return;
+    const show = Boolean(photo) || frame.dataset.crop === "edit";
+    frame.hidden = !show;
+    frame.classList.toggle("is-empty", !photo);
+    bindPortrait(img, photo);
+  });
+  requestAnimationFrame(() => layoutPortraits());
   document.querySelectorAll("[data-use='logo']").forEach((img) => {
     if (logo) {
       img.src = logo;
@@ -320,7 +391,13 @@ const applyBrand = () => {
       img.removeAttribute("src");
     }
   });
-  document.querySelectorAll("[data-logo-empty]").forEach((node) => { node.hidden = Boolean(logo); });
+  document.querySelectorAll("[data-logo-slot]").forEach((slot) => { slot.hidden = !logo; });
+  const deleteLogo = document.getElementById("delete-logo");
+  if (deleteLogo) deleteLogo.hidden = !logo;
+  const zoomWrap = document.getElementById("photo-zoom-wrap");
+  const zoom = document.getElementById("photo-zoom");
+  if (zoomWrap) zoomWrap.hidden = !photo;
+  if (zoom && document.activeElement !== zoom) zoom.value = String(liveCrop().z);
 };
 const storeImage = (file, key, max) => {
   const reader = new FileReader();
@@ -333,6 +410,8 @@ const storeImage = (file, key, max) => {
       canvas.height = Math.max(1, Math.round(image.height * scale));
       canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
       brandPending[key] = canvas.toDataURL("image/jpeg", 0.86);
+      if (key === "ft-logo") logoCleared = false;
+      if (key === "ft-photo") cropPending = defaultCrop();
       applyBrand();
       revealSave("save-profile");
     };
@@ -345,9 +424,52 @@ document.querySelectorAll("[data-brand]").forEach((input) => {
     const file = input.files && input.files[0];
     if (!file) return;
     const logo = input.dataset.brand === "logo";
-    storeImage(file, logo ? "ft-logo" : "ft-photo", logo ? 640 : 900);
+    storeImage(file, logo ? "ft-logo" : "ft-photo", logo ? 1200 : 900);
   });
 });
+document.getElementById("delete-logo")?.addEventListener("click", () => {
+  logoCleared = true;
+  delete brandPending["ft-logo"];
+  applyBrand();
+  revealSave("save-profile");
+});
+document.getElementById("photo-zoom")?.addEventListener("input", (event) => {
+  const prev = liveCrop();
+  cropPending = { x: prev.x, y: prev.y, z: Number(event.target.value) };
+  layoutPortraits();
+  revealSave("save-profile");
+});
+const portraitEditor = document.querySelector("[data-crop='edit']");
+if (portraitEditor) {
+  let drag = null;
+  portraitEditor.addEventListener("pointerdown", (event) => {
+    const img = portraitEditor.querySelector("[data-use='photo']");
+    if (!img || img.hidden || !currentPhoto()) return;
+    portraitEditor.setPointerCapture(event.pointerId);
+    portraitEditor.classList.add("is-dragging");
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, crop: { ...liveCrop() } };
+    event.preventDefault();
+  });
+  portraitEditor.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const img = portraitEditor.querySelector("[data-use='photo']");
+    const size = portraitEditor.clientWidth || 168;
+    cropPending = placePortrait(portraitEditor, img, {
+      x: drag.crop.x + (event.clientX - drag.x) / size,
+      y: drag.crop.y + (event.clientY - drag.y) / size,
+      z: drag.crop.z
+    });
+    revealSave("save-profile");
+  });
+  const endDrag = (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    drag = null;
+    portraitEditor.classList.remove("is-dragging");
+  };
+  portraitEditor.addEventListener("pointerup", endDrag);
+  portraitEditor.addEventListener("pointercancel", endDrag);
+}
+window.addEventListener("resize", () => layoutPortraits());
 applyBrand();
 
 const meta = GALLERY_META[galleryId()];
@@ -607,10 +729,24 @@ if (profileForm) {
       }
     };
     localStorage.setItem("ft-profile", JSON.stringify(profile));
-    if (brandPending["ft-photo"]) localStorage.setItem("ft-photo", brandPending["ft-photo"]);
-    if (brandPending["ft-logo"]) localStorage.setItem("ft-logo", brandPending["ft-logo"]);
-    delete brandPending["ft-photo"];
-    delete brandPending["ft-logo"];
+    if (Object.prototype.hasOwnProperty.call(brandPending, "ft-photo")) {
+      if (brandPending["ft-photo"]) localStorage.setItem("ft-photo", brandPending["ft-photo"]);
+      else localStorage.removeItem("ft-photo");
+      delete brandPending["ft-photo"];
+    }
+    if (logoCleared) {
+      localStorage.removeItem("ft-logo");
+      delete brandPending["ft-logo"];
+      logoCleared = false;
+    } else if (Object.prototype.hasOwnProperty.call(brandPending, "ft-logo")) {
+      if (brandPending["ft-logo"]) localStorage.setItem("ft-logo", brandPending["ft-logo"]);
+      else localStorage.removeItem("ft-logo");
+      delete brandPending["ft-logo"];
+    }
+    if (cropPending) {
+      localStorage.setItem("ft-photo-crop", JSON.stringify(cropPending));
+      cropPending = null;
+    }
     localStorage.removeItem("ft-ask-card");
     if (banner) banner.hidden = true;
     document.getElementById("save-profile").hidden = true;
@@ -939,6 +1075,12 @@ if (payScreen) {
   document.getElementById("pay-title").textContent = picked.name;
   document.getElementById("pay-plan").textContent = picked.name;
   document.getElementById("pay-start").textContent = starts;
+  const payGauge = document.getElementById("pay-gauge");
+  if (payGauge) {
+    const key = new URLSearchParams(location.search).get("plan");
+    payGauge.dataset.plan = Object.prototype.hasOwnProperty.call(plans, key) ? key : "profi";
+    payGauge.dataset.start = starts;
+  }
   const paintAmount = () => { document.getElementById("pay-amount").textContent = money(priceOf()); };
   paintAmount();
   document.getElementById("pay-coupon")?.addEventListener("input", paintAmount);
@@ -950,4 +1092,97 @@ if (payScreen) {
     success.hidden = false;
     document.getElementById("pay-success-text").textContent = `${picked.name} оплачен на ${money(amount)}. Пакет начнётся ${starts}, когда закончится текущий.`;
   });
+}
+
+const ftPlans = {
+  trial: { name: "Пробный период", days: 7 },
+  start: { name: "Старт", days: 30 },
+  profi: { name: "Профи", days: 30 },
+  studio: { name: "Студия", days: 30 }
+};
+const ftTrialEnd = new Date(2026, 9, 21);
+const ftMonths = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const ftDayStart = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const ftRuDate = (date) => `${date.getDate()} ${ftMonths[date.getMonth()]} ${date.getFullYear()}`;
+const ftDaysWord = (count) => {
+  const abs = Math.abs(count) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return "дней";
+  if (last === 1) return "день";
+  if (last >= 2 && last <= 4) return "дня";
+  return "дней";
+};
+const ftLeftPhrase = (count) => `${ftDaysWord(count) === "день" ? "остался" : "осталось"} ${count} ${ftDaysWord(count)}`;
+const ftTrialLeft = () => {
+  const end = ftDayStart(ftTrialEnd);
+  const today = ftDayStart(new Date());
+  const diff = Math.round((end - today) / 86400000);
+  const left = Math.max(0, Math.min(ftPlans.trial.days, diff));
+  return { left, ratio: left / ftPlans.trial.days, end };
+};
+let ftGaugeSeq = 0;
+const ftSpeedometer = (ratio) => {
+  const id = `ftg${++ftGaugeSeq}`;
+  const cx = 100;
+  const cy = 108;
+  const radius = 74;
+  const start = 150;
+  const sweep = 240;
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const point = (deg, size) => [cx + size * Math.cos(rad(deg)), cy + size * Math.sin(rad(deg))];
+  const [x1, y1] = point(start, radius);
+  const [x2, y2] = point(start + sweep, radius);
+  const arc = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 1 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  const length = radius * rad(sweep);
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const tip = start + sweep * clamped;
+  const [nx, ny] = point(tip, radius - 16);
+  const [tx, ty] = point(tip, radius);
+  const [hx, hy] = point(tip, 34);
+  const filled = length * clamped;
+  const value = clamped > 0.004
+    ? `<path d="${arc}" fill="none" stroke="url(#${id})" stroke-width="12" stroke-linecap="round" stroke-dasharray="${filled.toFixed(2)} ${length.toFixed(2)}" filter="url(#${id}f)"/>`
+    : "";
+  return `<svg viewBox="20 24 164 140" aria-hidden="true">
+    <defs>
+      <linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}">
+        <stop offset="0%" stop-color="#3ee6a0"/>
+        <stop offset="46%" stop-color="#7ef0ff"/>
+        <stop offset="100%" stop-color="#4ea2ff"/>
+      </linearGradient>
+      <filter id="${id}f" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#7ef0ff" flood-opacity="0.55"/>
+      </filter>
+    </defs>
+    <path d="${arc}" fill="none" stroke="#24384c" stroke-width="12" stroke-linecap="round"/>
+    ${value}
+    <line x1="${hx.toFixed(2)}" y1="${hy.toFixed(2)}" x2="${nx.toFixed(2)}" y2="${ny.toFixed(2)}" stroke="#f4fbff" stroke-width="2.6" stroke-linecap="round"/>
+    <circle cx="${tx.toFixed(2)}" cy="${ty.toFixed(2)}" r="6.5" fill="#7ef0ff" stroke="#3ee6a0" stroke-width="2"/>
+    <circle cx="${cx}" cy="${cy}" r="5" fill="#07111c" stroke="#7ef0ff" stroke-width="2"/>
+  </svg>`;
+};
+const ftPaintGauge = (host) => {
+  const mode = host.dataset.gauge || "full";
+  const plan = ftPlans[host.dataset.plan] || ftPlans.trial;
+  const trial = ftTrialLeft();
+  let ratio = 1;
+  let lines = [];
+  if (mode === "active") {
+    ratio = trial.ratio;
+    lines = [plan.name, `до ${ftRuDate(trial.end)}`, ftLeftPhrase(trial.left)];
+  } else if (mode === "upcoming") {
+    const span = `${plan.days} ${ftDaysWord(plan.days)}`;
+    lines = [plan.name, `с ${host.dataset.start || ftRuDate(trial.end)}`, span];
+  } else {
+    lines = [plan.name === "Пробный период" ? "Пробный" : plan.name, `${plan.days} ${ftDaysWord(plan.days)}`];
+  }
+  host.innerHTML = `<div class="gauge">${ftSpeedometer(ratio)}<p class="gauge-name">${lines[0]}</p>${lines.slice(1).map((line) => `<p class="gauge-meta">${line}</p>`).join("")}</div>`;
+};
+document.querySelectorAll("[data-gauge]").forEach(ftPaintGauge);
+const billingLead = document.getElementById("billing-lead");
+if (billingLead) {
+  const trial = ftTrialLeft();
+  const phrase = ftLeftPhrase(trial.left);
+  const head = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+  billingLead.textContent = `${head}, до ${ftRuDate(trial.end)}. Занято 6,4 из 20 ГБ. Пакет ещё действует: новый можно оплатить сейчас, он начнётся 21 октября 2026, когда текущий закончится.`;
 }

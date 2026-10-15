@@ -26,23 +26,33 @@
         <p class="hint" id="fill-card" hidden>Заполните карточку: город, о себе и контакты. Имя, фамилия и почта уже стоят из регистрации.</p>
         <form id="profile-form">
           <div class="brand-slots">
-            <label class="slot">
+            <div class="slot">
               <span>Ваше фото</span>
-              <img class="portrait" data-use="photo" data-empty="1" alt="" hidden>
-              <input type="file" accept="image/*" data-brand="photo">
-              <em>Загрузить фото</em>
-            </label>
-            <label class="slot">
+              <div class="portrait-frame" data-portrait data-crop="edit">
+                <img class="portrait" data-use="photo" data-empty="1" alt="" hidden>
+              </div>
+              <p class="hint crop-hint">Фото можно подвинуть внутри круга.</p>
+              <label class="zoom-line" id="photo-zoom-wrap" hidden>Дальше — ближе
+                <input id="photo-zoom" type="range" min="1" max="2.5" step="0.01" value="1" aria-label="Масштаб фото">
+              </label>
+              <label class="file-pick">
+                <input type="file" accept="image/*" data-brand="photo">
+                <em>Загрузить фото</em>
+              </label>
+            </div>
+            <div class="slot">
               <span>Логотип</span>
-              <span class="logo-box">
+              <div class="logo-slot" data-logo-slot hidden>
                 <img class="brand-logo" data-use="logo" alt="" hidden>
-                <em class="logo-empty" data-logo-empty>Не загружен</em>
-              </span>
-              <input type="file" accept="image/*" data-brand="logo">
-              <em>Загрузить логотип</em>
-            </label>
+              </div>
+              <label class="file-pick">
+                <input type="file" accept="image/*" data-brand="logo">
+                <em>Загрузить логотип</em>
+              </label>
+              <button class="btn btn-line" id="delete-logo" type="button" hidden>Удалить логотип</button>
+            </div>
           </div>
-          <p class="hint">Логотип широкий, без обрезки в круг. Если файл не загружен, на странице его нет.</p>
+          <p class="hint">Логотип широкий, в естественных пропорциях. Если файл не загружен, на странице его нет.</p>
           <label>Имя<input id="pf-first" type="text" placeholder="Имя" autocomplete="given-name"></label>
           <label>Фамилия<input id="pf-last" type="text" placeholder="Фамилия" autocomplete="family-name"></label>
           <label>Род деятельности<input id="pf-role" type="text" placeholder="фотограф"></label>

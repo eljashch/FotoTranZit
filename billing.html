@@ -24,15 +24,16 @@
       <section class="panel who">
         <div>
           <h1 style="font-size:36px">Пробный период</h1>
-          <p class="hint">Осталось 5 дней, до 20 октября 2026. Занято 6,4 из 20 ГБ. Пакет ещё действует: новый можно оплатить сейчас, он начнётся 21 октября 2026, когда текущий закончится.</p>
+          <p class="hint" id="billing-lead">Занято 6,4 из 20 ГБ. Пакет ещё действует: новый можно оплатить сейчас, он начнётся 21 октября 2026, когда текущий закончится.</p>
           <p class="hint" id="next-plan"></p>
         </div>
         <a class="btn btn-dark" href="#pay">Оплатить</a>
       </section>
       <section class="plans" id="pay">
-        <article class="plan"><div class="tag">Старт</div><h3>890 ₽</h3><p class="hint">30 дней · 100 ГБ</p><a class="btn btn-line" href="checkout.html?plan=start">Выбрать</a></article>
-        <article class="plan featured"><div class="tag">Профи</div><h3>2 290 ₽</h3><p class="hint">30 дней · 500 ГБ</p><a class="btn btn-dark" href="checkout.html?plan=profi">Выбрать</a></article>
-        <article class="plan"><div class="tag">Студия</div><h3>5 400 ₽</h3><p class="hint">30 дней · 2 ТБ</p><a class="btn btn-line" href="checkout.html?plan=studio">Выбрать</a></article>
+        <article class="plan current"><div class="tag">Пробный</div><h3>0 ₽</h3><p class="hint">7 дней · 20 ГБ</p><div class="plan-gauge" data-gauge="active" data-plan="trial"></div><p class="hint plan-now">Действует сейчас</p></article>
+        <article class="plan"><div class="tag">Старт</div><h3>890 ₽</h3><p class="hint">30 дней · 100 ГБ</p><div class="plan-gauge" data-gauge="full" data-plan="start"></div><a class="btn btn-line" href="checkout.html?plan=start">Выбрать</a></article>
+        <article class="plan featured"><div class="tag">Профи</div><h3>2 290 ₽</h3><p class="hint">30 дней · 500 ГБ</p><div class="plan-gauge" data-gauge="full" data-plan="profi"></div><a class="btn btn-dark" href="checkout.html?plan=profi">Выбрать</a></article>
+        <article class="plan"><div class="tag">Студия</div><h3>5 400 ₽</h3><p class="hint">30 дней · 2 ТБ</p><div class="plan-gauge" data-gauge="full" data-plan="studio"></div><a class="btn btn-line" href="checkout.html?plan=studio">Выбрать</a></article>
       </section>
       <section class="panel">
         <label class="check"><input id="autopay" type="checkbox"> Сохранить способ оплаты и продлевать пакет автоматически</label>
