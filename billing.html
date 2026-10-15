@@ -24,17 +24,19 @@
       <section class="panel who">
         <div>
           <h1 style="font-size:36px">Пробный период</h1>
-          <p class="hint">Осталось 5 дней. Занято 6,4 из 20 ГБ. После окончания новые загрузки закроются, уже выданные ссылки будут жить до своей даты удаления.</p>
+          <p class="hint">Осталось 5 дней, до 20 октября 2026. Занято 6,4 из 20 ГБ. Пакет ещё действует: новый можно оплатить сейчас, он начнётся 21 октября 2026, когда текущий закончится.</p>
+          <p class="hint" id="next-plan"></p>
         </div>
         <a class="btn btn-dark" href="#pay">Оплатить</a>
       </section>
       <section class="plans" id="pay">
-        <article class="plan"><div class="tag">Старт</div><h3>890 ₽</h3><p class="hint">30 дней · 100 ГБ</p><a class="btn btn-line" href="billing.html">Выбрать</a></article>
-        <article class="plan featured"><div class="tag">Профи</div><h3>2 290 ₽</h3><p class="hint">30 дней · 500 ГБ</p><a class="btn btn-dark" href="billing.html">Выбрать</a></article>
-        <article class="plan"><div class="tag">Студия</div><h3>5 400 ₽</h3><p class="hint">30 дней · 2 ТБ</p><a class="btn btn-line" href="billing.html">Выбрать</a></article>
+        <article class="plan"><div class="tag">Старт</div><h3>890 ₽</h3><p class="hint">30 дней · 100 ГБ</p><a class="btn btn-line" href="checkout.html?plan=start">Выбрать</a></article>
+        <article class="plan featured"><div class="tag">Профи</div><h3>2 290 ₽</h3><p class="hint">30 дней · 500 ГБ</p><a class="btn btn-dark" href="checkout.html?plan=profi">Выбрать</a></article>
+        <article class="plan"><div class="tag">Студия</div><h3>5 400 ₽</h3><p class="hint">30 дней · 2 ТБ</p><a class="btn btn-line" href="checkout.html?plan=studio">Выбрать</a></article>
       </section>
       <section class="panel">
-        <label class="check"><input type="checkbox"> Сохранить способ оплаты и продлевать пакет автоматически</label>
+        <label class="check"><input id="autopay" type="checkbox"> Сохранить способ оплаты и продлевать пакет автоматически</label>
+        <button class="btn btn-dark" id="save-billing" type="button" hidden>Сохранить</button>
         <table class="sheet">
           <thead><tr><th>Дата</th><th>Пакет</th><th>Сумма</th><th>Статус</th></tr></thead>
           <tbody><tr><td>1 октября</td><td>Пробный</td><td>0 ₽</td><td>Оплачен</td></tr></tbody>
@@ -42,5 +44,6 @@
       </section>
     </main>
   </div>
+  <script src="site.js"></script>
 </body>
 </html>

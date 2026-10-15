@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Анна Соколова — ФотоТранзит</title>
+  <title>Страница фотографа — ФотоТранзит</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
@@ -14,21 +14,17 @@
   <header class="site-header"><div class="wrap header-row"><a class="logo" href="index.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a><a class="btn btn-line" href="profile.html">В кабинет</a></div></header>
   <main class="legal">
     <div class="person-head">
-      <img class="portrait" data-use="photo" src="img/cover.jpg" alt="Анна Соколова">
+      <img class="portrait" data-use="photo" data-empty="1" alt="" hidden>
       <div>
-        <img class="brand-logo" data-use="logo" src="img/logo.svg" alt="Логотип Анны Соколовой">
-        <p class="kicker">фотограф, Москва</p>
-        <h1>Анна Соколова</h1>
-        <p>Снимаю свадьбы и детские праздники. Отдаю кадры галереей, а не папкой.</p>
+        <p class="kicker" id="ph-role"></p>
+        <div class="name-line">
+          <img class="brand-logo" data-use="logo" alt="" hidden>
+          <h1 id="ph-name">Фотограф</h1>
+        </div>
+        <p id="ph-about"></p>
       </div>
     </div>
-    <div class="contacts">
-      <a href="tel:+79030000000">+7 903 000-00-00</a>
-      <a href="mailto:anna@studio.ru">anna@studio.ru</a>
-      <a href="https://anna-sokolova.ru">Сайт</a>
-      <a href="https://vk.com">ВКонтакте</a>
-      <a href="https://max.ru">MAX</a>
-    </div>
+    <div class="contacts" id="ph-contacts"></div>
     <h2>Отзывы</h2>
     <article class="review"><strong>Илья</strong><div class="stars">★★★★★</div><p>Удобно отмечать кадры в альбом прямо с телефона.</p></article>
     <article class="review"><strong>Ольга</strong><div class="stars">★★★★☆</div><p>Красиво и без лишних папок на диске.</p></article>

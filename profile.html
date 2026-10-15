@@ -23,39 +23,50 @@
     <main class="app-main">
       <section class="panel">
         <h1 style="font-size:40px">Профиль</h1>
-        <form>
+        <p class="hint" id="fill-card" hidden>Заполните карточку: город, о себе и контакты. Имя, фамилия и почта уже стоят из регистрации.</p>
+        <form id="profile-form">
           <div class="brand-slots">
             <label class="slot">
               <span>Ваше фото</span>
-              <img class="portrait" data-use="photo" src="img/cover.jpg" alt="Фото фотографа">
+              <img class="portrait" data-use="photo" data-empty="1" alt="" hidden>
               <input type="file" accept="image/*" data-brand="photo">
-              <em>Заменить фото</em>
+              <em>Загрузить фото</em>
             </label>
             <label class="slot">
               <span>Логотип</span>
-              <span class="logo-box"><img class="brand-logo" data-use="logo" src="img/logo.svg" alt="Логотип"></span>
+              <span class="logo-box">
+                <img class="brand-logo" data-use="logo" alt="" hidden>
+                <em class="logo-empty" data-logo-empty>Не загружен</em>
+              </span>
               <input type="file" accept="image/*" data-brand="logo">
-              <em>Заменить логотип</em>
+              <em>Загрузить логотип</em>
             </label>
           </div>
-          <p class="hint">Фото и логотип видны клиенту на вашей странице и в шапке галереи.</p>
-          <label>Имя или студия<input type="text" value="Анна Соколова"></label>
-          <label>Род деятельности<input type="text" value="фотограф"></label>
-          <label>Город<input type="text" value="Москва"></label>
-          <label>О себе<textarea>Снимаю свадьбы и детские праздники. Отдаю кадры галереей, а не папкой.</textarea></label>
-          <label>Адрес страницы<input type="text" value="/p/anna-sokolova"></label>
-          <label class="switch"><span>Телефон +7 903 000-00-00</span><input type="checkbox" checked></label>
-          <label class="switch"><span>Email anna@studio.ru</span><input type="checkbox" checked></label>
-          <label class="switch"><span>Сайт anna-sokolova.ru</span><input type="checkbox" checked></label>
-          <label class="switch"><span>ВКонтакте</span><input type="checkbox" checked></label>
-          <label class="switch"><span>MAX</span><input type="checkbox" checked></label>
+          <p class="hint">Логотип широкий, без обрезки в круг. Если файл не загружен, на странице его нет.</p>
+          <label>Имя<input id="pf-first" type="text" placeholder="Имя" autocomplete="given-name"></label>
+          <label>Фамилия<input id="pf-last" type="text" placeholder="Фамилия" autocomplete="family-name"></label>
+          <label>Род деятельности<input id="pf-role" type="text" placeholder="фотограф"></label>
+          <label>Город<input id="pf-city" type="text" placeholder="Город"></label>
+          <label>О себе<textarea id="pf-about" placeholder="Напишите о себе"></textarea></label>
+          <label>Адрес страницы<input id="pf-slug" type="text" placeholder="/p/имя"></label>
+          <label>Телефон<input id="pf-phone" type="text" placeholder="+7 900 000-00-00"></label>
+          <label class="switch"><span>Показывать телефон</span><input id="pf-show-phone" type="checkbox"></label>
+          <label>Email<input id="pf-email" type="email" placeholder="you@mail.ru"></label>
+          <label class="switch"><span>Показывать email</span><input id="pf-show-email" type="checkbox"></label>
+          <label>Сайт<input id="pf-site" type="text" placeholder="https://"></label>
+          <label class="switch"><span>Показывать сайт</span><input id="pf-show-site" type="checkbox"></label>
+          <label>ВКонтакте<input id="pf-vk" type="text" placeholder="https://vk.com/"></label>
+          <label class="switch"><span>Показывать ВКонтакте</span><input id="pf-show-vk" type="checkbox"></label>
+          <label>MAX<input id="pf-max" type="text" placeholder="https://max.ru/"></label>
+          <label class="switch"><span>Показывать MAX</span><input id="pf-show-max" type="checkbox"></label>
           <h2>Пароль аккаунта</h2>
-          <label>Текущий пароль<input type="password"></label>
-          <label>Новый пароль<input type="password"></label>
-          <label>Повтор<input type="password"></label>
+          <label>Текущий пароль<input type="password" autocomplete="current-password"></label>
+          <label>Новый пароль<input type="password" autocomplete="new-password"></label>
+          <label>Повтор<input type="password" autocomplete="new-password"></label>
           <div class="row-actions">
+            <button class="btn btn-dark" id="save-profile" type="button" hidden>Сохранить</button>
             <button class="btn btn-line" type="button">Сменить пароль</button>
-            <a class="btn btn-dark" href="photographer.html">Открыть мою страницу</a>
+            <a class="btn btn-line" href="photographer.html">Открыть мою страницу</a>
           </div>
         </form>
       </section>

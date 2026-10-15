@@ -22,32 +22,55 @@
     </aside>
     <main class="app-main">
       <section class="panel">
-        <div class="who">
+        <div class="who no-print">
           <h1 style="font-size:40px">Отзывы</h1>
           <div class="row-actions">
             <button class="btn btn-line" type="button" id="export-excel">Скачать Excel</button>
-            <a class="btn btn-line" href="mailto:anna@studio.ru?subject=Отзывы%20ФотоТранзит">Отправить на почту</a>
-            <button class="btn btn-line" type="button" onclick="print()">Скачать PDF</button>
+            <button class="btn btn-line" type="button" id="jpeg-all">Скачать JPEG</button>
+            <label class="mail-format">Формат письма
+              <select id="mail-format">
+                <option value="text">Текст</option>
+                <option value="excel">Excel</option>
+                <option value="pdf">PDF</option>
+                <option value="images">Картинки</option>
+              </select>
+            </label>
+            <button class="btn btn-line" type="button" id="mail-reviews">Отправить на почту</button>
+            <button class="btn btn-line" type="button" id="pdf-reviews">Скачать PDF</button>
           </div>
         </div>
-        <article class="review">
-          <strong>Мария</strong><div class="stars">★★★★★</div>
-          <p>Съёмка как кино, галерею отправили родителям за минуту.</p>
-          <p class="hint">Свадьба Марии и Ильи · 2 октября · Не опубликован · IP 91.122.14.8</p>
-          <label class="pub"><input type="checkbox"> Опубликован</label>
-        </article>
-        <article class="review">
-          <strong>Илья</strong><div class="stars">★★★★★</div>
-          <p>Удобно отмечать кадры в альбом прямо с телефона.</p>
-          <p class="hint">Свадьба Марии и Ильи · 3 октября · Опубликован</p>
-          <label class="pub"><input type="checkbox" checked> Опубликован</label>
-        </article>
-        <article class="review">
-          <strong>Ольга</strong><div class="stars">★★★★☆</div>
-          <p>Добавлен вручную из переписки.</p>
-          <p class="hint">Портрет в студии · вручную</p>
-          <label class="pub"><input type="checkbox" checked> Опубликован</label>
-        </article>
+        <p class="hint no-print" id="mail-note"></p>
+        <div class="print-sheet" id="print-sheet">
+          <p class="print-only print-service">ФотоТранзит</p>
+          <p class="print-only" id="print-name"></p>
+          <article class="review glow-card" data-published="0">
+            <strong>Мария</strong><div class="stars">★★★★★</div>
+            <p>Съёмка как кино, галерею отправили родителям за минуту.</p>
+            <p class="hint no-print">Свадьба Марии и Ильи · 2 октября · Не опубликован · IP 91.122.14.8</p>
+            <div class="row-actions no-print">
+              <label class="pub"><input type="checkbox" data-pub> Опубликован</label>
+              <button class="btn btn-line" type="button" data-jpeg>JPEG</button>
+            </div>
+          </article>
+          <article class="review glow-card" data-published="1">
+            <strong>Илья</strong><div class="stars">★★★★★</div>
+            <p>Удобно отмечать кадры в альбом прямо с телефона.</p>
+            <p class="hint no-print">Свадьба Марии и Ильи · 3 октября · Опубликован</p>
+            <div class="row-actions no-print">
+              <label class="pub"><input type="checkbox" data-pub checked> Опубликован</label>
+              <button class="btn btn-line" type="button" data-jpeg>JPEG</button>
+            </div>
+          </article>
+          <article class="review glow-card" data-published="1">
+            <strong>Ольга</strong><div class="stars">★★★★☆</div>
+            <p>Добавлен вручную из переписки.</p>
+            <p class="hint no-print">Портрет в студии · вручную</p>
+            <div class="row-actions no-print">
+              <label class="pub"><input type="checkbox" data-pub checked> Опубликован</label>
+              <button class="btn btn-line" type="button" data-jpeg>JPEG</button>
+            </div>
+          </article>
+        </div>
       </section>
     </main>
   </div>

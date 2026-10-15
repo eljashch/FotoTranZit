@@ -134,12 +134,40 @@ const saveSettings = (patch, id = galleryId()) => {
   all[id] = { ...settings(id), ...patch };
   localStorage.setItem("ft-settings", JSON.stringify(all));
 };
+const pending = {};
+const liveSettings = (id = galleryId()) => {
+  const base = settings(id);
+  const extra = pending[id] || {};
+  return {
+    ...base,
+    ...extra,
+    hidden: Array.isArray(extra.hidden) ? extra.hidden : base.hidden,
+    deleted: base.deleted
+  };
+};
+const flashSaved = () => {
+  let note = document.getElementById("saved-note");
+  if (!note) {
+    note = document.createElement("p");
+    note.id = "saved-note";
+    note.className = "saved-note";
+    note.textContent = "Сохранено";
+    document.body.appendChild(note);
+  }
+  note.hidden = false;
+  clearTimeout(flashSaved.timer);
+  flashSaved.timer = setTimeout(() => { note.hidden = true; }, 1600);
+};
+const revealSave = (id) => {
+  const button = document.getElementById(id);
+  if (button) button.hidden = false;
+};
 const goneGalleries = () => readList("ft-gone");
 const unlocked = () => sessionStorage.getItem(`ft-unlock-${galleryId()}`) === "1";
 const belongs = (node) => (node.dataset.in || "wedding").split(/\s+/).includes(galleryId());
 
 const paintFiles = () => {
-  const state = settings();
+  const state = liveSettings();
   document.querySelectorAll("[data-file]").forEach((node) => {
     if (!belongs(node) || state.deleted.includes(node.dataset.file)) {
       node.hidden = true;
@@ -271,11 +299,28 @@ document.getElementById("show-black")?.addEventListener("click", () => {
   if (blackout) blackout.hidden = false;
 });
 
+const brandPending = {};
 const applyBrand = () => {
-  const photo = localStorage.getItem("ft-photo");
-  const logo = localStorage.getItem("ft-logo");
-  if (photo) document.querySelectorAll("[data-use='photo']").forEach((img) => { img.src = photo; });
-  if (logo) document.querySelectorAll("[data-use='logo']").forEach((img) => { img.src = logo; });
+  const photo = brandPending["ft-photo"] || localStorage.getItem("ft-photo");
+  const logo = brandPending["ft-logo"] || localStorage.getItem("ft-logo");
+  document.querySelectorAll("[data-use='photo']").forEach((img) => {
+    if (photo) {
+      img.src = photo;
+      img.hidden = false;
+    } else if (img.dataset.empty === "1") {
+      img.hidden = true;
+    }
+  });
+  document.querySelectorAll("[data-use='logo']").forEach((img) => {
+    if (logo) {
+      img.src = logo;
+      img.hidden = false;
+    } else {
+      img.hidden = true;
+      img.removeAttribute("src");
+    }
+  });
+  document.querySelectorAll("[data-logo-empty]").forEach((node) => { node.hidden = Boolean(logo); });
 };
 const storeImage = (file, key, max) => {
   const reader = new FileReader();
@@ -287,8 +332,9 @@ const storeImage = (file, key, max) => {
       canvas.width = Math.max(1, Math.round(image.width * scale));
       canvas.height = Math.max(1, Math.round(image.height * scale));
       canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-      try { localStorage.setItem(key, canvas.toDataURL("image/jpeg", 0.86)); } catch (error) {}
+      brandPending[key] = canvas.toDataURL("image/jpeg", 0.86);
       applyBrand();
+      revealSave("save-profile");
     };
     image.src = reader.result;
   };
@@ -321,7 +367,10 @@ document.querySelectorAll("a[href]").forEach((link) => {
 
 const secretSet = document.getElementById("secret-set");
 if (secretSet) secretSet.value = settings().secret;
-secretSet?.addEventListener("input", () => saveSettings({ secret: secretSet.value.trim() }));
+secretSet?.addEventListener("input", () => {
+  pending[galleryId()] = { ...(pending[galleryId()] || {}), secret: secretSet.value.trim() };
+  revealSave("save-project");
+});
 
 document.querySelectorAll("[data-opt]").forEach((field) => {
   const key = field.dataset.opt;
@@ -329,8 +378,26 @@ document.querySelectorAll("[data-opt]").forEach((field) => {
   if (field.type === "checkbox") field.checked = Boolean(value);
   else if (value != null) field.value = value;
   field.addEventListener("change", () => {
-    saveSettings({ [key]: field.type === "checkbox" ? field.checked : field.value });
+    const id = galleryId();
+    pending[id] = { ...(pending[id] || {}), [key]: field.type === "checkbox" ? field.checked : field.value };
+    revealSave("save-download");
   });
+});
+document.getElementById("save-project")?.addEventListener("click", () => {
+  const id = galleryId();
+  if (pending[id]) saveSettings(pending[id], id);
+  delete pending[id];
+  document.getElementById("save-project").hidden = true;
+  paintFiles();
+  flashSaved();
+});
+document.getElementById("save-download")?.addEventListener("click", () => {
+  const id = galleryId();
+  if (pending[id]) saveSettings(pending[id], id);
+  delete pending[id];
+  document.getElementById("save-download").hidden = true;
+  paintFiles();
+  flashSaved();
 });
 
 document.querySelectorAll("[data-only]").forEach((node) => {
@@ -359,10 +426,12 @@ document.getElementById("secret-ask")?.addEventListener("submit", (event) => {
 
 document.querySelectorAll("[data-hide]").forEach((button) => {
   button.addEventListener("click", () => {
-    const id = button.closest("[data-file]").dataset.file;
-    const list = settings().hidden;
-    const next = list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
-    saveSettings({ hidden: next });
+    const file = button.closest("[data-file]").dataset.file;
+    const id = galleryId();
+    const list = liveSettings(id).hidden;
+    const next = list.includes(file) ? list.filter((item) => item !== file) : [...list, file];
+    pending[id] = { ...(pending[id] || {}), hidden: next };
+    revealSave("save-project");
     paintFiles();
   });
 });
@@ -414,6 +483,9 @@ document.querySelectorAll("[data-del-gallery]").forEach((button) => {
 let settingsCard = "wedding";
 const fillCardSettings = (id) => {
   settingsCard = id;
+  delete pending[id];
+  const saveCard = document.getElementById("save-card");
+  if (saveCard) saveCard.hidden = true;
   const state = settings(id);
   document.getElementById("card-settings-title").textContent = GALLERY_META[id].title;
   document.getElementById("card-secret").value = state.secret;
@@ -430,12 +502,20 @@ document.querySelectorAll("[data-open-settings]").forEach((button) => {
 });
 document.querySelector("#card-settings form")?.addEventListener("submit", (event) => event.preventDefault());
 document.getElementById("card-secret")?.addEventListener("input", (event) => {
-  saveSettings({ secret: event.target.value.trim() }, settingsCard);
+  pending[settingsCard] = { ...(pending[settingsCard] || {}), secret: event.target.value.trim() };
+  revealSave("save-card");
 });
 document.querySelectorAll("[data-card-opt]").forEach((field) => {
   field.addEventListener("change", () => {
-    saveSettings({ [field.dataset.cardOpt]: field.checked }, settingsCard);
+    pending[settingsCard] = { ...(pending[settingsCard] || {}), [field.dataset.cardOpt]: field.checked };
+    revealSave("save-card");
   });
+});
+document.getElementById("save-card")?.addEventListener("click", () => {
+  if (pending[settingsCard]) saveSettings(pending[settingsCard], settingsCard);
+  delete pending[settingsCard];
+  document.getElementById("save-card").hidden = true;
+  flashSaved();
 });
 
 document.getElementById("delete-all-galleries")?.addEventListener("click", () => {
@@ -453,3 +533,421 @@ if (manager) {
   if (id) manager.dataset.gallery = id;
 }
 paintFiles();
+
+const loadProfile = () => {
+  try { return JSON.parse(localStorage.getItem("ft-profile") || "null"); } catch (error) { return null; }
+};
+const loadUser = () => {
+  try { return JSON.parse(localStorage.getItem("ft-user") || "null"); } catch (error) { return null; }
+};
+const personName = () => {
+  const profile = loadProfile();
+  const user = loadUser();
+  const first = (profile && profile.first) || (user && user.first) || "";
+  const last = (profile && profile.last) || (user && user.last) || "";
+  return [first, last].filter(Boolean).join(" ");
+};
+
+const profileForm = document.getElementById("profile-form");
+if (profileForm) {
+  const saved = loadProfile();
+  const user = loadUser();
+  const seed = saved || {};
+  const fields = {
+    "pf-first": saved ? (saved.first || "") : ((user && user.first) || ""),
+    "pf-last": saved ? (saved.last || "") : ((user && user.last) || ""),
+    "pf-role": seed.role || "",
+    "pf-city": seed.city || "",
+    "pf-about": seed.about || "",
+    "pf-slug": seed.slug || "",
+    "pf-phone": seed.phone || "",
+    "pf-email": saved ? (saved.email || "") : ((user && user.email) || ""),
+    "pf-site": seed.site || "",
+    "pf-vk": seed.vk || "",
+    "pf-max": seed.max || ""
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    const node = document.getElementById(id);
+    if (node) node.value = value;
+  });
+  ["phone", "email", "site", "vk", "max"].forEach((key) => {
+    const box = document.getElementById(`pf-show-${key}`);
+    if (box) box.checked = Boolean(seed.show && seed.show[key]);
+  });
+  const banner = document.getElementById("fill-card");
+  if (banner && localStorage.getItem("ft-ask-card") === "1") banner.hidden = false;
+  if (!saved && user) revealSave("save-profile");
+  const markDirty = (event) => {
+    if (event.target && event.target.type === "password") return;
+    revealSave("save-profile");
+  };
+  profileForm.addEventListener("input", markDirty);
+  profileForm.addEventListener("change", markDirty);
+  profileForm.addEventListener("submit", (event) => event.preventDefault());
+  document.getElementById("save-profile")?.addEventListener("click", () => {
+    const read = (id) => document.getElementById(id)?.value.trim() || "";
+    const profile = {
+      first: read("pf-first"),
+      last: read("pf-last"),
+      role: read("pf-role"),
+      city: read("pf-city"),
+      about: read("pf-about"),
+      slug: read("pf-slug"),
+      phone: read("pf-phone"),
+      email: read("pf-email"),
+      site: read("pf-site"),
+      vk: read("pf-vk"),
+      max: read("pf-max"),
+      show: {
+        phone: document.getElementById("pf-show-phone")?.checked || false,
+        email: document.getElementById("pf-show-email")?.checked || false,
+        site: document.getElementById("pf-show-site")?.checked || false,
+        vk: document.getElementById("pf-show-vk")?.checked || false,
+        max: document.getElementById("pf-show-max")?.checked || false
+      }
+    };
+    localStorage.setItem("ft-profile", JSON.stringify(profile));
+    if (brandPending["ft-photo"]) localStorage.setItem("ft-photo", brandPending["ft-photo"]);
+    if (brandPending["ft-logo"]) localStorage.setItem("ft-logo", brandPending["ft-logo"]);
+    delete brandPending["ft-photo"];
+    delete brandPending["ft-logo"];
+    localStorage.removeItem("ft-ask-card");
+    if (banner) banner.hidden = true;
+    document.getElementById("save-profile").hidden = true;
+    flashSaved();
+  });
+}
+
+const registerForm = document.getElementById("register-form");
+if (registerForm) {
+  const fillDraft = (first, last, email) => {
+    document.getElementById("reg-first").value = first;
+    document.getElementById("reg-last").value = last;
+    document.getElementById("reg-email").value = email;
+    const note = document.getElementById("oauth-note");
+    if (note) note.hidden = false;
+  };
+  document.getElementById("via-vk")?.addEventListener("click", () => fillDraft("Иван", "Петров", "ivan@example.com"));
+  document.getElementById("via-google")?.addEventListener("click", () => fillDraft("Мария", "Иванова", "maria@example.com"));
+  registerForm.addEventListener("submit", () => {
+    const user = {
+      first: document.getElementById("reg-first").value.trim(),
+      last: document.getElementById("reg-last").value.trim(),
+      email: document.getElementById("reg-email").value.trim()
+    };
+    localStorage.setItem("ft-user", JSON.stringify(user));
+    localStorage.setItem("ft-ask-card", "1");
+  });
+}
+
+const mailSent = document.getElementById("mail-sent");
+if (mailSent) {
+  const user = loadUser();
+  if (user && user.email) mailSent.textContent = `Мы отправили ссылку на ${user.email}. Ссылка действует 24 часа. Пока почта не подтверждена, кабинет закрыт.`;
+  if (localStorage.getItem("ft-ask-card") === "1") {
+    const prompt = document.getElementById("fill-prompt");
+    const link = document.getElementById("fill-link");
+    if (prompt) prompt.hidden = false;
+    if (link) link.hidden = false;
+  }
+}
+
+const publicContacts = (target) => {
+  if (!target) return;
+  const profile = loadProfile();
+  target.replaceChildren();
+  const page = document.createElement("a");
+  page.href = "photographer.html";
+  page.textContent = "Страница фотографа";
+  if (!profile) {
+    target.appendChild(page);
+    return;
+  }
+  const add = (href, text) => {
+    if (!text) return;
+    const link = document.createElement("a");
+    link.href = href;
+    link.textContent = text;
+    target.appendChild(link);
+  };
+  if (profile.show?.phone && profile.phone) add(`tel:${profile.phone.replace(/\s/g, "")}`, profile.phone);
+  if (profile.show?.email && profile.email) add(`mailto:${profile.email}`, profile.email);
+  if (profile.show?.site && profile.site) add(profile.site, "Сайт");
+  if (profile.show?.vk && profile.vk) add(profile.vk, "ВКонтакте");
+  if (profile.show?.max && profile.max) add(profile.max, "MAX");
+  target.appendChild(page);
+};
+const galName = document.getElementById("gal-name");
+if (galName) galName.textContent = personName();
+publicContacts(document.getElementById("gal-contacts"));
+const phName = document.getElementById("ph-name");
+if (phName) {
+  const profile = loadProfile();
+  phName.textContent = personName() || "Фотограф";
+  const role = document.getElementById("ph-role");
+  const about = document.getElementById("ph-about");
+  if (role) role.textContent = [profile?.role, profile?.city].filter(Boolean).join(", ");
+  if (about) about.textContent = profile?.about || "";
+  document.title = `${phName.textContent} — ФотоТранзит`;
+  const contacts = document.getElementById("ph-contacts");
+  if (contacts) {
+    contacts.replaceChildren();
+    if (profile) {
+      const add = (href, text) => {
+        if (!text) return;
+        const link = document.createElement("a");
+        link.href = href;
+        link.textContent = text;
+        contacts.appendChild(link);
+      };
+      if (profile.show?.phone && profile.phone) add(`tel:${profile.phone.replace(/\s/g, "")}`, profile.phone);
+      if (profile.show?.email && profile.email) add(`mailto:${profile.email}`, profile.email);
+      if (profile.show?.site && profile.site) add(profile.site, "Сайт");
+      if (profile.show?.vk && profile.vk) add(profile.vk, "ВКонтакте");
+      if (profile.show?.max && profile.max) add(profile.max, "MAX");
+    }
+  }
+}
+
+const folderTree = document.getElementById("folder-tree");
+if (folderTree) {
+  const tree = [
+    { id: "ceremony", name: "Церемония", children: [{ id: "prep", name: "Подготовка" }, { id: "banquet", name: "Банкет" }] },
+    { id: "portraits", name: "Портреты", children: [] }
+  ];
+  const folderKey = `ft-folders-${galleryId()}`;
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem(folderKey) || "{}"); } catch (error) { stored = {}; }
+  const draft = JSON.parse(JSON.stringify(stored));
+  const baseAccess = () => ({ view: true, download: true, open: true, password: "", hidden: false });
+  const drawNode = (node, nested) => {
+    const access = { ...baseAccess(), ...(draft[node.id] || {}) };
+    const box = document.createElement("article");
+    box.className = nested ? "folder-node nested" : "folder-node";
+    const title = document.createElement("strong");
+    title.textContent = node.name;
+    const checks = document.createElement("div");
+    checks.className = "folder-checks";
+    [["view", "Просмотр"], ["download", "Скачивание"], ["open", "Открытие"], ["hidden", "Скрыта"]].forEach(([key, label]) => {
+      const lab = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      if (access[key]) input.setAttribute("checked", "");
+      input.checked = Boolean(access[key]);
+      input.addEventListener("change", () => {
+        draft[node.id] = { ...baseAccess(), ...(draft[node.id] || {}), [key]: input.checked };
+        revealSave("save-folders");
+      });
+      lab.append(input, document.createTextNode(label));
+      checks.appendChild(lab);
+    });
+    const passLabel = document.createElement("label");
+    passLabel.append(document.createTextNode("Пароль"));
+    const pass = document.createElement("input");
+    pass.type = "text";
+    pass.autocomplete = "off";
+    pass.value = access.password || "";
+    pass.addEventListener("input", () => {
+      draft[node.id] = { ...baseAccess(), ...(draft[node.id] || {}), password: pass.value };
+      revealSave("save-folders");
+    });
+    passLabel.appendChild(pass);
+    box.append(title, checks, passLabel);
+    folderTree.appendChild(box);
+    (node.children || []).forEach((child) => drawNode(child, true));
+  };
+  tree.forEach((node) => drawNode(node, false));
+  document.getElementById("save-folders")?.addEventListener("click", () => {
+    localStorage.setItem(folderKey, JSON.stringify(draft));
+    document.getElementById("save-folders").hidden = true;
+    flashSaved();
+  });
+}
+
+const roundRect = (ctx, x, y, w, h, r) => {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+};
+const wrapLines = (ctx, text, max) => {
+  const words = String(text || "").split(/\s+/);
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width > max && line) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  });
+  if (line) lines.push(line);
+  return lines.slice(0, 6);
+};
+const reviewJpeg = (author, stars, text) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 800;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#07111c";
+  ctx.fillRect(0, 0, 1200, 800);
+  const glow = ctx.createRadialGradient(620, 430, 20, 620, 430, 460);
+  glow.addColorStop(0, "rgba(126,240,255,0.28)");
+  glow.addColorStop(1, "rgba(7,17,28,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 1200, 800);
+  ctx.fillStyle = "#f3fbff";
+  ctx.font = "700 46px Segoe UI, sans-serif";
+  ctx.fillText(personName() || "Фотограф", 72, 110);
+  ctx.fillStyle = "#7ef0ff";
+  ctx.font = "40px Segoe UI, sans-serif";
+  ctx.fillText(stars || "", 72, 168);
+  ctx.save();
+  ctx.shadowColor = "rgba(126,240,255,0.9)";
+  ctx.shadowBlur = 32;
+  roundRect(ctx, 72, 220, 1056, 380, 28);
+  ctx.fillStyle = "rgba(10,24,42,0.92)";
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "rgba(126,240,255,0.85)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = "#9b8cff";
+  ctx.font = "700 28px Segoe UI, sans-serif";
+  ctx.fillText(author || "", 108, 280);
+  ctx.fillStyle = "#f3fbff";
+  ctx.font = "32px Segoe UI, sans-serif";
+  wrapLines(ctx, text || "", 980).forEach((line, index) => ctx.fillText(line, 108, 350 + index * 46));
+  ctx.beginPath();
+  ctx.arc(104, 700, 18, 0, Math.PI * 2);
+  ctx.fillStyle = "#7ef0ff";
+  ctx.fill();
+  ctx.fillStyle = "#f3fbff";
+  ctx.font = "700 30px Segoe UI, sans-serif";
+  ctx.fillText("ФотоТранзит", 136, 712);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+};
+const downloadBlob = (blob, name) => {
+  if (!blob) return;
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = name;
+  link.click();
+};
+const reviewNodes = () => [...document.querySelectorAll("#print-sheet .review")];
+const reviewParts = (node) => ({
+  author: node.querySelector("strong")?.textContent.trim() || "",
+  stars: node.querySelector(".stars")?.textContent.trim() || "",
+  text: node.querySelector("p")?.textContent.trim() || "",
+  published: node.dataset.published === "1"
+});
+const saveReviewJpeg = async (node) => {
+  const part = reviewParts(node);
+  const blob = await reviewJpeg(part.author, part.stars, part.text);
+  downloadBlob(blob, `otzyv-${part.author || "review"}.jpg`);
+};
+document.querySelectorAll("[data-jpeg]").forEach((button) => {
+  button.addEventListener("click", () => saveReviewJpeg(button.closest(".review")));
+});
+document.getElementById("jpeg-all")?.addEventListener("click", async () => {
+  for (const node of reviewNodes()) {
+    await saveReviewJpeg(node);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+});
+document.querySelectorAll("[data-pub]").forEach((box) => {
+  box.addEventListener("change", () => {
+    box.closest(".review").dataset.published = box.checked ? "1" : "0";
+  });
+});
+const printName = document.getElementById("print-name");
+if (printName) printName.textContent = personName() || "Фотограф";
+document.getElementById("pdf-reviews")?.addEventListener("click", () => window.print());
+document.getElementById("mail-reviews")?.addEventListener("click", async () => {
+  const note = document.getElementById("mail-note");
+  const profile = loadProfile();
+  const email = profile?.email?.trim() || "";
+  if (!email) {
+    if (note) note.textContent = "Укажите email в карточке фотографа и сохраните её. Письмо не открыто.";
+    return;
+  }
+  const format = document.getElementById("mail-format")?.value || "text";
+  const labels = { text: "Текст", excel: "Excel", pdf: "PDF", images: "Картинки" };
+  const lines = reviewNodes().map((node) => {
+    const part = reviewParts(node);
+    return `${part.author}; ${part.stars}; ${part.text}`;
+  });
+  const body = `От: ФотоТранзит <hello@fototranzit.ru>\nФормат: ${labels[format] || format}\n\n${lines.join("\n")}`;
+  if (format === "excel") saveText("отзывы.csv", ["Имя;Оценка;Текст", ...lines]);
+  if (format === "images") {
+    for (const node of reviewNodes()) {
+      await saveReviewJpeg(node);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  if (format === "pdf") window.print();
+  if (note) note.textContent = "";
+  location.href = `mailto:${email}?subject=${encodeURIComponent("Отзывы ФотоТранзит")}&body=${encodeURIComponent(body)}`;
+});
+
+const autopay = document.getElementById("autopay");
+if (autopay) {
+  autopay.checked = localStorage.getItem("ft-autopay") === "1";
+  autopay.addEventListener("change", () => revealSave("save-billing"));
+  document.getElementById("save-billing")?.addEventListener("click", () => {
+    localStorage.setItem("ft-autopay", autopay.checked ? "1" : "0");
+    document.getElementById("save-billing").hidden = true;
+    flashSaved();
+  });
+  const next = document.getElementById("next-plan");
+  if (next) {
+    try {
+      const queued = JSON.parse(localStorage.getItem("ft-next") || "null");
+      if (queued) next.textContent = `Следующий пакет: ${queued.name}, старт ${queued.starts}. Сейчас действует пробный период.`;
+    } catch (error) {}
+  }
+}
+
+const payScreen = document.getElementById("pay-screen");
+if (payScreen) {
+  const plans = {
+    start: { name: "Старт", amount: 890 },
+    profi: { name: "Профи", amount: 2290 },
+    studio: { name: "Студия", amount: 5400 }
+  };
+  const picked = plans[new URLSearchParams(location.search).get("plan")] || plans.profi;
+  const starts = "21 октября 2026";
+  const money = (value) => `${value.toLocaleString("ru-RU")} ₽`;
+  const priceOf = () => {
+    const code = document.getElementById("pay-coupon")?.value.trim().toUpperCase() || "";
+    const note = document.getElementById("pay-coupon-note");
+    if (!code) {
+      if (note) note.textContent = "";
+      return picked.amount;
+    }
+    if (code === "FOTO10") {
+      if (note) note.textContent = "Купон FOTO10: скидка 10%. Дата старта не сдвигается.";
+      return Math.round(picked.amount * 0.9);
+    }
+    if (note) note.textContent = "Такого купона нет. Сумма без скидки.";
+    return picked.amount;
+  };
+  document.getElementById("pay-title").textContent = picked.name;
+  document.getElementById("pay-plan").textContent = picked.name;
+  document.getElementById("pay-start").textContent = starts;
+  const paintAmount = () => { document.getElementById("pay-amount").textContent = money(priceOf()); };
+  paintAmount();
+  document.getElementById("pay-coupon")?.addEventListener("input", paintAmount);
+  document.getElementById("pay-go")?.addEventListener("click", () => {
+    const amount = priceOf();
+    localStorage.setItem("ft-next", JSON.stringify({ name: picked.name, starts, amount }));
+    payScreen.hidden = true;
+    const success = document.getElementById("pay-success");
+    success.hidden = false;
+    document.getElementById("pay-success-text").textContent = `${picked.name} оплачен на ${money(amount)}. Пакет начнётся ${starts}, когда закончится текущий.`;
+  });
+}

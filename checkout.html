@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Оплата пакета — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="logo" href="billing.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="btn btn-line" href="billing.html">В кабинет</a>
+    </div>
+  </header>
+  <main class="auth checkout" id="pay-screen">
+    <p class="kicker">Оплата</p>
+    <h1 id="pay-title">Пакет</h1>
+    <p class="sub" id="pay-lead">Текущий пакет ещё действует. Новый начнётся на следующий день после его окончания.</p>
+    <dl class="pay-rows">
+      <div><dt>Пакет</dt><dd id="pay-plan">Профи</dd></div>
+      <div><dt>Сумма</dt><dd id="pay-amount">2 290 ₽</dd></div>
+      <div><dt>Старт</dt><dd id="pay-start">21 октября 2026</dd></div>
+    </dl>
+    <label>Купон<input id="pay-coupon" type="text" placeholder="Код купона" autocomplete="off"></label>
+    <p class="hint" id="pay-coupon-note"></p>
+    <button class="btn btn-dark btn-wide" id="pay-go" type="button">Оплатить</button>
+    <p class="hint">Это экран оплаты прототипа. Деньги не списываются.</p>
+  </main>
+  <main class="auth checkout" id="pay-success" hidden>
+    <p class="kicker">Готово</p>
+    <h1>Оплата прошла</h1>
+    <p class="sub" id="pay-success-text"></p>
+    <a class="btn btn-dark btn-wide" href="billing.html">Вернуться к пакетам</a>
+  </main>
+  <script src="site.js"></script>
+</body>
+</html>
