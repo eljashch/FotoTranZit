@@ -141,6 +141,15 @@ const FOLDER_TREE = {
     { id: "light", name: "Свет", cover: "img/cover.jpg", meta: "Удалится 18 ноября · 60 файлов · скачали 12" }
   ]
 };
+const FILE_CATALOG = [
+  { id: "cover", name: "portrait.jpg", src: "img/cover.jpg", in: "wedding portrait" },
+  { id: "p2", name: "ceremony-014.jpg", src: "img/p2.jpg", in: "wedding" },
+  { id: "p3", name: "hands.jpg", src: "img/p3.jpg", in: "wedding kindergarten" },
+  { id: "p4", name: "dance.mp4", src: "img/p4.jpg", in: "wedding" },
+  { id: "p5", name: "balloons.jpg", src: "img/p5.jpg", in: "wedding kindergarten" },
+  { id: "p6", name: "couple.jpg", src: "img/p6.jpg", in: "wedding portrait" },
+  { id: "pdf", name: "Список гостей.pdf", src: "", in: "wedding kindergarten", doc: true }
+];
 const galleryId = () => {
   const id = new URLSearchParams(location.search).get("id");
   return GALLERY_DEFAULTS[id] ? id : "wedding";
@@ -241,9 +250,32 @@ const activeSettings = () => {
   };
 };
 const belongs = (node) => (node.dataset.in || "wedding").split(/\s+/).includes(galleryId());
+const manageScope = () => {
+  if (pageFile() !== "cabinet.html") return "";
+  const gid = galleryId();
+  const fid = folderId();
+  if (!fid || !locateFolder(gid, fid)) return "";
+  if (isFolderGone(gid, fid) || goneGalleries().includes(gid)) return "";
+  if (childFolders(gid, fid).length) return "";
+  return folderStoreKey(gid, fid);
+};
+const folderSettingsView = (gid, fid) => {
+  const base = settings(gid);
+  const key = folderStoreKey(gid, fid);
+  const saved = loadSettings()[key] || {};
+  const extra = pending[key] || {};
+  return {
+    ...base,
+    ...saved,
+    ...extra,
+    hidden: Array.isArray(extra.hidden) ? extra.hidden : (Array.isArray(saved.hidden) ? saved.hidden : base.hidden),
+    deleted: base.deleted
+  };
+};
 
 const paintFiles = () => {
-  const state = activeSettings();
+  const scope = manageScope();
+  const state = scope ? folderSettingsView(galleryId(), folderId()) : activeSettings();
   document.querySelectorAll("[data-file]").forEach((node) => {
     if (!belongs(node) || state.deleted.includes(node.dataset.file)) {
       node.hidden = true;
@@ -252,7 +284,9 @@ const paintFiles = () => {
     const secret = state.hidden.includes(node.dataset.file);
     node.classList.toggle("is-hidden", secret);
     const hideBtn = node.querySelector("[data-hide]");
-    if (hideBtn) hideBtn.textContent = secret ? "Скрыт" : "Скрыть";
+    if (hideBtn) hideBtn.textContent = secret ? (hideBtn.closest(".tile-drop") ? "Показать" : "Скрыт") : "Скрыть";
+    const menuLabel = document.querySelector(`.tile-drop[data-for="${CSS.escape(node.dataset.file)}"] [data-hide]`);
+    if (menuLabel) menuLabel.textContent = secret ? "Показать" : "Скрыть";
     node.hidden = Boolean(node.dataset.kind) && secret && !unlocked();
     if (node.dataset.kind === "file" && !state.open) node.hidden = true;
   });
@@ -262,6 +296,9 @@ const paintFiles = () => {
   const shots = [...document.querySelectorAll(".g-grid [data-file]")].filter((shot) => !shot.hidden);
   const emptyGallery = document.getElementById("gallery-empty");
   if (emptyGallery) emptyGallery.hidden = shots.length > 0;
+  const tileNodes = [...document.querySelectorAll("#photo-tiles [data-file]")];
+  const emptyTiles = document.getElementById("tiles-empty");
+  if (emptyTiles) emptyTiles.hidden = tileNodes.length === 0 || tileNodes.some((node) => !node.hidden);
   document.querySelectorAll("[data-download='file']").forEach((button) => { button.hidden = !state.originals; });
   document.querySelectorAll("[data-download='small']").forEach((button) => { button.hidden = !state.small; });
   const mark = document.getElementById("shot-wm");
@@ -328,6 +365,29 @@ const saveLink = (href, name) => {
   link.remove();
 };
 let guardPause = false;
+const deliverDownload = async (kind, src, name, button) => {
+  guardPause = true;
+  setTimeout(() => { guardPause = false; }, 2000);
+  if (kind === "small") {
+    const image = new Image();
+    image.src = src;
+    await new Promise((resolve) => { image.onload = resolve; image.onerror = resolve; });
+    const max = 960;
+    const scale = Math.min(1, max / Math.max(image.width || max, image.height || max));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round((image.width || max) * scale));
+    canvas.height = Math.max(1, Math.round((image.height || max) * scale));
+    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.72));
+    if (blob) saveLink(URL.createObjectURL(blob), name.replace(/\.\w+$/, "") + "-small.jpg");
+  } else {
+    saveLink(src, name);
+  }
+  if (!button) return;
+  const old = button.textContent;
+  button.textContent = "Скачивается";
+  setTimeout(() => { button.textContent = old; }, 1200);
+};
 document.querySelectorAll("[data-download]").forEach((button) => {
   button.addEventListener("click", async (event) => {
     event.stopPropagation();
@@ -336,29 +396,10 @@ document.querySelectorAll("[data-download]").forEach((button) => {
       openOverlay("review-modal");
       return;
     }
-    guardPause = true;
-    setTimeout(() => { guardPause = false; }, 2000);
     const img = document.querySelector("#photo-view img");
     const src = img?.getAttribute("src") || "img/cover.jpg";
     const name = (img?.src || "photo.jpg").split("/").pop().split("?")[0];
-    if (kind === "small") {
-      const image = new Image();
-      image.src = src;
-      await new Promise((resolve) => { image.onload = resolve; image.onerror = resolve; });
-      const max = 960;
-      const scale = Math.min(1, max / Math.max(image.width || max, image.height || max));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round((image.width || max) * scale));
-      canvas.height = Math.max(1, Math.round((image.height || max) * scale));
-      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.72));
-      if (blob) saveLink(URL.createObjectURL(blob), name.replace(/\.\w+$/, "") + "-small.jpg");
-    } else {
-      saveLink(src, name);
-    }
-    const old = button.textContent;
-    button.textContent = "Скачивается";
-    setTimeout(() => { button.textContent = old; }, 1200);
+    await deliverDownload(kind, src, name, button);
   });
 });
 
@@ -635,27 +676,106 @@ document.getElementById("secret-ask")?.addEventListener("submit", (event) => {
   paintFiles();
 });
 
-document.querySelectorAll("[data-hide]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const file = button.closest("[data-file]").dataset.file;
-    const id = galleryId();
-    const list = liveSettings(id).hidden;
-    const next = list.includes(file) ? list.filter((item) => item !== file) : [...list, file];
-    pending[id] = { ...(pending[id] || {}), hidden: next };
-    revealSave("save-project");
-    paintFiles();
-  });
+const closeTileMenus = () => {
+  document.querySelectorAll(".tile-drop").forEach((menu) => { menu.hidden = true; });
+  document.querySelectorAll(".tile-more").forEach((button) => button.setAttribute("aria-expanded", "false"));
+};
+const menuOfTile = (tile) => tile?.querySelector(".tile-drop") || document.querySelector(`.tile-drop[data-for="${tile?.dataset.file || ""}"]`);
+const fileHost = (node) => {
+  const row = node.closest(".file-row, .photo-tile");
+  if (row) return row;
+  const id = node.closest(".tile-drop")?.dataset.for;
+  if (!id) return node.closest("[data-file]");
+  return document.querySelector(`#photo-tiles [data-file="${CSS.escape(id)}"]`);
+};
+const placeTileMenu = (anchor, menu) => {
+  document.body.appendChild(menu);
+  menu.hidden = false;
+  anchor.setAttribute("aria-expanded", "true");
+  const margin = 8;
+  const seen = anchor.getBoundingClientRect();
+  if (seen.bottom < 72 || seen.top > window.innerHeight - 72) {
+    anchor.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+  }
+  const rect = anchor.getBoundingClientRect();
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  let left = rect.right - width;
+  left = Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - width - margin));
+  let top = rect.bottom + 6;
+  if (top + height > window.innerHeight - margin) top = rect.top - height - 6;
+  if (top < margin) top = margin;
+  if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+};
+document.addEventListener("click", (event) => {
+  const more = event.target.closest(".tile-more");
+  if (more) {
+    event.preventDefault();
+    event.stopPropagation();
+    const menu = menuOfTile(more.closest(".photo-tile"));
+    const willOpen = Boolean(menu && menu.hidden);
+    closeTileMenus();
+    if (willOpen && menu) placeTileMenu(more, menu);
+    return;
+  }
+  if (!event.target.closest(".tile-drop")) closeTileMenus();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeTileMenus();
+});
+window.addEventListener("resize", closeTileMenus);
+document.addEventListener("click", (event) => {
+  const heart = event.target.closest(".photo-tile .heart");
+  if (!heart) return;
+  event.preventDefault();
+  heart.classList.toggle("on");
+  heart.textContent = heart.classList.contains("on") ? "♥" : "♡";
+});
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-tile-download]");
+  if (!button) return;
+  event.preventDefault();
+  const tile = fileHost(button);
+  const kind = button.dataset.tileDownload;
+  closeTileMenus();
+  if (kind === "review") {
+    openOverlay("review-modal");
+    return;
+  }
+  const src = tile?.querySelector("img")?.getAttribute("src") || "";
+  const name = tile?.querySelector(".tile-name")?.textContent || "photo.jpg";
+  if (!src) return;
+  await deliverDownload(kind, src, name, button);
 });
 
-document.querySelectorAll("[data-del-file]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const row = button.closest("[data-file]");
-    if (!belongs(row)) return;
-    const name = row.querySelector("span")?.textContent || "файл";
-    if (!confirm(`Удалить «${name}» только из этой галереи?`)) return;
-    saveSettings({ deleted: [...settings().deleted, row.dataset.file] });
-    paintFiles();
-  });
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-hide]");
+  if (!button) return;
+  const row = fileHost(button);
+  if (!row) return;
+  const file = row.dataset.file;
+  const scope = manageScope();
+  const id = scope || galleryId();
+  const list = (scope ? folderSettingsView(galleryId(), folderId()) : liveSettings(id)).hidden;
+  const next = list.includes(file) ? list.filter((item) => item !== file) : [...list, file];
+  pending[id] = { ...(pending[id] || {}), hidden: next };
+  revealSave(scope ? "save-folder-manage" : "save-project");
+  if (button.closest(".tile-drop")) closeTileMenus();
+  paintFiles();
+});
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-del-file]");
+  if (!button) return;
+  const row = fileHost(button);
+  if (!row || !belongs(row)) return;
+  const name = row.querySelector(".tile-name")?.textContent || row.querySelector("span")?.textContent || "файл";
+  if (!confirm(`Удалить «${name}» только из этой галереи?`)) return;
+  saveSettings({ deleted: [...settings().deleted, row.dataset.file] });
+  if (button.closest(".tile-drop")) closeTileMenus();
+  paintFiles();
 });
 
 document.getElementById("delete-all-files")?.addEventListener("click", () => {
@@ -721,7 +841,7 @@ const fillCardSettings = (id, folder = "") => {
     const next = new URLSearchParams();
     next.set("id", id);
     if (folder) next.set("folder", folder);
-    files.href = `project.html?${next.toString()}`;
+    files.href = `${folder ? "cabinet.html" : "project.html"}?${next.toString()}`;
   }
 };
 document.addEventListener("click", (event) => {
@@ -1027,11 +1147,7 @@ const folderQuery = (gid, fid) => {
   if (fid) next.set("folder", fid);
   return next.toString();
 };
-const folderOpenHref = (gid, node, client) => {
-  const kids = childFolders(gid, node.id);
-  if (kids.length) return `${client ? "gallery.html" : "cabinet.html"}?${folderQuery(gid, node.id)}`;
-  return `gallery.html?${folderQuery(gid, node.id)}`;
-};
+const folderOpenHref = (gid, node, client) => `${client ? "gallery.html" : "cabinet.html"}?${folderQuery(gid, node.id)}`;
 const folderLinkHref = (gid, node) => `gallery.html?${folderQuery(gid, node.id)}`;
 const parentFolderHref = (gid, fid, client) => {
   const found = fid ? locateFolder(gid, fid) : null;
@@ -1120,6 +1236,91 @@ const makeFolderCard = (gid, node, client) => {
   return card;
 };
 
+const baseAccess = () => ({ view: true, download: true, open: true, password: "", hidden: false });
+const readFolderMap = (gid) => {
+  try { return JSON.parse(localStorage.getItem(`ft-folders-${gid}`) || "{}"); } catch (error) { return {}; }
+};
+const folderAccessOf = (gid, fid) => ({ ...baseAccess(), ...(readFolderMap(gid)[fid] || {}) });
+const buildPhotoTile = (file) => {
+  const tile = document.createElement("article");
+  tile.className = "photo-tile";
+  tile.dataset.file = file.id;
+  tile.dataset.in = file.in;
+  const frame = document.createElement("div");
+  frame.className = "frame";
+  if (file.doc) {
+    const doc = document.createElement("span");
+    doc.className = "file-doc";
+    doc.textContent = "PDF";
+    frame.appendChild(doc);
+  } else {
+    const img = document.createElement("img");
+    img.src = file.src;
+    img.alt = "";
+    frame.appendChild(img);
+  }
+  const heart = document.createElement("button");
+  heart.type = "button";
+  heart.className = "heart";
+  heart.setAttribute("aria-label", "Отметить");
+  heart.textContent = "♡";
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "tile-more";
+  more.setAttribute("aria-haspopup", "true");
+  more.setAttribute("aria-expanded", "false");
+  more.setAttribute("aria-label", "Действия с кадром");
+  more.textContent = "Ещё";
+  frame.append(heart, more);
+  const name = document.createElement("p");
+  name.className = "tile-name";
+  name.textContent = file.name;
+  const menu = document.createElement("div");
+  menu.className = "tile-drop";
+  menu.hidden = true;
+  menu.dataset.for = file.id;
+  menu.setAttribute("role", "menu");
+  const item = (label, attr, value, danger) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    btn.setAttribute(attr, value || "");
+    if (danger) btn.className = "is-danger";
+    menu.appendChild(btn);
+  };
+  item("Скрыть", "data-hide");
+  item("Удалить", "data-del-file", "", true);
+  item("Оригинал", "data-tile-download", "file");
+  item("Уменьшенная", "data-tile-download", "small");
+  item("Отзыв", "data-tile-download", "review");
+  tile.append(frame, name, menu);
+  return tile;
+};
+const fillFolderManage = (gid, fid) => {
+  const access = folderAccessOf(gid, fid);
+  document.querySelectorAll("[data-folder-access]").forEach((field) => {
+    field.checked = Boolean(access[field.dataset.folderAccess]);
+  });
+  const pass = document.getElementById("folder-password");
+  if (pass) pass.value = access.password || "";
+  const state = folderSettingsView(gid, fid);
+  const secret = document.getElementById("folder-secret");
+  if (secret) secret.value = state.secret || "";
+  document.querySelectorAll("[data-folder-opt]").forEach((field) => {
+    field.checked = Boolean(state[field.dataset.folderOpt]);
+  });
+  const copy = document.getElementById("copy-client");
+  if (copy) copy.setAttribute("data-copy", new URL(`gallery.html?${folderQuery(gid, fid)}`, location.href).href);
+  const photos = document.getElementById("photo-tiles");
+  if (photos && !photos.childElementCount) {
+    FILE_CATALOG.forEach((file) => {
+      if (!(file.in || "wedding").split(/\s+/).includes(gid)) return;
+      photos.appendChild(buildPhotoTile(file));
+    });
+  }
+  paintFiles();
+};
+
 const mountFolderBrowser = () => {
   const file = pageFile();
   const gid = galleryId();
@@ -1159,6 +1360,13 @@ const mountFolderBrowser = () => {
     document.title = `${heading?.textContent || "Папки"} — ФотоТранзит`;
   }
 
+  const manage = document.getElementById("folder-manage");
+  const leaf = inCabinet && drilled && Boolean(fid) && !galleryGone && !removedHere && kids.length === 0;
+  if (manage) {
+    manage.hidden = !leaf;
+    if (leaf) fillFolderManage(gid, fid);
+  }
+
   if (!board || !showCards) return;
   document.querySelectorAll(".js-shots").forEach((node) => { node.hidden = true; });
   board.hidden = false;
@@ -1195,6 +1403,52 @@ document.addEventListener("click", (event) => {
     empty.hidden = board.children.length > 0;
     empty.textContent = "Папок не осталось.";
   }
+});
+
+let pendingAccess = null;
+const touchAccess = (patch) => {
+  pendingAccess = { ...(pendingAccess || folderAccessOf(galleryId(), folderId())), ...patch };
+  revealSave("save-folder-manage");
+};
+document.querySelectorAll("[data-folder-access]").forEach((field) => {
+  field.addEventListener("change", () => touchAccess({ [field.dataset.folderAccess]: field.checked }));
+});
+document.getElementById("folder-password")?.addEventListener("input", (event) => {
+  touchAccess({ password: event.target.value });
+});
+document.getElementById("folder-secret")?.addEventListener("input", (event) => {
+  const key = folderStoreKey(galleryId(), folderId());
+  pending[key] = { ...(pending[key] || {}), secret: event.target.value.trim() };
+  revealSave("save-folder-manage");
+});
+document.querySelectorAll("[data-folder-opt]").forEach((field) => {
+  field.addEventListener("change", () => {
+    const key = folderStoreKey(galleryId(), folderId());
+    pending[key] = { ...(pending[key] || {}), [field.dataset.folderOpt]: field.checked };
+    revealSave("save-folder-manage");
+  });
+});
+document.getElementById("save-folder-manage")?.addEventListener("click", () => {
+  const gid = galleryId();
+  const fid = folderId();
+  if (!fid) return;
+  if (pendingAccess) {
+    const stored = readFolderMap(gid);
+    stored[fid] = { ...folderAccessOf(gid, fid), ...pendingAccess };
+    localStorage.setItem(`ft-folders-${gid}`, JSON.stringify(stored));
+    pendingAccess = null;
+  }
+  const key = folderStoreKey(gid, fid);
+  if (pending[key]) {
+    const all = loadSettings();
+    all[key] = { ...settings(gid), ...(all[key] || {}), ...pending[key] };
+    localStorage.setItem("ft-settings", JSON.stringify(all));
+    delete pending[key];
+  }
+  const button = document.getElementById("save-folder-manage");
+  if (button) button.hidden = true;
+  paintFiles();
+  flashSaved();
 });
 
 mountFolderBrowser();

@@ -838,6 +838,88 @@ textarea { min-height: 90px; resize: vertical; }
 }
 .file-row.is-hidden { opacity: 0.55; }
 .file-row.is-hidden [data-hide] { color: #fff; background: linear-gradient(180deg, #3ec8ff, #2f6dff); }
+.folder-manage { display: grid; gap: 8px; margin-top: 16px; }
+.photo-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr));
+  gap: 14px;
+  margin-top: 4px;
+}
+.photo-tile {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+.photo-tile:hover { transform: none; }
+.photo-tile .frame {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgba(8, 18, 32, 0.72);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+.photo-tile img,
+.photo-tile .file-doc {
+  width: 100%;
+  height: 168px;
+  object-fit: cover;
+  border: 0;
+  border-radius: 0;
+}
+.photo-tile .heart,
+.photo-tile .tile-more {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(7, 17, 28, 0.78);
+  color: white;
+  cursor: pointer;
+  z-index: 2;
+}
+.photo-tile .heart { right: 10px; bottom: 10px; }
+.photo-tile .heart.on { color: #ff8fab; }
+.photo-tile .tile-more {
+  top: 10px;
+  right: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tile-name {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.photo-tile.is-hidden { opacity: 0.55; }
+.tile-drop {
+  position: fixed;
+  z-index: 30;
+  min-width: 196px;
+  max-width: calc(100vw - 16px);
+  display: grid;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(7, 17, 28, 0.96);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+.tile-drop button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.tile-drop button:hover { background: rgba(126, 240, 255, 0.12); transform: none; }
+.tile-drop button.is-danger { color: #ffd0d8; }
 
 .g-cover .cover-logo {
   width: auto;

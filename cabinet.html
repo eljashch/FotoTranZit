@@ -86,8 +86,61 @@
           </article>
         </div>
         <div class="gallery-cards" id="folder-cards" style="margin-top:16px" hidden></div>
+        <div id="folder-manage" class="folder-manage" hidden>
+          <div class="who">
+            <div>
+              <h2>Настройки папки</h2>
+              <p class="hint">Пароль, доступ и секретный код только этой папки. Клиент открывает её по ссылке.</p>
+            </div>
+            <div class="row-actions">
+              <a class="btn btn-line" id="see-client" href="gallery.html">Как видит клиент</a>
+              <button class="btn btn-line" type="button" id="copy-client" data-copy="">Ссылка</button>
+              <a class="btn btn-line" id="qr-client" href="gallery.html">QR</a>
+            </div>
+          </div>
+          <p class="hint" style="margin-bottom:0">Доступ этой папки</p>
+          <div class="folder-checks" id="folder-flags">
+            <label><input type="checkbox" data-folder-access="view"> Просмотр</label>
+            <label><input type="checkbox" data-folder-access="download"> Скачивание</label>
+            <label><input type="checkbox" data-folder-access="open"> Открытие</label>
+            <label><input type="checkbox" data-folder-access="hidden"> Скрыта</label>
+          </div>
+          <label>Пароль<input id="folder-password" type="text" autocomplete="off"></label>
+          <label>Секретный код<input id="folder-secret" type="text" autocomplete="off"></label>
+          <label class="switch"><span>Скачивание оригиналов</span><input data-folder-opt="originals" type="checkbox"></label>
+          <label class="switch"><span>Уменьшенная версия</span><input data-folder-opt="small" type="checkbox"></label>
+          <label class="switch"><span>Открывать файлы без скачивания</span><input data-folder-opt="open" type="checkbox"></label>
+          <label class="switch"><span>Водяной знак</span><input data-folder-opt="watermark" type="checkbox"></label>
+          <label class="switch"><span>Закрывать кадр при уходе со вкладки</span><input data-folder-opt="guard" type="checkbox"></label>
+          <div class="row-actions">
+            <button class="btn btn-dark" id="save-folder-manage" type="button" hidden>Сохранить</button>
+          </div>
+          <div class="who">
+            <div>
+              <h2>Кадры</h2>
+              <p class="hint">Скрытый кадр клиент не видит, пока не введёт секретный код. Пометка записывается кнопкой «Сохранить».</p>
+            </div>
+          </div>
+          <div class="photo-tiles" id="photo-tiles"></div>
+          <p class="hint" id="tiles-empty" hidden>В этой папке не осталось файлов.</p>
+        </div>
         <p class="hint" id="galleries-empty" hidden>Галерей не осталось.</p>
       </section>
+      <div class="overlay" id="review-modal" hidden>
+        <form class="modal" action="favorites.html">
+          <h2>Вам понравилась съёмка?</h2>
+          <p class="hint">Напишите пару слов, это очень поможет.</p>
+          <label>Имя<input type="text" value="Мария"></label>
+          <label>Отзыв<textarea>Очень красивая галерея, спасибо.</textarea></label>
+          <label>Ссылка на соцсеть<input type="text" placeholder="необязательно"></label>
+          <p class="stars">★★★★★</p>
+          <label class="check"><input type="checkbox" required> Согласен на обработку персональных данных</label>
+          <div class="row-actions">
+            <button class="btn btn-dark" type="submit">Оставить отзыв</button>
+            <button class="btn btn-line" type="button" data-close="review-modal">Не сейчас</button>
+          </div>
+        </form>
+      </div>
       <div class="overlay" id="card-settings" hidden>
         <form class="modal">
           <h2 id="card-settings-title">Настройки</h2>
