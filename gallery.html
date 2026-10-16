@@ -19,12 +19,15 @@
         <a class="btn btn-dark" href="cabinet.html">В кабинет</a>
       </div>
     </div>
-    <form class="secret-ask" id="secret-ask">
+    <nav class="crumbs" id="crumbs" aria-label="Путь" hidden></nav>
+    <a class="btn btn-line" id="folder-back" href="gallery.html" hidden>Назад</a>
+    <div class="gallery-cards" id="folder-cards" hidden></div>
+    <form class="secret-ask js-shots" id="secret-ask">
       <label>Есть секретный код?<input id="secret-try" type="text" autocomplete="off" placeholder="Код от фотографа"></label>
       <button class="btn btn-dark" type="submit">Показать скрытые</button>
       <p class="hint" id="secret-note"></p>
     </form>
-    <div class="g-cover">
+    <div class="g-cover js-shots">
       <img data-gallery-cover src="img/p1.jpg" alt="">
       <div class="veil">
         <img class="cover-logo" data-use="logo" alt="" hidden>
@@ -34,11 +37,11 @@
         <div class="contacts" id="gal-contacts"></div>
       </div>
     </div>
-    <div class="row-actions" style="margin-top:14px">
+    <div class="row-actions js-shots" style="margin-top:14px">
       <a class="btn btn-line" href="favorites.html">Отмеченное</a>
       <button class="btn btn-line" type="button" data-download="review">Отзыв</button>
     </div>
-    <div class="filters">
+    <div class="filters js-shots">
       <button class="btn btn-line on" type="button" data-filter="all">Все</button>
       <button class="btn btn-line" type="button" data-filter="photo">Фото</button>
       <button class="btn btn-line" type="button" data-filter="video">Видео</button>
@@ -46,7 +49,7 @@
       <button class="btn btn-line" type="button" data-filter="tall">Вертикальные</button>
       <button class="btn btn-line" type="button" data-filter="wide">Горизонтальные</button>
     </div>
-    <div class="g-grid">
+    <div class="g-grid js-shots">
       <article class="shot tall" data-file="cover" data-in="wedding portrait" data-kind="photo tall" data-view="photo-view"><img src="img/cover.jpg" alt=""><button class="heart" type="button">♡</button></article>
       <article class="shot" data-file="p2" data-in="wedding" data-kind="photo wide" data-view="photo-view"><img src="img/p2.jpg" alt=""><button class="heart" type="button">♡</button></article>
       <article class="shot" data-file="p3" data-in="wedding kindergarten" data-kind="photo wide" data-view="photo-view"><img src="img/p3.jpg" alt=""><button class="heart" type="button">♡</button></article>
@@ -55,8 +58,8 @@
       <article class="shot tall" data-file="p6" data-in="wedding portrait" data-kind="photo tall" data-view="photo-view"><img src="img/p6.jpg" alt=""><button class="heart" type="button">♡</button></article>
       <article class="doc-card" data-file="pdf" data-in="wedding kindergarten" data-kind="file" data-view="pdf-view"><strong>Список гостей.pdf</strong><p class="hint">Открыть без скачивания</p></article>
     </div>
-    <p class="hint" id="gallery-empty" hidden>В галерее не осталось файлов.</p>
-    <p class="hint" style="margin:18px 0 40px">Файлы принадлежат фотографу. <button class="btn btn-line" id="show-black" type="button">Показать закрытие кадра</button></p>
+    <p class="hint js-shots" id="gallery-empty" hidden>В галерее не осталось файлов.</p>
+    <p class="hint js-shots" style="margin:18px 0 40px">Файлы принадлежат фотографу. <button class="btn btn-line" id="show-black" type="button">Показать закрытие кадра</button></p>
   </header>
 
   <div class="overlay" id="photo-view" hidden>
@@ -113,6 +116,23 @@
       <p>Вернитесь на вкладку, чтобы смотреть</p>
       <button class="btn btn-line" type="button" id="hide-black">Я здесь</button>
     </div>
+  </div>
+  <div class="overlay" id="card-settings" hidden>
+    <form class="modal">
+      <h2 id="card-settings-title">Настройки</h2>
+      <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную папку.</p>
+      <label>Секретный код<input id="card-secret" type="text" autocomplete="off"></label>
+      <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
+      <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
+      <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
+      <label class="switch"><span>Водяной знак</span><input data-card-opt="watermark" type="checkbox"></label>
+      <label class="switch"><span>Закрывать кадр при уходе со вкладки</span><input data-card-opt="guard" type="checkbox"></label>
+      <div class="row-actions">
+        <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
+        <button class="btn btn-dark" id="save-card" type="button" hidden>Сохранить</button>
+        <button class="btn btn-line" type="button" data-close="card-settings">Готово</button>
+      </div>
+    </form>
   </div>
   <script src="site.js"></script>
   <script>

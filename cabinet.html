@@ -35,60 +35,63 @@
         <article class="panel metric"><b>128</b><span>скачиваний</span></article>
       </section>
       <section class="panel">
+        <nav class="crumbs" id="crumbs" aria-label="Путь" hidden></nav>
         <div class="who">
-          <h2>Галереи</h2>
-          <div class="row-actions">
+          <h2 id="gallery-heading">Галереи</h2>
+          <div class="row-actions" id="root-actions">
             <button class="btn btn-line btn-danger" id="delete-all-galleries" type="button">Удалить все</button>
             <a class="btn btn-dark" href="project.html">Новая галерея</a>
           </div>
+          <a class="btn btn-line" id="folder-back" href="cabinet.html" hidden>Назад</a>
         </div>
         <div class="gallery-cards" id="gallery-cards" style="margin-top:16px">
           <article class="gcard" data-gallery="wedding">
             <div class="cover-wrap">
-              <img src="img/p1.jpg" alt="">
+              <a class="cover-open" href="cabinet.html?id=wedding"><img src="img/p1.jpg" alt=""></a>
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
             </div>
             <h3>Свадьба Марии и Ильи</h3>
             <p>Удалится 12 ноября · 186 файлов · скачали 46</p>
             <div class="row-actions">
-              <a class="btn btn-line" href="project.html?id=wedding">Открыть</a>
+              <a class="btn btn-line" href="cabinet.html?id=wedding">Открыть</a>
               <a class="btn btn-line" href="gallery.html?id=wedding">Ссылка</a>
               <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
             </div>
           </article>
           <article class="gcard" data-gallery="kindergarten">
             <div class="cover-wrap">
-              <img src="img/p5.jpg" alt="">
+              <a class="cover-open" href="cabinet.html?id=kindergarten"><img src="img/p5.jpg" alt=""></a>
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
             </div>
             <h3>Садик «Ромашка», группа 5</h3>
             <p>Раздельная выдача · удалится 2 ноября · 240 файлов</p>
             <div class="row-actions">
-              <a class="btn btn-line" href="access.html?id=kindergarten">Открыть</a>
+              <a class="btn btn-line" href="cabinet.html?id=kindergarten">Открыть</a>
               <a class="btn btn-line" href="gallery.html?id=kindergarten">Ссылка</a>
               <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
             </div>
           </article>
           <article class="gcard" data-gallery="portrait">
             <div class="cover-wrap">
-              <img src="img/cover.jpg" alt="">
+              <a class="cover-open" href="cabinet.html?id=portrait"><img src="img/cover.jpg" alt=""></a>
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
             </div>
             <h3>Портрет в студии</h3>
             <p>Удалится 18 ноября · 60 файлов · скачали 12</p>
             <div class="row-actions">
-              <a class="btn btn-line" href="project.html?id=portrait">Открыть</a>
+              <a class="btn btn-line" href="cabinet.html?id=portrait">Открыть</a>
               <a class="btn btn-line" href="gallery.html?id=portrait">Ссылка</a>
               <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
             </div>
           </article>
         </div>
+        <div class="gallery-cards" id="folder-cards" style="margin-top:16px" hidden></div>
         <p class="hint" id="galleries-empty" hidden>Галерей не осталось.</p>
       </section>
       <div class="overlay" id="card-settings" hidden>
         <form class="modal">
           <h2 id="card-settings-title">Настройки</h2>
-          <p class="hint">Эти переключатели действуют только на выбранную галерею.</p>
+          <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную галерею.</p>
           <label>Секретный код<input id="card-secret" type="text" autocomplete="off"></label>
           <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
           <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>

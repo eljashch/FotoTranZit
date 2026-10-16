@@ -112,10 +112,41 @@ const GALLERY_DEFAULTS = {
   kindergarten: { secret: "ромашка", hidden: ["p5"], deleted: [], originals: false, small: true, open: false, watermark: false, guard: true },
   portrait: { secret: "студия", hidden: ["p6"], deleted: [], originals: true, small: false, watermark: false, guard: false, open: true }
 };
+const FOLDER_TREE = {
+  wedding: [
+    {
+      id: "ceremony",
+      name: "Церемония",
+      cover: "img/p2.jpg",
+      meta: "Удалится 12 ноября · 96 файлов · скачали 28",
+      children: [
+        { id: "prep", name: "Подготовка", cover: "img/p4.jpg", meta: "Удалится 12 ноября · 40 файлов · скачали 11" },
+        { id: "banquet", name: "Банкет", cover: "img/p3.jpg", meta: "Удалится 12 ноября · 56 файлов · скачали 17" }
+      ]
+    },
+    { id: "walk", name: "Прогулка", cover: "img/p1.jpg", meta: "Удалится 12 ноября · 90 файлов · скачали 18" }
+  ],
+  kindergarten: [
+    {
+      id: "group5",
+      name: "Группа 5",
+      cover: "img/p5.jpg",
+      meta: "Раздельная выдача · удалится 2 ноября · 160 файлов",
+      children: [
+        { id: "morning", name: "Утренник", cover: "img/p6.jpg", meta: "Удалится 2 ноября · 80 файлов · скачали 9" }
+      ]
+    }
+  ],
+  portrait: [
+    { id: "light", name: "Свет", cover: "img/cover.jpg", meta: "Удалится 18 ноября · 60 файлов · скачали 12" }
+  ]
+};
 const galleryId = () => {
   const id = new URLSearchParams(location.search).get("id");
   return GALLERY_DEFAULTS[id] ? id : "wedding";
 };
+const folderId = () => params.get("folder") || "";
+const pageFile = () => (location.pathname.split("/").pop() || "").toLowerCase();
 const loadSettings = () => {
   try { return JSON.parse(localStorage.getItem("ft-settings") || "{}"); } catch (error) { return {}; }
 };
@@ -163,11 +194,56 @@ const revealSave = (id) => {
   if (button) button.hidden = false;
 };
 const goneGalleries = () => readList("ft-gone");
-const unlocked = () => sessionStorage.getItem(`ft-unlock-${galleryId()}`) === "1";
+const goneFolders = () => readList("ft-gone-folders");
+const folderStoreKey = (gid, fid) => `${gid}::${fid}`;
+const locateFolder = (gid, fid, nodes = FOLDER_TREE[gid] || [], ancestors = []) => {
+  for (const node of nodes) {
+    const path = [...ancestors, node];
+    if (node.id === fid) return { node, ancestors, path };
+    const nested = locateFolder(gid, fid, node.children || [], path);
+    if (nested) return nested;
+  }
+  return null;
+};
+const isFolderGone = (gid, fid) => {
+  const gone = new Set(goneFolders());
+  const found = locateFolder(gid, fid);
+  if (!found) return false;
+  return found.path.some((node) => gone.has(`${gid}/${node.id}`));
+};
+const childFolders = (gid, fid) => {
+  if (fid && isFolderGone(gid, fid)) return [];
+  const nodes = fid ? (locateFolder(gid, fid)?.node.children || []) : (FOLDER_TREE[gid] || []);
+  return nodes.filter((node) => !isFolderGone(gid, node.id));
+};
+const folderTitle = (gid, fid) => locateFolder(gid, fid)?.node.name || "";
+const isClientGallery = () => pageFile() === "gallery.html";
+const unlockKey = () => {
+  const fid = folderId();
+  const extra = fid ? (loadSettings()[folderStoreKey(galleryId(), fid)] || {}) : {};
+  if (isClientGallery() && fid && String(extra.secret || "").trim()) return `ft-unlock-${folderStoreKey(galleryId(), fid)}`;
+  return `ft-unlock-${galleryId()}`;
+};
+const unlocked = () => sessionStorage.getItem(unlockKey()) === "1";
+const activeSettings = () => {
+  const gid = galleryId();
+  const base = liveSettings(gid);
+  if (!isClientGallery()) return base;
+  const fid = folderId();
+  if (!fid) return base;
+  const extra = loadSettings()[folderStoreKey(gid, fid)];
+  if (!extra) return base;
+  return {
+    ...base,
+    ...extra,
+    hidden: Array.isArray(extra.hidden) ? extra.hidden : base.hidden,
+    deleted: base.deleted
+  };
+};
 const belongs = (node) => (node.dataset.in || "wedding").split(/\s+/).includes(galleryId());
 
 const paintFiles = () => {
-  const state = liveSettings();
+  const state = activeSettings();
   document.querySelectorAll("[data-file]").forEach((node) => {
     if (!belongs(node) || state.deleted.includes(node.dataset.file)) {
       node.hidden = true;
@@ -200,7 +276,7 @@ document.querySelectorAll(".filters button").forEach((button) => {
     document.querySelectorAll(".filters button").forEach((item) => item.classList.remove("on"));
     button.classList.add("on");
     const kind = button.dataset.filter;
-    const state = settings();
+    const state = activeSettings();
     const open = unlocked();
     document.querySelectorAll("[data-kind]").forEach((card) => {
       if (!belongs(card) || state.deleted.includes(card.dataset.file)) {
@@ -477,6 +553,16 @@ document.querySelectorAll("[data-gallery-title]").forEach((node) => { node.textC
 document.querySelectorAll("[data-gallery-date]").forEach((node) => { node.textContent = meta.date; });
 document.querySelectorAll("[data-gallery-cover]").forEach((img) => { img.src = meta.cover; });
 if (title && !params.get("name")) title.textContent = meta.title;
+if (folderId() && folderTitle(galleryId(), folderId())) {
+  const name = folderTitle(galleryId(), folderId());
+  if (title && !params.get("name")) title.textContent = name;
+  if (isClientGallery() || pageFile() === "project.html") {
+    if (isClientGallery()) document.querySelectorAll("[data-gallery-title]").forEach((node) => { node.textContent = name; });
+    document.title = `${name} — ФотоТранзит`;
+  }
+  const frames = document.querySelector("#file-manager h2");
+  if (frames) frames.textContent = name;
+}
 
 document.querySelectorAll("a[href]").forEach((link) => {
   const href = link.getAttribute("href");
@@ -484,7 +570,10 @@ document.querySelectorAll("a[href]").forEach((link) => {
   const file = href.split("?")[0].split("/").pop();
   if (!["project.html", "gallery.html", "access.html", "design.html", "download.html", "reviews.html"].includes(file)) return;
   if (new URL(href, location.href).searchParams.get("id")) return;
-  link.setAttribute("href", `${file}?id=${galleryId()}`);
+  const next = new URLSearchParams();
+  next.set("id", galleryId());
+  if (folderId()) next.set("folder", folderId());
+  link.setAttribute("href", `${file}?${next.toString()}`);
 });
 
 const secretSet = document.getElementById("secret-set");
@@ -532,7 +621,7 @@ document.getElementById("secret-ask")?.addEventListener("submit", (event) => {
   event.preventDefault();
   const note = document.getElementById("secret-note");
   const code = document.getElementById("secret-try").value.trim();
-  const saved = settings().secret.trim();
+  const saved = activeSettings().secret.trim();
   if (!saved) {
     note.textContent = "Для этой галереи код не задан.";
     return;
@@ -541,7 +630,7 @@ document.getElementById("secret-ask")?.addEventListener("submit", (event) => {
     note.textContent = "Код не подошёл к этой галерее.";
     return;
   }
-  sessionStorage.setItem(`ft-unlock-${galleryId()}`, "1");
+  sessionStorage.setItem(unlockKey(), "1");
   note.textContent = "Скрытые кадры этой галереи открыты.";
   paintFiles();
 });
@@ -603,24 +692,47 @@ document.querySelectorAll("[data-del-gallery]").forEach((button) => {
 });
 
 let settingsCard = "wedding";
-const fillCardSettings = (id) => {
-  settingsCard = id;
-  delete pending[id];
+let settingsFolder = "";
+const fillCardSettings = (id, folder = "") => {
+  settingsFolder = folder || "";
+  settingsCard = folder ? folderStoreKey(id, folder) : id;
+  delete pending[settingsCard];
   const saveCard = document.getElementById("save-card");
   if (saveCard) saveCard.hidden = true;
-  const state = settings(id);
-  document.getElementById("card-settings-title").textContent = GALLERY_META[id].title;
-  document.getElementById("card-secret").value = state.secret;
+  const galleryState = settings(id);
+  const saved = folder ? (loadSettings()[settingsCard] || {}) : {};
+  const state = folder ? {
+    ...galleryState,
+    ...saved,
+    hidden: Array.isArray(saved.hidden) ? saved.hidden : galleryState.hidden,
+    deleted: galleryState.deleted
+  } : galleryState;
+  const titleNode = document.getElementById("card-settings-title");
+  if (titleNode) titleNode.textContent = folder ? (folderTitle(id, folder) || GALLERY_META[id].title) : GALLERY_META[id].title;
+  const hint = document.getElementById("card-settings-hint");
+  if (hint) hint.textContent = folder ? "Эти переключатели действуют только на выбранную папку." : "Эти переключатели действуют только на выбранную галерею.";
+  const secret = document.getElementById("card-secret");
+  if (secret) secret.value = state.secret;
   document.querySelectorAll("[data-card-opt]").forEach((field) => {
     field.checked = Boolean(state[field.dataset.cardOpt]);
   });
-  document.getElementById("card-files").href = `project.html?id=${id}`;
+  const files = document.getElementById("card-files");
+  if (files) {
+    const next = new URLSearchParams();
+    next.set("id", id);
+    if (folder) next.set("folder", folder);
+    files.href = `project.html?${next.toString()}`;
+  }
 };
-document.querySelectorAll("[data-open-settings]").forEach((button) => {
-  button.addEventListener("click", () => {
-    fillCardSettings(button.closest("[data-gallery]").dataset.gallery);
-    openOverlay("card-settings");
-  });
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-open-settings]");
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const card = button.closest("[data-gallery]");
+  if (!card) return;
+  fillCardSettings(card.dataset.gallery, card.dataset.folder || "");
+  openOverlay("card-settings");
 });
 document.querySelector("#card-settings form")?.addEventListener("submit", (event) => event.preventDefault());
 document.getElementById("card-secret")?.addEventListener("input", (event) => {
@@ -634,9 +746,19 @@ document.querySelectorAll("[data-card-opt]").forEach((field) => {
   });
 });
 document.getElementById("save-card")?.addEventListener("click", () => {
-  if (pending[settingsCard]) saveSettings(pending[settingsCard], settingsCard);
+  if (pending[settingsCard]) {
+    if (settingsFolder) {
+      const gid = settingsCard.split("::")[0];
+      const all = loadSettings();
+      all[settingsCard] = { ...settings(gid), ...(all[settingsCard] || {}), ...pending[settingsCard] };
+      localStorage.setItem("ft-settings", JSON.stringify(all));
+    } else {
+      saveSettings(pending[settingsCard], settingsCard);
+    }
+  }
   delete pending[settingsCard];
   document.getElementById("save-card").hidden = true;
+  paintFiles();
   flashSaved();
 });
 
@@ -847,19 +969,18 @@ if (phName) {
 
 const folderTree = document.getElementById("folder-tree");
 if (folderTree) {
-  const tree = [
-    { id: "ceremony", name: "Церемония", children: [{ id: "prep", name: "Подготовка" }, { id: "banquet", name: "Банкет" }] },
-    { id: "portraits", name: "Портреты", children: [] }
-  ];
+  const tree = FOLDER_TREE[galleryId()] || [];
   const folderKey = `ft-folders-${galleryId()}`;
   let stored = {};
   try { stored = JSON.parse(localStorage.getItem(folderKey) || "{}"); } catch (error) { stored = {}; }
   const draft = JSON.parse(JSON.stringify(stored));
   const baseAccess = () => ({ view: true, download: true, open: true, password: "", hidden: false });
-  const drawNode = (node, nested) => {
+  const drawNode = (node, depth) => {
+    if (isFolderGone(galleryId(), node.id)) return;
     const access = { ...baseAccess(), ...(draft[node.id] || {}) };
     const box = document.createElement("article");
-    box.className = nested ? "folder-node nested" : "folder-node";
+    box.className = "folder-node";
+    box.style.setProperty("--nest", String(depth));
     const title = document.createElement("strong");
     title.textContent = node.name;
     const checks = document.createElement("div");
@@ -890,15 +1011,193 @@ if (folderTree) {
     passLabel.appendChild(pass);
     box.append(title, checks, passLabel);
     folderTree.appendChild(box);
-    (node.children || []).forEach((child) => drawNode(child, true));
+    (node.children || []).forEach((child) => drawNode(child, depth + 1));
   };
-  tree.forEach((node) => drawNode(node, false));
+  tree.forEach((node) => drawNode(node, 0));
   document.getElementById("save-folders")?.addEventListener("click", () => {
     localStorage.setItem(folderKey, JSON.stringify(draft));
     document.getElementById("save-folders").hidden = true;
     flashSaved();
   });
 }
+
+const folderQuery = (gid, fid) => {
+  const next = new URLSearchParams();
+  next.set("id", gid);
+  if (fid) next.set("folder", fid);
+  return next.toString();
+};
+const folderOpenHref = (gid, node, client) => {
+  const kids = childFolders(gid, node.id);
+  if (kids.length) return `${client ? "gallery.html" : "cabinet.html"}?${folderQuery(gid, node.id)}`;
+  return `gallery.html?${folderQuery(gid, node.id)}`;
+};
+const folderLinkHref = (gid, node) => `gallery.html?${folderQuery(gid, node.id)}`;
+const parentFolderHref = (gid, fid, client) => {
+  const found = fid ? locateFolder(gid, fid) : null;
+  const parent = found ? found.ancestors[found.ancestors.length - 1] : null;
+  if (!fid) return "cabinet.html";
+  if (client) return parent ? `gallery.html?${folderQuery(gid, parent.id)}` : `gallery.html?${folderQuery(gid, "")}`;
+  return parent ? `cabinet.html?${folderQuery(gid, parent.id)}` : `cabinet.html?${folderQuery(gid, "")}`;
+};
+const folderCrumbs = (gid, fid, client) => {
+  const gallery = GALLERY_META[gid];
+  const items = [{ name: "Галереи", href: "cabinet.html" }];
+  items.push({
+    name: gallery.title,
+    href: client ? `gallery.html?${folderQuery(gid, "")}` : `cabinet.html?${folderQuery(gid, "")}`
+  });
+  const found = fid ? locateFolder(gid, fid) : null;
+  const onProject = pageFile() === "project.html";
+  (found?.path || []).forEach((node, index, list) => {
+    const lastLeaf = index === list.length - 1 && !childFolders(gid, node.id).length;
+    const href = onProject && lastLeaf ? `project.html?${folderQuery(gid, node.id)}` : folderOpenHref(gid, node, client);
+    items.push({ name: node.name, href });
+  });
+  return items;
+};
+const paintCrumbs = (nav, items) => {
+  if (!nav) return;
+  nav.replaceChildren();
+  items.forEach((item, index) => {
+    if (index) {
+      const sep = document.createElement("span");
+      sep.className = "sep";
+      sep.setAttribute("aria-hidden", "true");
+      sep.textContent = "/";
+      nav.appendChild(sep);
+    }
+    const link = document.createElement("a");
+    link.href = item.href;
+    link.textContent = item.name;
+    if (index === items.length - 1) link.setAttribute("aria-current", "page");
+    nav.appendChild(link);
+  });
+  nav.hidden = false;
+};
+const makeFolderCard = (gid, node, client) => {
+  const card = document.createElement("article");
+  card.className = "gcard";
+  card.dataset.gallery = gid;
+  card.dataset.folder = node.id;
+  const wrap = document.createElement("div");
+  wrap.className = "cover-wrap";
+  const cover = document.createElement("a");
+  cover.className = "cover-open";
+  cover.href = folderOpenHref(gid, node, client);
+  const img = document.createElement("img");
+  img.src = node.cover || GALLERY_META[gid].cover;
+  img.alt = "";
+  cover.appendChild(img);
+  const settingsBtn = document.createElement("button");
+  settingsBtn.className = "card-set";
+  settingsBtn.type = "button";
+  settingsBtn.dataset.openSettings = "";
+  settingsBtn.setAttribute("aria-label", "Настройки");
+  settingsBtn.textContent = "Настройки";
+  wrap.append(cover, settingsBtn);
+  const heading = document.createElement("h3");
+  heading.textContent = node.name;
+  const meta = document.createElement("p");
+  meta.textContent = node.meta || "";
+  const actions = document.createElement("div");
+  actions.className = "row-actions";
+  const open = document.createElement("a");
+  open.className = "btn btn-line";
+  open.href = folderOpenHref(gid, node, client);
+  open.textContent = "Открыть";
+  const link = document.createElement("a");
+  link.className = "btn btn-line";
+  link.href = folderLinkHref(gid, node);
+  link.textContent = "Ссылка";
+  const remove = document.createElement("button");
+  remove.className = "btn btn-line btn-danger";
+  remove.type = "button";
+  remove.dataset.delFolder = "";
+  remove.textContent = "Удалить";
+  actions.append(open, link, remove);
+  card.append(wrap, heading, meta, actions);
+  return card;
+};
+
+const mountFolderBrowser = () => {
+  const file = pageFile();
+  const gid = galleryId();
+  const asked = folderId();
+  const known = !asked || Boolean(locateFolder(gid, asked));
+  const fid = known ? asked : "";
+  const client = file === "gallery.html";
+  const inCabinet = file === "cabinet.html";
+  const inProject = file === "project.html";
+  const drilled = inCabinet && Boolean(params.get("id"));
+  const crumbs = document.getElementById("crumbs");
+  const back = document.getElementById("folder-back");
+  const board = document.getElementById("folder-cards");
+  const showPath = drilled || ((client || inProject) && (fid || (FOLDER_TREE[gid] || []).length > 0) && (client || fid));
+
+  if (showPath && crumbs) paintCrumbs(crumbs, folderCrumbs(gid, fid, client));
+  if (back && (drilled || fid)) {
+    back.hidden = false;
+    back.href = parentFolderHref(gid, fid, client);
+  }
+
+  if (inProject) return;
+
+  const kids = childFolders(gid, fid);
+  const removedHere = Boolean(fid) && isFolderGone(gid, fid);
+  const galleryGone = goneGalleries().includes(gid);
+  const showCards = !galleryGone && (kids.length > 0 || removedHere) && (drilled || client);
+
+  if (inCabinet && drilled) {
+    const rootCards = document.getElementById("gallery-cards");
+    const rootActions = document.getElementById("root-actions");
+    const heading = document.getElementById("gallery-heading");
+    if (rootCards) rootCards.hidden = true;
+    if (rootActions) rootActions.hidden = true;
+    if (heading) heading.textContent = galleryGone ? "Галерея удалена" : (fid ? (folderTitle(gid, fid) || GALLERY_META[gid].title) : GALLERY_META[gid].title);
+    if (galleriesEmpty) galleriesEmpty.hidden = true;
+    document.title = `${heading?.textContent || "Папки"} — ФотоТранзит`;
+  }
+
+  if (!board || !showCards) return;
+  document.querySelectorAll(".js-shots").forEach((node) => { node.hidden = true; });
+  board.hidden = false;
+  board.replaceChildren();
+  kids.forEach((node) => board.appendChild(makeFolderCard(gid, node, client)));
+  let empty = document.getElementById("folders-empty");
+  if (!empty && board.parentElement) {
+    empty = document.createElement("p");
+    empty.id = "folders-empty";
+    empty.className = "hint";
+    empty.hidden = true;
+    board.insertAdjacentElement("afterend", empty);
+  }
+  if (empty) {
+    empty.hidden = kids.length > 0;
+    empty.textContent = removedHere || galleryGone ? "Папка удалена." : "Папок не осталось.";
+  }
+};
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-del-folder]");
+  if (!button) return;
+  const card = button.closest("[data-folder]");
+  if (!card) return;
+  const name = card.querySelector("h3")?.textContent || "папку";
+  if (!confirm(`Удалить папку «${name}»?`)) return;
+  const gid = card.dataset.gallery;
+  const fid = card.dataset.folder;
+  writeList("ft-gone-folders", [...new Set([...goneFolders(), `${gid}/${fid}`])]);
+  card.remove();
+  const board = document.getElementById("folder-cards");
+  const empty = document.getElementById("folders-empty");
+  if (empty && board) {
+    empty.hidden = board.children.length > 0;
+    empty.textContent = "Папок не осталось.";
+  }
+});
+
+mountFolderBrowser();
 
 const roundRect = (ctx, x, y, w, h, r) => {
   ctx.beginPath();
