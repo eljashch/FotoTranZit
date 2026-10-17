@@ -34,6 +34,12 @@
     </header>
     <p class="client-note" id="client-note"></p>
     <main class="client-stage">
+      <form class="client-lock" id="client-lock" hidden>
+        <h2 id="client-lock-title">Папка</h2>
+        <label>Пароль<input id="client-pass" type="password" autocomplete="off"></label>
+        <button class="btn btn-dark" type="submit">Открыть</button>
+        <p class="hint" id="client-pass-note"></p>
+      </form>
       <div class="client-folders" id="client-folders"></div>
       <div class="client-grid" id="client-grid"></div>
     </main>

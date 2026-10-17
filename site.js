@@ -1316,7 +1316,7 @@ const makeFolderCard = (gid, node, client) => {
   cover.className = "cover-open";
   cover.href = folderOpenHref(gid, node, client);
   const img = document.createElement("img");
-  img.src = node.cover || GALLERY_META[gid].cover;
+  img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
   img.alt = "";
   cover.appendChild(img);
   const settingsBtn = document.createElement("button");
@@ -1483,15 +1483,27 @@ const paintClient = (gid, fid) => {
   }
   const until = document.getElementById("client-until");
   if (until) until.textContent = `Хранится до ${GALLERY_META[gid].until}`;
+  const locked = fid ? (folderAccessOf(gid, fid).password || "") : "";
+  const gate = document.getElementById("client-lock");
+  const knownPass = !locked || sessionStorage.getItem(`ft-foldpass-${gid}/${fid}`) === locked;
+  if (gate) gate.hidden = knownPass;
+  const lockTitle = document.getElementById("client-lock-title");
+  if (lockTitle) lockTitle.textContent = fid ? (folderTitle(gid, fid) || "Папка") : (GALLERY_META[gid].title);
+  if (!knownPass) {
+    document.getElementById("client-folders")?.replaceChildren();
+    document.getElementById("client-grid")?.replaceChildren();
+    document.title = `${lockTitle?.textContent || "Папка"} — ФотоТранзит`;
+    return;
+  }
   const folders = document.getElementById("client-folders");
   if (folders) {
     folders.replaceChildren();
-    childFolders(gid, fid).forEach((node) => {
+    childFolders(gid, fid).filter((node) => !folderAccessOf(gid, node.id).hidden).forEach((node) => {
       const link = document.createElement("a");
       link.className = "client-folder";
       link.href = clientHref(gid, node.id);
       const img = document.createElement("img");
-      img.src = node.cover || GALLERY_META[gid].cover;
+      img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
       img.alt = "";
       const name = document.createElement("strong");
       name.textContent = node.name;
@@ -1586,24 +1598,44 @@ const mountFolderBrowser = () => {
   const photos = document.getElementById("photo-tiles");
   const emptyTiles = document.getElementById("tiles-empty");
   const inside = inCabinet && drilled && !galleryGone && !removedHere;
+  const mode = viewMode();
+  const listMode = inside && mode === "list";
+  const split = inside && splitEnabled(gid, fid);
   if (tools) tools.hidden = !inside;
-  if (findWrap) findWrap.hidden = !inside;
+  const viewSwitch = document.getElementById("view-switch");
+  if (viewSwitch) viewSwitch.hidden = !inside;
+  document.querySelectorAll("[data-view-mode]").forEach((button) => button.classList.toggle("on", button.dataset.viewMode === mode));
+  document.querySelectorAll("[data-display-choice]").forEach((field) => { field.value = mode; });
+  if (findWrap) findWrap.hidden = !inside || listMode;
   if (photos) {
-    photos.hidden = !inside;
+    photos.hidden = !inside || listMode;
     photos.replaceChildren();
-    if (inside) {
+    if (inside && !listMode) {
       filesInFolder(gid, fid).forEach((item) => photos.appendChild(buildPhotoTile(item)));
       paintFiles();
     }
   }
-  if (emptyTiles) emptyTiles.hidden = !inside || filesInFolder(gid, fid).length > 0;
+  if (emptyTiles) emptyTiles.hidden = !inside || listMode || filesInFolder(gid, fid).length > 0;
+
+  const splitWrap = document.getElementById("split-switch-wrap");
+  const splitToggle = document.getElementById("split-toggle");
+  const splitPanel = document.getElementById("split-panel");
+  if (splitWrap) splitWrap.hidden = !inside;
+  if (splitToggle) splitToggle.checked = split;
+  if (splitPanel) splitPanel.hidden = !split;
+  if (split) paintSplitList(gid, fid);
+  const listHost = document.getElementById("content-list");
+  if (listHost) {
+    listHost.hidden = !listMode;
+    if (listMode) paintContentList(gid, fid, !split);
+  }
 
   if (!board) return;
-  const showCards = !galleryGone && kids.length > 0 && drilled;
+  const showCards = !galleryGone && kids.length > 0 && drilled && !split && !listMode;
   board.hidden = !showCards;
   board.replaceChildren();
   if (!showCards) return;
-  kids.forEach((node) => board.appendChild(makeFolderCard(gid, node, false)));
+  orderedKids(gid, fid, kids).forEach((node) => board.appendChild(makeFolderCard(gid, node, false)));
   let empty = document.getElementById("folders-empty");
   if (!empty && board.parentElement) {
     empty = document.createElement("p");
@@ -1680,18 +1712,394 @@ document.getElementById("save-folder-manage")?.addEventListener("click", () => {
   flashSaved();
 });
 
-mountFolderBrowser();
-
-const readPreview = (file) => new Promise((resolve) => {
-  if (!file.type.startsWith("image/") || file.size > 350000) {
+const coverMap = () => {
+  try { return JSON.parse(localStorage.getItem("ft-covers") || "{}"); } catch (error) { return {}; }
+};
+const folderCover = (gid, id, fallback) => coverMap()[`${gid}::${id || ""}`] || fallback || "";
+const splitMap = () => {
+  try { return JSON.parse(localStorage.getItem("ft-split") || "{}"); } catch (error) { return {}; }
+};
+const splitKey = (gid, fid) => `${gid}::${fid || ""}`;
+const splitEnabled = (gid, fid) => {
+  const map = splitMap();
+  const key = splitKey(gid, fid);
+  if (Object.prototype.hasOwnProperty.call(map, key)) return Boolean(map[key]);
+  return gid === "kindergarten" && !fid;
+};
+const orderMap = () => {
+  try { return JSON.parse(localStorage.getItem("ft-order") || "{}"); } catch (error) { return {}; }
+};
+const orderedKids = (gid, fid, nodes) => {
+  const saved = orderMap()[splitKey(gid, fid)] || [];
+  const pool = new Map(nodes.map((node) => [node.id, node]));
+  const list = [];
+  saved.forEach((id) => {
+    if (!pool.has(id)) return;
+    list.push(pool.get(id));
+    pool.delete(id);
+  });
+  pool.forEach((node) => list.push(node));
+  return list;
+};
+const saveOrder = (gid, fid, ids) => {
+  const all = orderMap();
+  all[splitKey(gid, fid)] = ids;
+  localStorage.setItem("ft-order", JSON.stringify(all));
+};
+const folderStamp = (node) => node.created || ({ ceremony: 1, prep: 2, banquet: 3, walk: 4, group5: 1, morning: 2, light: 1 }[node.id] || 0);
+const saveFolderAccess = (gid, fid, patch) => {
+  const stored = readFolderMap(gid);
+  stored[fid] = { ...folderAccessOf(gid, fid), ...patch };
+  localStorage.setItem(`ft-folders-${gid}`, JSON.stringify(stored));
+};
+const genPass = () => {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const len = 6 + Math.floor(Math.random() * 3);
+  let out = "";
+  for (let i = 0; i < len; i += 1) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return out;
+};
+const absFolderLink = (gid, node) => new URL(folderLinkHref(gid, node), location.href).href;
+let splitQuery = "";
+const paintSplitList = (gid, fid) => {
+  const host = document.getElementById("split-list");
+  if (!host) return;
+  const mode = document.getElementById("split-sort")?.value || "order";
+  let rows = orderedKids(gid, fid, childFolders(gid, fid));
+  const query = splitQuery.trim().toLowerCase();
+  if (query) rows = rows.filter((node) => node.name.toLowerCase().includes(query));
+  const parentCover = coverMap()[splitKey(gid, fid)] || "";
+  rows.sort((a, b) => {
+    if (mode === "az") return a.name.localeCompare(b.name, "ru");
+    if (mode === "za") return b.name.localeCompare(a.name, "ru");
+    if (mode === "date") return folderStamp(b) - folderStamp(a);
+    const ap = folderAccessOf(gid, a.id).password ? 1 : 0;
+    const bp = folderAccessOf(gid, b.id).password ? 1 : 0;
+    if (mode === "pass") return bp - ap;
+    if (mode === "nopass") return ap - bp;
+    return 0;
+  });
+  host.replaceChildren();
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = query ? "Таких папок нет." : "В этой папке нет вложенных папок.";
+    host.appendChild(empty);
+    return;
+  }
+  rows.forEach((node) => {
+    const access = folderAccessOf(gid, node.id);
+    const row = document.createElement("article");
+    row.className = "split-row";
+    if (access.hidden) row.classList.add("is-hidden");
+    row.dataset.gallery = gid;
+    row.dataset.folder = node.id;
+    const img = document.createElement("img");
+    img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
+    img.alt = "";
+    const title = document.createElement("h3");
+    title.textContent = node.name;
+    const up = document.createElement("button");
+    up.type = "button";
+    up.className = "btn btn-line";
+    up.dataset.move = "up";
+    up.textContent = "Выше";
+    const down = document.createElement("button");
+    down.type = "button";
+    down.className = "btn btn-line";
+    down.dataset.move = "down";
+    down.textContent = "Ниже";
+    const coverBtn = document.createElement("button");
+    coverBtn.type = "button";
+    coverBtn.className = "btn btn-line";
+    coverBtn.dataset.cover = "";
+    coverBtn.textContent = parentCover && parentCover === img.src ? "Обложка" : "На обложку";
+    const open = document.createElement("a");
+    open.className = "btn btn-line";
+    open.href = `cabinet.html?${folderQuery(gid, node.id)}`;
+    open.textContent = "Открыть";
+    const hide = document.createElement("button");
+    hide.type = "button";
+    hide.className = "btn btn-line";
+    hide.dataset.hideFolder = "";
+    hide.textContent = access.hidden ? "Показать" : "Скрыть";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn btn-line btn-danger";
+    remove.dataset.delFolder = "";
+    remove.textContent = "Удалить";
+    const passLabel = document.createElement("label");
+    passLabel.textContent = "Задать пароль";
+    const pass = document.createElement("input");
+    pass.type = "text";
+    pass.className = "split-pass";
+    pass.value = access.password || "";
+    pass.autocomplete = "off";
+    passLabel.appendChild(pass);
+    const gen = document.createElement("button");
+    gen.type = "button";
+    gen.className = "btn btn-line";
+    gen.dataset.gen = "";
+    gen.textContent = "Сгенерировать пароль";
+    const mailLabel = document.createElement("label");
+    mailLabel.textContent = "Отправить по почте";
+    const mail = document.createElement("input");
+    mail.type = "email";
+    mail.className = "split-mail";
+    mail.placeholder = "client@mail.ru";
+    mailLabel.appendChild(mail);
+    const send = document.createElement("button");
+    send.type = "button";
+    send.className = "btn btn-line";
+    send.dataset.sendMail = "";
+    send.textContent = "Отправить";
+    const size = document.createElement("span");
+    size.textContent = folderSizeLabel(gid, node.id);
+    const meta = document.createElement("div");
+    meta.className = "row-meta";
+    meta.append(title, size);
+    row.append(img, up, down, coverBtn, open, hide, remove, passLabel, gen, mailLabel, send, meta);
+    host.appendChild(row);
+  });
+};
+const askReset = () => new Promise((resolve) => {
+  const box = document.getElementById("reset-ask");
+  if (!box) { resolve(false); return; }
+  box.hidden = false;
+  const onClick = (event) => {
+    const button = event.target.closest("[data-reset]");
+    if (!button) return;
+    event.preventDefault();
+    box.hidden = true;
+    box.removeEventListener("click", onClick);
+    resolve(button.dataset.reset === "yes");
+  };
+  box.addEventListener("click", onClick);
+});
+const ensureChildFolder = (gid, parent, name) => {
+  const found = (parent ? (locateFolder(gid, parent)?.node.children || []) : folderNodes(gid)).find((node) => node.name === name);
+  if (found) return found.id;
+  const all = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
+  all[gid] = all[gid] || [];
+  const id = "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  all[gid].push({ id, name, parent: parent || "", cover: "img/p3.jpg", meta: "Новая папка", created: Date.now() });
+  localStorage.setItem("ft-user-folders", JSON.stringify(all));
+  return id;
+};
+const readPreview = (file) => new Promise((resolve, reject) => {
+  if (!file || !file.size) { reject(new Error("empty")); return; }
+  if (!file.type.startsWith("image/") || file.size > 900000) {
     resolve(file.type.startsWith("image/") ? "img/p2.jpg" : "");
     return;
   }
   const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result || "img/p2.jpg"));
-  reader.onerror = () => resolve("img/p2.jpg");
+  reader.onload = () => resolve(String(reader.result || ""));
+  reader.onerror = () => reject(new Error("read"));
   reader.readAsDataURL(file);
 });
+const showUploadedFiles = (gid, folder) => {
+  const list = document.getElementById("file-list");
+  if (!list || pageFile() !== "project.html") return;
+  list.querySelectorAll("[data-user-file]").forEach((node) => node.remove());
+  filesInFolder(gid, folder).filter((file) => String(file.id).startsWith("file")).forEach((file) => {
+    const row = document.createElement("article");
+    row.className = "file-row";
+    row.dataset.file = file.id;
+    row.dataset.userFile = "";
+    row.dataset.in = gid;
+    const name = document.createElement("span");
+    name.textContent = file.name;
+    row.appendChild(name);
+    list.appendChild(row);
+  });
+};
+const ingestUploads = async (fileList) => {
+  const files = [...fileList || []];
+  if (!files.length) return;
+  const line = document.getElementById("upload-line");
+  const failsBox = document.getElementById("upload-fails");
+  if (line) line.hidden = false;
+  if (failsBox) { failsBox.hidden = true; failsBox.replaceChildren(); }
+  const started = Date.now();
+  const gid = galleryId();
+  const parent = folderId();
+  const fails = [];
+  const stored = readList("ft-user-files");
+  for (const file of files) {
+    const filename = file.name || "файл";
+    try {
+      const rel = file.webkitRelativePath || filename;
+      const parts = String(rel).split(/[/\\]/).filter(Boolean);
+      parts.pop();
+      let folder = parent;
+      for (const part of parts) folder = ensureChildFolder(gid, folder, part);
+      const src = await readPreview(file);
+      stored.push({
+        id: "file" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name: filename,
+        src,
+        gallery: gid,
+        folder,
+        in: gid,
+        size: file.size || 0,
+        doc: !file.type.startsWith("image/") && !file.type.startsWith("video/")
+      });
+    } catch (error) {
+      fails.push(filename);
+    }
+  }
+  writeList("ft-user-files", stored);
+  const wait = 700 - (Date.now() - started);
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  if (line) line.hidden = true;
+  if (failsBox) {
+    failsBox.replaceChildren();
+    failsBox.hidden = fails.length === 0;
+    fails.forEach((name) => {
+      const item = document.createElement("li");
+      item.textContent = name;
+      failsBox.appendChild(item);
+    });
+  }
+  showUploadedFiles(gid, parent);
+  mountFolderBrowser();
+};
+
+const viewMode = () => (localStorage.getItem("ft-display") === "list" ? "list" : "tiles");
+const setViewMode = (mode) => {
+  localStorage.setItem("ft-display", mode === "list" ? "list" : "tiles");
+  mountFolderBrowser();
+};
+const knownBytes = { cover: 3145728, p2: 1887436, p3: 1572864, p4: 52428800, p5: 1310720, p6: 2359296, pdf: 262144 };
+const fileBytes = (file) => Number(file.size || knownBytes[file.id] || 0);
+const formatSize = (bytes) => {
+  const n = Number(bytes) || 0;
+  if (n >= 1048576) return `${(n / 1048576).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} МБ`;
+  if (!n) return "0 КБ";
+  return `${Math.max(1, Math.round(n / 1024))} КБ`;
+};
+const folderBytes = (gid, fid) => filesInFolder(gid, fid).reduce((sum, file) => sum + fileBytes(file), 0)
+  + childFolders(gid, fid).reduce((sum, node) => sum + folderBytes(gid, node.id), 0);
+const folderSizeLabel = (gid, fid) => {
+  const total = folderBytes(gid, fid);
+  return total ? `папка · ${formatSize(total)}` : "папка";
+};
+const fileOrderMap = () => {
+  try { return JSON.parse(localStorage.getItem("ft-file-order") || "{}"); } catch (error) { return {}; }
+};
+const orderedFiles = (gid, fid) => {
+  const files = filesInFolder(gid, fid);
+  const saved = fileOrderMap()[splitKey(gid, fid)] || [];
+  const pool = new Map(files.map((file) => [file.id, file]));
+  const list = [];
+  saved.forEach((id) => {
+    if (!pool.has(id)) return;
+    list.push(pool.get(id));
+    pool.delete(id);
+  });
+  pool.forEach((file) => list.push(file));
+  return list;
+};
+const saveFileOrder = (gid, fid, ids) => {
+  const all = fileOrderMap();
+  all[splitKey(gid, fid)] = ids;
+  localStorage.setItem("ft-file-order", JSON.stringify(all));
+};
+const saveCovers = (gid, parent, src) => {
+  const all = coverMap();
+  all[splitKey(gid, parent)] = src;
+  localStorage.setItem("ft-covers", JSON.stringify(all));
+};
+const lineButton = (label, dataset, danger) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = danger ? "btn btn-line btn-danger" : "btn btn-line";
+  Object.entries(dataset).forEach(([key, value]) => { button.dataset[key] = value; });
+  button.textContent = label;
+  return button;
+};
+const paintContentList = (gid, fid, withFolders) => {
+  const host = document.getElementById("content-list");
+  if (!host) return;
+  host.replaceChildren();
+  const parentCover = coverMap()[splitKey(gid, fid)] || "";
+  if (withFolders) {
+    orderedKids(gid, fid, childFolders(gid, fid)).forEach((node) => {
+      const access = folderAccessOf(gid, node.id);
+      const row = document.createElement("article");
+      row.className = "list-row";
+      if (access.hidden) row.classList.add("is-hidden");
+      row.dataset.gallery = gid;
+      row.dataset.folder = node.id;
+      const img = document.createElement("img");
+      img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
+      img.alt = "";
+      const open = document.createElement("a");
+      open.className = "btn btn-line";
+      open.href = `cabinet.html?${folderQuery(gid, node.id)}`;
+      open.textContent = "Открыть";
+      const title = document.createElement("h3");
+      title.textContent = node.name;
+      const size = document.createElement("span");
+      size.textContent = folderSizeLabel(gid, node.id);
+      const meta = document.createElement("div");
+      meta.className = "row-meta";
+      meta.append(title, size);
+      row.append(
+        img,
+        lineButton("↑", { move: "up", kind: "folder" }),
+        lineButton("↓", { move: "down", kind: "folder" }),
+        lineButton("Выше", { move: "up", kind: "folder" }),
+        lineButton("Ниже", { move: "down", kind: "folder" }),
+        lineButton(parentCover && parentCover === img.src ? "Обложка" : "На обложку", { cover: "", kind: "folder" }),
+        open,
+        lineButton(access.hidden ? "Показать" : "Скрыть", { hideFolder: "", kind: "folder" }),
+        lineButton("Удалить", { delFolder: "", kind: "folder" }, true),
+        meta
+      );
+      host.appendChild(row);
+    });
+  }
+  const hidden = new Set(settings(gid).hidden || []);
+  orderedFiles(gid, fid).forEach((file) => {
+    const row = document.createElement("article");
+    row.className = "list-row";
+    if (hidden.has(file.id)) row.classList.add("is-hidden");
+    row.dataset.file = file.id;
+    row.dataset.gallery = gid;
+    const img = document.createElement("img");
+    img.src = file.src || "img/p2.jpg";
+    img.alt = "";
+    const title = document.createElement("h3");
+    title.textContent = file.name;
+    const size = document.createElement("span");
+    size.textContent = formatSize(fileBytes(file));
+    const meta = document.createElement("div");
+    meta.className = "row-meta";
+    meta.append(title, size);
+    const isCover = parentCover && parentCover === img.src;
+    row.append(
+      img,
+      lineButton("↑", { move: "up", kind: "file" }),
+      lineButton("↓", { move: "down", kind: "file" }),
+      lineButton("Выше", { move: "up", kind: "file" }),
+      lineButton("Ниже", { move: "down", kind: "file" }),
+      lineButton(isCover ? "Обложка" : "На обложку", { cover: "", kind: "file" }),
+      lineButton(hidden.has(file.id) ? "Показать" : "Скрыть", { hideFile: "", kind: "file" }),
+      lineButton("Удалить", { removeFile: "", kind: "file" }, true),
+      meta
+    );
+    host.appendChild(row);
+  });
+  if (!host.children.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "В этой папке пока пусто.";
+    host.appendChild(empty);
+  }
+};
+
+mountFolderBrowser();
 document.getElementById("add-folder")?.addEventListener("click", () => {
   if (!params.get("id")) return;
   const name = window.prompt("Название папки");
@@ -1699,28 +2107,183 @@ document.getElementById("add-folder")?.addEventListener("click", () => {
   const gid = galleryId();
   const all = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
   all[gid] = all[gid] || [];
-  all[gid].push({ id: "u" + Date.now().toString(36), name: name.trim(), parent: folderId(), cover: "img/p3.jpg", meta: "Новая папка" });
+  all[gid].push({ id: "u" + Date.now().toString(36), name: name.trim(), parent: folderId(), cover: "img/p3.jpg", meta: "Новая папка", created: Date.now() });
   localStorage.setItem("ft-user-folders", JSON.stringify(all));
   mountFolderBrowser();
 });
-document.getElementById("add-files")?.addEventListener("change", async (event) => {
-  const picked = [...event.target.files];
-  const gid = galleryId();
-  const stored = readList("ft-user-files");
-  for (const file of picked) {
-    stored.push({
-      id: "file" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      name: file.name,
-      src: await readPreview(file),
-      gallery: gid,
-      folder: folderId(),
-      in: gid,
-      doc: !file.type.startsWith("image/") && !file.type.startsWith("video/")
-    });
-  }
-  writeList("ft-user-files", stored);
+const takeUploads = (event) => {
+  const picked = event.target.files;
+  ingestUploads(picked);
   event.target.value = "";
+};
+document.getElementById("add-files")?.addEventListener("change", takeUploads);
+document.getElementById("pick-files")?.addEventListener("change", takeUploads);
+document.getElementById("pick-folder")?.addEventListener("change", takeUploads);
+const dropZone = document.getElementById("drop-zone");
+if (dropZone) {
+  dropZone.addEventListener("dragover", (event) => { event.preventDefault(); });
+  dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    ingestUploads(event.dataTransfer?.files);
+  });
+}
+document.getElementById("split-toggle")?.addEventListener("change", (event) => {
+  const all = splitMap();
+  all[splitKey(galleryId(), folderId())] = event.target.checked;
+  localStorage.setItem("ft-split", JSON.stringify(all));
   mountFolderBrowser();
+});
+document.querySelectorAll("[data-view-mode]").forEach((button) => {
+  button.addEventListener("click", () => setViewMode(button.dataset.viewMode));
+});
+document.querySelectorAll("[data-display-choice]").forEach((field) => {
+  field.addEventListener("change", () => setViewMode(field.value));
+});
+document.getElementById("split-sort")?.addEventListener("change", () => paintSplitList(galleryId(), folderId()));
+document.getElementById("split-find")?.addEventListener("click", () => {
+  splitQuery = document.getElementById("split-query")?.value || "";
+  paintSplitList(galleryId(), folderId());
+});
+document.getElementById("split-query")?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  splitQuery = event.target.value || "";
+  paintSplitList(galleryId(), folderId());
+});
+document.getElementById("split-gen-all")?.addEventListener("click", async () => {
+  const gid = galleryId();
+  const fid = folderId();
+  const kids = childFolders(gid, fid);
+  const any = kids.some((node) => folderAccessOf(gid, node.id).password);
+  const reset = any ? await askReset() : true;
+  kids.forEach((node) => {
+    const current = folderAccessOf(gid, node.id).password || "";
+    if (!reset && current) return;
+    saveFolderAccess(gid, node.id, { password: genPass() });
+  });
+  paintSplitList(gid, fid);
+});
+document.getElementById("split-excel")?.addEventListener("click", () => {
+  const gid = galleryId();
+  const fid = folderId();
+  const lines = ["Название папки;Ссылка;Пароль"];
+  childFolders(gid, fid).forEach((node) => {
+    const password = folderAccessOf(gid, node.id).password || "";
+    lines.push([node.name, absFolderLink(gid, node), password].join(";"));
+  });
+  const title = fid ? (folderTitle(gid, fid) || "папка") : (GALLERY_META[gid]?.title || "галерея");
+  saveText(`${title}.csv`, lines);
+});
+const shiftId = (ids, id, dir) => {
+  const index = ids.indexOf(id);
+  const next = index + (dir === "up" ? -1 : 1);
+  if (index < 0 || next < 0 || next >= ids.length) return ids;
+  const copy = ids.slice();
+  const [item] = copy.splice(index, 1);
+  copy.splice(next, 0, item);
+  return copy;
+};
+document.addEventListener("click", (event) => {
+  const move = event.target.closest("[data-move]");
+  if (move) {
+    const gid = galleryId();
+    const fid = folderId();
+    const row = move.closest("[data-folder], [data-file]");
+    if (move.dataset.kind === "file" || row?.dataset.file) {
+      const ids = orderedFiles(gid, fid).map((file) => file.id);
+      saveFileOrder(gid, fid, shiftId(ids, row.dataset.file, move.dataset.move));
+    } else if (row?.dataset.folder) {
+      const ids = orderedKids(gid, fid, childFolders(gid, fid)).map((node) => node.id);
+      saveOrder(gid, fid, shiftId(ids, row.dataset.folder, move.dataset.move));
+    }
+    mountFolderBrowser();
+    return;
+  }
+  const cover = event.target.closest("[data-cover]");
+  if (cover) {
+    const gid = galleryId();
+    const fid = folderId();
+    const row = cover.closest("[data-folder], [data-file]");
+    const src = row?.querySelector("img")?.getAttribute("src") || "";
+    if (src) saveCovers(gid, fid, src);
+    mountFolderBrowser();
+    return;
+  }
+  const hideFolder = event.target.closest("[data-hide-folder]");
+  if (hideFolder) {
+    const row = hideFolder.closest("[data-folder]");
+    if (!row) return;
+    const access = folderAccessOf(row.dataset.gallery, row.dataset.folder);
+    saveFolderAccess(row.dataset.gallery, row.dataset.folder, { hidden: !access.hidden });
+    mountFolderBrowser();
+    return;
+  }
+  const hideFile = event.target.closest("[data-hide-file]");
+  if (hideFile) {
+    const row = hideFile.closest("[data-file]");
+    if (!row) return;
+    const gid = galleryId();
+    const current = new Set(settings(gid).hidden || []);
+    if (current.has(row.dataset.file)) current.delete(row.dataset.file);
+    else current.add(row.dataset.file);
+    saveSettings({ hidden: [...current] }, gid);
+    mountFolderBrowser();
+    return;
+  }
+  const delFile = event.target.closest("[data-remove-file]");
+  if (delFile) {
+    const row = delFile.closest("[data-file]");
+    const name = row?.querySelector("h3")?.textContent || "файл";
+    if (!row || !confirm(`Удалить файл «${name}»?`)) return;
+    const gid = galleryId();
+    const gone = new Set([...(settings(gid).deleted || []), row.dataset.file]);
+    saveSettings({ deleted: [...gone] }, gid);
+    mountFolderBrowser();
+    return;
+  }
+  const gen = event.target.closest("[data-gen]");
+  if (gen) {
+    const row = gen.closest("[data-folder]");
+    if (!row) return;
+    const password = genPass();
+    saveFolderAccess(row.dataset.gallery, row.dataset.folder, { password });
+    const field = row.querySelector(".split-pass");
+    if (field) field.value = password;
+    return;
+  }
+  const send = event.target.closest("[data-send-mail]");
+  if (!send) return;
+  const row = send.closest("[data-folder]");
+  if (!row) return;
+  const email = row.querySelector(".split-mail")?.value.trim() || "";
+  if (!email) return;
+  const name = row.querySelector("h3")?.textContent || "Папка";
+  const password = folderAccessOf(row.dataset.gallery, row.dataset.folder).password || "не задан";
+  const link = absFolderLink(row.dataset.gallery, { id: row.dataset.folder });
+  const body = `От: ФотоТранзит <hello@fototranzit.ru>\n\nПапка: ${name}\nСсылка: ${link}\nПароль: ${password}`;
+  location.href = `mailto:${email}?subject=${encodeURIComponent(name)}&body=${encodeURIComponent(body)}`;
+});
+document.getElementById("split-list")?.addEventListener("change", (event) => {
+  const field = event.target.closest(".split-pass");
+  if (!field) return;
+  const row = field.closest("[data-folder]");
+  if (!row) return;
+  saveFolderAccess(row.dataset.gallery, row.dataset.folder, { password: field.value.trim() });
+});
+document.getElementById("client-lock")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const gid = galleryId();
+  const fid = folderId();
+  const need = folderAccessOf(gid, fid).password || "";
+  const got = document.getElementById("client-pass")?.value || "";
+  const note = document.getElementById("client-pass-note");
+  if (got !== need) {
+    if (note) note.textContent = "Пароль не подошёл.";
+    return;
+  }
+  sessionStorage.setItem(`ft-foldpass-${gid}/${fid}`, need);
+  if (note) note.textContent = "";
+  paintClient(gid, fid);
 });
 document.getElementById("tile-find")?.addEventListener("input", () => paintFiles());
 document.getElementById("client-share")?.addEventListener("click", async () => {

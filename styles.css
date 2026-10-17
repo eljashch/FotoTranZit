@@ -602,7 +602,64 @@ input[type="text"], input[type="email"], input[type="password"] {
 }
 .bar { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .bar i { display: block; height: 100%; width: 70%; background: linear-gradient(90deg, var(--blue), var(--cyan)); }
-.jobs { display: grid; gap: 8px; margin-top: 12px; }
+.upload-line {
+  height: 3px;
+  width: 100%;
+  margin-top: 14px;
+  background: rgba(78, 162, 255, 0.22);
+  overflow: hidden;
+  border-radius: 99px;
+  flex: 1 1 100%;
+}
+.upload-line[hidden] { display: none; }
+.upload-line i {
+  display: block;
+  height: 100%;
+  width: 36%;
+  background: linear-gradient(90deg, #4ea2ff, #7ef0ff);
+  animation: ft-upload-run 0.9s linear infinite;
+}
+@keyframes ft-upload-run { from { transform: translateX(-120%); } to { transform: translateX(320%); } }
+.upload-fails { list-style: none; padding: 10px 0 0; margin: 0; color: #ffb4c0; text-align: left; width: 100%; }
+.upload-fails[hidden] { display: none; }
+.jobs { display: none; }
+.split-toggle { display: inline-flex; align-items: center; gap: 8px; }
+.split-filters { margin: 4px 0 12px; }
+.split-filters summary { cursor: pointer; font-weight: 700; }
+.split-list, .content-list { display: grid; margin-top: 8px; max-width: 100%; }
+.view-switch { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.view-switch .on { color: #fff; background: linear-gradient(180deg, #3ec8ff, #2f6dff); border-color: transparent; }
+.list-row, .split-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  max-width: 100%;
+}
+.list-row img, .split-row img { width: 54px; height: 40px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
+.list-row h3, .split-row h3 { margin: 0; font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+.row-meta { margin-left: auto; text-align: right; min-width: 140px; max-width: 100%; }
+.row-meta span { display: block; color: var(--muted); font-size: 13px; }
+.list-row .btn, .split-row .btn { min-height: 34px; padding: 6px 10px; font-size: 13px; }
+.split-row input { min-height: 34px; width: min(180px, 100%); }
+.list-row.is-hidden, .split-row.is-hidden { opacity: 0.55; }
+.client-lock {
+  max-width: 420px;
+  margin: 12px auto 24px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #e4e7ee;
+  border-radius: 16px;
+  color: #1b2430;
+}
+.client-lock[hidden] { display: none; }
+@media (max-width: 390px) {
+  .list-row, .split-row { align-items: flex-start; }
+  .row-meta { margin-left: 0; width: 100%; text-align: left; }
+  .split-filters .row-actions, .view-switch { width: 100%; }
+}
 .job { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
 .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .thumbs img, .thumbs .file {
