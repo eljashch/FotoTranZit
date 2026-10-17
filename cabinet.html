@@ -18,13 +18,15 @@
       <a class="item" href="reviews.html">Отзывы</a>
       <a class="item" href="profile.html">Профиль</a>
       <a class="item" href="billing.html">Оплата</a>
-      <a class="item push" href="admin.html">Админка</a>
-      <a class="item" href="index.html">Выйти</a>
+      <a class="item" href="photographer.html">Моя страница</a>
+      <a class="item" href="cabinet.html?view=offers">Мои предложения</a>
+      <a class="item" href="cabinet.html?view=trash">Корзина</a>
+      <a class="item push" href="index.html">Выйти</a>
     </aside>
     <main class="app-main">
       <section class="panel who">
         <div>
-          <h1 style="font-size:40px">Анна Соколова</h1>
+          <h1 id="cabinet-name" style="font-size:40px">Анна Соколова</h1>
           <p class="hint">Занято 6,4 ГБ из 20 ГБ</p>
         </div>
         <div class="plan-gauge" data-gauge="active" data-plan="trial"></div>
@@ -34,7 +36,36 @@
         <article class="panel metric"><b>486</b><span>файлов</span></article>
         <article class="panel metric"><b>128</b><span>скачиваний</span></article>
       </section>
-      <section class="panel">
+      <section class="panel" id="offer-banner" hidden>
+        <h2>Предложение</h2>
+        <p id="offer-banner-text"></p>
+        <p class="hint" id="offer-banner-until"></p>
+        <a class="btn btn-dark" id="offer-use" href="billing.html">Воспользоваться</a>
+      </section>
+      <section class="panel" id="referral-box">
+        <h2>Реферальная ссылка</h2>
+        <p class="hint">Регистрация по ссылке бесплатная. Друг получает скидку на первую оплату тарифа. Бонусы приходят на счёт кабинета после оплаты, если администратор задал величину.</p>
+        <p id="ref-link-text"></p>
+        <div class="row-actions">
+          <button class="btn btn-line" type="button" id="ref-copy">Скопировать ссылку</button>
+        </div>
+        <p class="hint" id="ref-stats"></p>
+      </section>
+      <section class="panel" id="offers-view" hidden>
+        <h2>Мои предложения</h2>
+        <div id="offers-list"></div>
+      </section>
+      <section class="panel" id="trash-view" hidden>
+        <div class="who">
+          <div>
+            <h2>Корзина</h2>
+            <p class="hint">Галерея живёт 30 дней с создания. Корзина этот срок не продлевает.</p>
+          </div>
+          <button class="btn btn-line btn-danger" id="empty-trash" type="button">Очистить корзину</button>
+        </div>
+        <div id="trash-list"></div>
+      </section>
+      <section class="panel" id="gallery-panel">
         <nav class="crumbs" id="crumbs" aria-label="Путь" hidden></nav>
         <div class="who">
           <h2 id="gallery-heading">Галереи</h2>
@@ -86,6 +117,13 @@
           </article>
         </div>
         <div class="gallery-cards" id="folder-cards" style="margin-top:16px" hidden></div>
+        <div class="row-actions" id="explorer-tools" hidden>
+          <button class="btn btn-line" id="add-folder" type="button">Папка</button>
+          <label class="btn btn-line">Файлы<input id="add-files" type="file" multiple hidden></label>
+        </div>
+        <label id="tile-find-wrap" hidden>Найти<input id="tile-find" type="search" placeholder="Имя файла" autocomplete="off"></label>
+        <div class="photo-tiles" id="photo-tiles" hidden></div>
+        <p class="hint" id="tiles-empty" hidden>В этой папке нет файлов рядом с папками.</p>
         <div id="folder-manage" class="folder-manage" hidden>
           <div class="who">
             <div>
@@ -111,7 +149,8 @@
           <label class="switch"><span>Уменьшенная версия</span><input data-folder-opt="small" type="checkbox"></label>
           <label class="switch"><span>Открывать файлы без скачивания</span><input data-folder-opt="open" type="checkbox"></label>
           <label class="switch"><span>Водяной знак</span><input data-folder-opt="watermark" type="checkbox"></label>
-          <label class="switch"><span>Закрывать кадр при уходе со вкладки</span><input data-folder-opt="guard" type="checkbox"></label>
+          <label class="switch"><span>Согласие на публикацию</span><input data-folder-opt="consent" type="checkbox"></label>
+          <p class="hint">Согласие выключено, пока вы его не включите. Клиент увидит его при скачивании.</p>
           <div class="row-actions">
             <button class="btn btn-dark" id="save-folder-manage" type="button" hidden>Сохранить</button>
           </div>
@@ -120,9 +159,8 @@
               <h2>Кадры</h2>
               <p class="hint">Скрытый кадр клиент не видит, пока не введёт секретный код. Пометка записывается кнопкой «Сохранить».</p>
             </div>
+            <button class="btn btn-line" id="folder-comments" type="button" data-comment="folder">Посмотреть комментарии</button>
           </div>
-          <div class="photo-tiles" id="photo-tiles"></div>
-          <p class="hint" id="tiles-empty" hidden>В этой папке не осталось файлов.</p>
         </div>
         <p class="hint" id="galleries-empty" hidden>Галерей не осталось.</p>
       </section>
@@ -150,7 +188,8 @@
           <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
           <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
           <label class="switch"><span>Водяной знак</span><input data-card-opt="watermark" type="checkbox"></label>
-          <label class="switch"><span>Закрывать кадр при уходе со вкладки</span><input data-card-opt="guard" type="checkbox"></label>
+          <label class="switch"><span>Согласие на публикацию</span><input data-card-opt="consent" type="checkbox"></label>
+          <label>Найти<input id="card-find" type="search" placeholder="Имя файла" autocomplete="off"></label>
           <div class="row-actions">
             <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
             <button class="btn btn-dark" id="save-card" type="button" hidden>Сохранить</button>

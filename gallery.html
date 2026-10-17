@@ -9,8 +9,35 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body data-guard="on">
+<body class="client-view">
   <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div id="client-shell">
+    <header class="client-bar">
+      <div class="path-side">
+        <a class="client-back" id="client-back" href="gallery.html" hidden>Назад</a>
+        <nav class="path-tabs" id="path-tabs" aria-label="Путь"></nav>
+      </div>
+      <div class="client-actions">
+        <button type="button" id="client-share">Поделиться</button>
+        <button type="button" id="client-review">Отзыв</button>
+        <span id="client-until">Хранится до</span>
+        <div class="dl-wrap">
+          <button class="dl-btn" type="button" id="client-download" aria-haspopup="true">Скачать файлы</button>
+          <div class="dl-menu" id="client-download-menu" hidden>
+            <button type="button" data-dl="all">Весь проект</button>
+            <button type="button" data-dl="picked">Отмеченные</button>
+            <button type="button" data-dl="folder">Сохранить папкой в файлы</button>
+            <button type="button" data-dl="phone">Распаковать в галерею телефона</button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <p class="client-note" id="client-note"></p>
+    <main class="client-stage">
+      <div class="client-folders" id="client-folders"></div>
+      <div class="client-grid" id="client-grid"></div>
+    </main>
+  </div>
   <header class="g-top">
     <div class="back-bar">
       <span>Вы фотограф</span>
@@ -33,6 +60,7 @@
         <img class="cover-logo" data-use="logo" alt="" hidden>
         <p class="kicker" id="gal-name"></p>
         <h1 data-gallery-title>Свадьба Марии и Ильи</h1>
+        <p id="pub-mark" hidden></p>
         <p data-gallery-date>12 сентября</p>
         <div class="contacts" id="gal-contacts"></div>
       </div>
@@ -40,6 +68,8 @@
     <div class="row-actions js-shots" style="margin-top:14px">
       <a class="btn btn-line" href="favorites.html">Отмеченное</a>
       <button class="btn btn-line" type="button" data-download="review">Отзыв</button>
+      <button class="btn btn-line" type="button" data-download="project">Скачать проект</button>
+      <button class="btn btn-line" type="button" data-comment="folder">Посмотреть комментарии</button>
     </div>
     <div class="filters js-shots">
       <button class="btn btn-line on" type="button" data-filter="all">Все</button>
@@ -48,6 +78,8 @@
       <button class="btn btn-line" type="button" data-filter="file">Файлы</button>
       <button class="btn btn-line" type="button" data-filter="tall">Вертикальные</button>
       <button class="btn btn-line" type="button" data-filter="wide">Горизонтальные</button>
+      <button class="btn btn-line" type="button" data-filter="pub-ok" id="filter-pub-ok" hidden>Разрешённые</button>
+      <button class="btn btn-line" type="button" data-filter="pub-no" id="filter-pub-no" hidden>Запрещённые</button>
     </div>
     <div class="g-grid js-shots">
       <article class="shot tall" data-file="cover" data-in="wedding portrait" data-kind="photo tall" data-view="photo-view"><img src="img/cover.jpg" alt=""><button class="heart" type="button">♡</button></article>
@@ -59,7 +91,7 @@
       <article class="doc-card" data-file="pdf" data-in="wedding kindergarten" data-kind="file" data-view="pdf-view"><strong>Список гостей.pdf</strong><p class="hint">Открыть без скачивания</p></article>
     </div>
     <p class="hint js-shots" id="gallery-empty" hidden>В галерее не осталось файлов.</p>
-    <p class="hint js-shots" style="margin:18px 0 40px">Файлы принадлежат фотографу. <button class="btn btn-line" id="show-black" type="button">Показать закрытие кадра</button></p>
+    <p class="hint js-shots" style="margin:18px 0 40px">Файлы принадлежат фотографу. Получатель их не перепродаёт.</p>
   </header>
 
   <div class="overlay" id="photo-view" hidden>
@@ -70,6 +102,7 @@
       <div class="row-actions">
         <button class="btn btn-line" type="button" data-download="file">Оригинал</button>
         <button class="btn btn-line" type="button" data-download="small">Уменьшенная</button>
+        <button class="btn btn-line" type="button" id="viewer-comment" data-comment="">Посмотреть комментарии</button>
       </div>
     </div>
   </div>
@@ -111,11 +144,46 @@
       </div>
     </form>
   </div>
-  <div class="blackout" id="blackout" hidden>
-    <div>
-      <p>Вернитесь на вкладку, чтобы смотреть</p>
-      <button class="btn btn-line" type="button" id="hide-black">Я здесь</button>
-    </div>
+  <div class="overlay" id="consent-modal" hidden>
+    <form class="modal" id="consent-form">
+      <h2>Публикация</h2>
+      <p>Разрешаю фотографу публиковать мои фотографии в интернете</p>
+      <div class="row-actions">
+        <button class="btn btn-dark" type="button" data-consent="allow">Разрешаю</button>
+        <button class="btn btn-line" type="button" data-consent="deny">Не разрешаю</button>
+        <button class="btn btn-line" type="button" id="consent-partial-open">Разрешить частично</button>
+      </div>
+      <div id="consent-partial" hidden>
+        <p class="hint">Отметьте кадры. Если отмечены только те, что можно публиковать, остальные нельзя. Если отмечены только те, что нельзя, остальные можно.</p>
+        <label class="check"><input type="radio" name="partial-mode" value="allow" checked> Отмеченные можно публиковать</label>
+        <label class="check"><input type="radio" name="partial-mode" value="deny"> Отмеченные нельзя публиковать</label>
+        <div id="consent-frames"></div>
+        <button class="btn btn-dark" type="button" id="consent-partial-save">Сохранить выбор</button>
+      </div>
+      <p class="hint" id="consent-note"></p>
+    </form>
+  </div>
+  <div class="overlay" id="phone-choice" hidden>
+    <form class="modal">
+      <h2>Скачать проект</h2>
+      <p class="hint">Это страница в браузере, отдельного приложения нет. Браузер сохранит файлы или откроет меню «Поделиться».</p>
+      <div class="row-actions">
+        <button class="btn btn-dark" type="button" id="save-as-folder">Сохранить папкой в файлы</button>
+        <button class="btn btn-line" type="button" id="save-to-phone">Распаковать в галерею телефона</button>
+        <button class="btn btn-line" type="button" data-close="phone-choice">Закрыть</button>
+      </div>
+      <p class="hint" id="phone-note"></p>
+    </form>
+  </div>
+  <div class="overlay" id="comment-modal" hidden>
+    <form class="modal" id="comment-form">
+      <h2>Комментарий</h2>
+      <label>Текст<textarea id="comment-text" placeholder="Комментарий к папке или к кадру"></textarea></label>
+      <div class="row-actions">
+        <button class="btn btn-dark" type="button" id="comment-save">Сохранить</button>
+        <button class="btn btn-line" type="button" data-close="comment-modal">Закрыть</button>
+      </div>
+    </form>
   </div>
   <div class="overlay" id="card-settings" hidden>
     <form class="modal">
@@ -126,7 +194,7 @@
       <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
       <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
       <label class="switch"><span>Водяной знак</span><input data-card-opt="watermark" type="checkbox"></label>
-      <label class="switch"><span>Закрывать кадр при уходе со вкладки</span><input data-card-opt="guard" type="checkbox"></label>
+      <label class="switch"><span>Согласие на публикацию</span><input data-card-opt="consent" type="checkbox"></label>
       <div class="row-actions">
         <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
         <button class="btn btn-dark" id="save-card" type="button" hidden>Сохранить</button>
@@ -135,10 +203,5 @@
     </form>
   </div>
   <script src="site.js"></script>
-  <script>
-    document.getElementById("hide-black").addEventListener("click", () => {
-      document.getElementById("blackout").hidden = true;
-    });
-  </script>
 </body>
 </html>
