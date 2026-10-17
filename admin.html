@@ -15,11 +15,7 @@
     <aside class="side">
       <a class="logo" href="admin.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
       <a class="item on" href="admin.html">Сводка</a>
-      <a class="item" href="admin.html">Фотографы</a>
-      <a class="item" href="billing.html">Тарифы</a>
-      <a class="item" href="admin.html">Платежи</a>
-      <a class="item" href="admin.html">Журнал</a>
-      <a class="item push" href="index.html">Выйти</a>
+      <a class="item push" id="admin-out" href="index.html">Выйти</a>
     </aside>
     <main class="app-main">
       <section class="panel"><h1 style="font-size:40px">Сводка</h1></section>
@@ -32,16 +28,78 @@
         <article class="panel metric"><b>2,4 ТБ</b><span>объём</span></article>
       </section>
       <section class="panel">
-        <label>Поиск<input type="search" placeholder="Почта или имя"></label>
+        <h2>Оплатили</h2>
+        <p id="paid-summary"></p>
+        <div class="row-actions">
+          <button class="btn btn-line" id="show-unpaid" type="button">Кто не оплатил</button>
+          <button class="btn btn-line" id="show-all-clients" type="button" hidden>Все клиенты</button>
+          <button class="btn btn-dark" id="open-offer" type="button">Предложение</button>
+        </div>
+      </section>
+      <section class="panel" id="ref-admin">
+        <h2>Реферальная программа</h2>
+        <p class="hint">Пока величина бонуса пустая, на счёт ничего не начисляется. Скидка приглашённому при этом сохраняется.</p>
+        <label>Скидка приглашённому, %<input id="ref-percent" type="number" min="0" max="100" step="1"></label>
+        <label>Вид бонуса рекомендателю
+          <select id="ref-kind">
+            <option value="percent">Процент от оплаченной суммы</option>
+            <option value="fixed">Фиксированная сумма</option>
+          </select>
+        </label>
+        <label>Величина бонуса<input id="ref-value" type="text" placeholder="Пусто — бонус не начисляется"></label>
+        <label>Срок бонусов<input id="ref-expiry" type="date"></label>
+        <label class="check"><input id="ref-stack" type="checkbox"> Суммировать реферальную скидку с купоном</label>
+        <button class="btn btn-dark" id="save-ref-admin" type="button">Сохранить</button>
+        <p class="hint" id="ref-admin-note"></p>
+      </section>
+      <section class="panel">
+        <div class="split">
+          <label>Поиск<input id="admin-search" type="search" placeholder="Имя или почта"></label>
+          <label>Тариф
+            <select id="admin-plan">
+              <option value="">Все тарифы</option>
+              <option>Пробный</option>
+              <option>Старт</option>
+              <option>Профи</option>
+              <option>Студия</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint" id="admin-journal" hidden>Журнал «Кто не оплатил». Написать можно так же, как в сводке.</p>
         <table class="sheet">
-          <thead><tr><th>Почта</th><th>Имя</th><th>Пакет</th><th>Место</th><th>Файлы</th><th>Скачивания</th><th></th></tr></thead>
-          <tbody>
-            <tr><td>anna@studio.ru</td><td>Анна Соколова</td><td>Пробный</td><td>6,4 ГБ</td><td>486</td><td>128</td><td><a href="cabinet.html">Открыть</a></td></tr>
-            <tr><td>igor@lens.ru</td><td>Игорь Левин</td><td>Профи</td><td>120 ГБ</td><td>2400</td><td>860</td><td><button class="btn btn-line" type="button">Заблокировать</button></td></tr>
-          </tbody>
+          <thead>
+            <tr><th>Почта</th><th>Имя</th><th>Пакет</th><th>Куплено</th><th>Занято</th><th>Файлы</th><th>Скачивания</th><th></th></tr>
+          </thead>
+          <tbody id="admin-rows"></tbody>
         </table>
       </section>
+      <div class="overlay" id="offer-modal" hidden>
+        <form class="modal" id="offer-form">
+          <h2>Предложение</h2>
+          <label>Текст<textarea id="offer-text">Увеличьте объём диска со скидкой только до указанной даты. Ваш купон действует до этой даты.</textarea></label>
+          <label>Купон<input id="offer-code" type="text" value="DISK10"></label>
+          <label>Скидка, %<input id="offer-percent" type="number" min="1" max="100" value="10"></label>
+          <label>Действует до<input id="offer-until" type="date"></label>
+          <label>Кому
+            <select id="offer-target">
+              <option value="one">Один фотограф</option>
+              <option value="ending">Скоро заканчивается тариф</option>
+              <option value="low">Мало свободного места</option>
+            </select>
+          </label>
+          <label id="offer-person-wrap">Фотограф
+            <select id="offer-person"></select>
+          </label>
+          <div class="row-actions">
+            <button class="btn btn-dark" type="submit">Сохранить предложение</button>
+            <button class="btn btn-line" type="button" id="offer-mail">Письмо фотографу</button>
+            <button class="btn btn-line" type="button" data-close="offer-modal">Закрыть</button>
+          </div>
+          <p class="hint" id="offer-note"></p>
+        </form>
+      </div>
     </main>
   </div>
+  <script src="site.js"></script>
 </body>
 </html>

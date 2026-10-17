@@ -184,14 +184,18 @@
     </form>
   </div>
   <div class="overlay" id="comment-modal" hidden>
-    <form class="modal" id="comment-form">
-      <h2>Комментарий</h2>
-      <label>Текст<textarea id="comment-text" placeholder="Комментарий к папке или к кадру"></textarea></label>
-      <div class="row-actions">
-        <button class="btn btn-dark" type="button" id="comment-save">Сохранить</button>
-        <button class="btn btn-line" type="button" data-close="comment-modal">Закрыть</button>
-      </div>
-    </form>
+    <div class="modal comment-panel" role="dialog" aria-labelledby="comment-title">
+      <h2 id="comment-title">Комментарии</h2>
+      <div id="comment-list" class="comment-list"></div>
+      <form id="comment-compose" class="comment-compose">
+        <label id="comment-name-wrap">Имя<input id="comment-name" type="text" autocomplete="name" maxlength="80"></label>
+        <textarea id="comment-text" placeholder="Комментарий"></textarea>
+        <div class="row-actions">
+          <button class="btn btn-dark" type="submit">Отправить</button>
+          <button class="btn btn-line" type="button" data-close="comment-modal">Закрыть</button>
+        </div>
+      </form>
+    </div>
   </div>
   <div class="overlay" id="card-settings" hidden>
     <form class="modal">

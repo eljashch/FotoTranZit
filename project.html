@@ -49,8 +49,9 @@
       <section class="panel">
         <div class="drop" id="drop-zone">Перетащите файлы или папку с подпапками
           <div class="row-actions" style="justify-content:center;margin-top:12px">
-            <label class="btn btn-line">Файлы<input id="pick-files" type="file" multiple hidden></label>
-            <label class="btn btn-line">Папка<input id="pick-folder" type="file" webkitdirectory directory multiple hidden></label>
+            <button class="btn btn-line" id="add-any" type="button" title="Щелчок — файлы. Двойной щелчок — папка с подпапками.">Добавить</button>
+            <input id="pick-files" type="file" multiple hidden>
+            <input id="pick-folder" type="file" webkitdirectory directory multiple hidden>
           </div>
           <div class="upload-line" id="upload-line" hidden><i></i></div>
           <ul class="upload-fails" id="upload-fails" hidden></ul>
@@ -83,6 +84,17 @@
         <p class="hint" id="files-empty" hidden>В этой галерее не осталось файлов.</p>
       </section>
     </main>
+  </div>
+  <div class="overlay" id="delete-ask" hidden>
+    <form class="modal" id="delete-ask-form">
+      <h2>Удаление</h2>
+      <p id="delete-ask-text"></p>
+      <div class="row-actions">
+        <button class="btn btn-line btn-danger" type="button" id="delete-forever">Удалить безвозвратно</button>
+        <button class="btn btn-dark" type="button" id="delete-to-trash">Переместить в корзину</button>
+        <button class="btn btn-line" type="button" id="delete-cancel">Отмена</button>
+      </div>
+    </form>
   </div>
   <script src="site.js"></script>
 </body>

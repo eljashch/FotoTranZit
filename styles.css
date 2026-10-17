@@ -511,6 +511,19 @@ input[type="text"], input[type="email"], input[type="password"] {
 }
 .plan-gauge { min-width: 0; max-width: 100%; }
 .who .plan-gauge { flex: 0 1 240px; }
+.gauge-pair {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+.gauge-pair .plan-gauge { flex: 1 1 148px; width: auto; max-width: 210px; }
+.gauge-pair .gauge { width: 100%; padding: 4px 8px 10px; }
+.gauge-pair .gauge svg { width: min(158px, 100%); }
 .gauge {
   width: min(240px, 100%);
   max-width: 100%;
@@ -665,7 +678,7 @@ input[type="text"], input[type="email"], input[type="password"] {
 .list-row, .split-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
@@ -673,20 +686,21 @@ input[type="text"], input[type="email"], input[type="password"] {
 }
 .row-lead {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
   max-width: 100%;
-  flex: 0 1 auto;
+  flex: 1 1 180px;
 }
+.row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .row-lead h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 .row-lead span { color: var(--muted); font-size: 13px; }
 .row-lead img, .list-row img, .split-row img { width: 54px; height: 40px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
 .row-menu { position: relative; flex: 0 0 auto; }
 .row-burger {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: rgba(255,255,255,0.06);
@@ -700,7 +714,7 @@ input[type="text"], input[type="email"], input[type="password"] {
 .row-burger span { display: block; width: 16px; height: 2px; border-radius: 2px; background: #fff; }
 .row-drop {
   position: fixed;
-  z-index: 70;
+  z-index: 80;
   min-width: 200px;
   max-width: calc(100vw - 16px);
   display: grid;
@@ -729,30 +743,36 @@ input[type="text"], input[type="email"], input[type="password"] {
   display: inline-flex;
   align-items: stretch;
   max-width: 100%;
-  flex: 0 1 280px;
+  flex: 0 1 240px;
+  height: 36px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 12px;
   overflow: hidden;
   background: rgba(4, 12, 22, 0.45);
 }
-.mail-capsule input[type="email"] {
-  width: 140px;
+.mail-capsule input[type="email"],
+.mail-capsule input[type="search"] {
+  width: 120px;
   min-width: 0;
-  flex: 1 1 120px;
+  flex: 1 1 90px;
   border: 0;
   border-radius: 0;
   background: transparent;
-  min-height: 40px;
-  padding: 8px 14px;
+  height: 34px;
+  min-height: 0;
+  padding: 0 12px;
 }
 .mail-capsule .mail-send {
   border: 0;
   border-left: 1px solid var(--line);
+  border-radius: 0;
   background: transparent;
   color: #fff;
-  padding: 8px 14px;
+  padding: 0 12px;
+  height: 34px;
   cursor: pointer;
   font: inherit;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -760,7 +780,83 @@ input[type="text"], input[type="email"], input[type="password"] {
 .row-meta { margin-left: auto; text-align: right; min-width: 140px; max-width: 100%; }
 .row-meta span { display: block; color: var(--muted); font-size: 13px; }
 .list-row .btn, .split-row .btn { min-height: 34px; padding: 6px 10px; font-size: 13px; }
-.split-row input { min-height: 34px; width: min(180px, 100%); }
+.split-row input.split-pass {
+  height: 36px;
+  min-height: 36px;
+  width: 9.5rem;
+  max-width: 100%;
+  border-radius: 12px;
+  padding: 0 12px;
+}
+.split-bar { align-items: flex-end; }
+.split-method {
+  display: grid;
+  gap: 2px;
+  width: auto;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.split-method select {
+  width: auto;
+  min-width: 10.5rem;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 12px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.split-bar .btn,
+.split-row .btn {
+  height: 36px;
+  min-height: 36px;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.split-search { flex: 0 1 220px; margin-left: auto; }
+.split-note { margin: 8px 0 0; }
+.split-note.is-bad { color: #ffb4c0; }
+.tool-find {
+  width: 9rem;
+  flex: 0 0 9rem;
+  max-width: 9rem;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(4, 12, 22, 0.45);
+  padding: 0 14px;
+  color: white;
+}
+.comment-panel {
+  width: min(520px, 100%);
+  max-height: min(86vh, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: auto;
+}
+.comment-panel h2 { margin: 0; font-size: 28px; }
+.comment-list { display: flex; flex-direction: column; gap: 16px; }
+.comment-item { display: grid; gap: 4px; }
+.comment-author { margin: 0; font-weight: 700; }
+.comment-body { margin: 0; white-space: pre-wrap; }
+.comment-time { margin: 0; color: var(--muted); font-size: 13px; }
+.comment-actions { display: flex; gap: 14px; }
+.comment-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+}
+.comment-actions button:hover { color: white; }
+.comment-compose { display: grid; gap: 10px; }
+.comment-compose textarea, .comment-edit { min-height: 72px; }
+.tile-drop { z-index: 80; }
 .list-row.is-hidden, .split-row.is-hidden { opacity: 0.55; }
 .client-lock {
   max-width: 420px;
@@ -773,9 +869,12 @@ input[type="text"], input[type="email"], input[type="password"] {
 }
 .client-lock[hidden] { display: none; }
 @media (max-width: 390px) {
-  .list-row, .split-row { align-items: flex-start; }
+  .list-row, .split-row { align-items: center; }
   .row-meta { margin-left: 0; width: 100%; text-align: left; }
   .split-filters .row-actions, #explorer-tools { width: 100%; max-width: 100%; }
+  .split-bar .btn, .split-search, .split-method, #explorer-tools .tool-find { max-width: 100%; }
+  #explorer-tools .tool-find { width: 9rem; flex: 0 0 9rem; }
+  .split-search { margin-left: 0; }
   .cover-actions { left: 6px; right: 6px; bottom: 6px; gap: 4px; }
   .cover-actions .btn { padding: 7px 3px; font-size: 12px; }
 }
@@ -1293,6 +1392,8 @@ textarea { min-height: 90px; resize: vertical; }
 @media (max-width: 640px) {
   .fn-list, .plans, .features, .steps, .app-main .plans { grid-template-columns: 1fr; }
   .who .plan-gauge { flex-basis: 100%; }
+  .gauge-pair { flex: 1 1 100%; }
+  .gauge-pair .plan-gauge { flex: 1 1 140px; width: auto; max-width: 100%; }
   .section { padding: 48px 0; }
   .wrap, .app, .g-top { width: min(1160px, calc(100% - 16px)); }
   .app-main h1, .auth h1, .legal h1 { font-size: 32px !important; }

@@ -26,7 +26,10 @@
       <div><dt>Пакет</dt><dd id="pay-plan">Профи</dd></div>
       <div><dt>Сумма</dt><dd id="pay-amount">2 290 ₽</dd></div>
       <div><dt>Старт</dt><dd id="pay-start">21 октября 2026</dd></div>
+      <div><dt>Бонусы</dt><dd id="pay-bonus">0</dd></div>
     </dl>
+    <label>Списать бонусы<input id="pay-spend" type="number" min="0" step="1" value="0"></label>
+    <p class="hint" id="pay-ref-note"></p>
     <label>Купон<input id="pay-coupon" type="text" placeholder="Код купона" autocomplete="off"></label>
     <p class="hint" id="pay-coupon-note"></p>
     <button class="btn btn-dark btn-wide" id="pay-go" type="button">Оплатить</button>
