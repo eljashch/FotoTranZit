@@ -333,7 +333,7 @@ const paintFiles = () => {
   const shots = [...document.querySelectorAll(".g-grid [data-file]")].filter((shot) => !shot.hidden);
   const emptyGallery = document.getElementById("gallery-empty");
   if (emptyGallery) emptyGallery.hidden = shots.length > 0;
-  const query = (document.getElementById("tile-find")?.value || "").trim().toLowerCase();
+  const query = (document.getElementById("split-query")?.value || "").trim().toLowerCase();
   const tileNodes = [...document.querySelectorAll("#photo-tiles [data-file]")];
   tileNodes.forEach((node) => {
     if (node.hidden) return;
@@ -1872,26 +1872,28 @@ const mountFolderBrowser = () => {
     if (listMode) paintContentList(gid, fid, !split);
   }
 
-  if (!board) return;
-  const showCards = !galleryGone && kids.length > 0 && drilled && !split && !listMode;
-  board.hidden = !showCards;
-  board.replaceChildren();
-  if (!showCards) return;
-  orderedKids(gid, fid, kids).forEach((node) => board.appendChild(makeFolderCard(gid, node, false)));
-  let empty = document.getElementById("folders-empty");
-  if (!empty && board.parentElement) {
-    empty = document.createElement("p");
-    empty.id = "folders-empty";
-    empty.className = "hint";
-    empty.hidden = true;
-    board.insertAdjacentElement("afterend", empty);
+  if (board) {
+    const showCards = !galleryGone && kids.length > 0 && drilled && !split && !listMode;
+    board.hidden = !showCards;
+    board.replaceChildren();
+    if (showCards) {
+      orderedKids(gid, fid, kids).forEach((node) => board.appendChild(makeFolderCard(gid, node, false)));
+      let empty = document.getElementById("folders-empty");
+      if (!empty && board.parentElement) {
+        empty = document.createElement("p");
+        empty.id = "folders-empty";
+        empty.className = "hint";
+        empty.hidden = true;
+        board.insertAdjacentElement("afterend", empty);
+      }
+      if (empty) empty.hidden = true;
+    }
   }
-  if (empty) empty.hidden = true;
-  const typed = (document.getElementById("tile-find")?.value || "").trim().toLowerCase();
+  const typed = (document.getElementById("split-query")?.value || "").trim().toLowerCase();
   if (typed) {
-    document.querySelectorAll("#folder-cards [data-folder], #content-list .list-row").forEach((node) => {
-      const name = node.querySelector("h3")?.textContent || "";
-      node.hidden = !name.toLowerCase().includes(typed);
+    document.querySelectorAll("#folder-cards [data-folder], #content-list .list-row, #split-list .split-row, #photo-tiles .photo-tile").forEach((node) => {
+      const name = node.querySelector("h3, .tile-name")?.textContent || "";
+      node.hidden = !ftNameHit(name, typed);
     });
   }
   requestAnimationFrame(() => fitCardGrids());
@@ -2015,7 +2017,7 @@ const genPass = () => {
 };
 const absFolderLink = (gid, node) => new URL(folderLinkHref(gid, node), location.href).href;
 let splitQuery = "";
-const rowLead = (img, name, sizeText) => {
+const rowLead = (img, name, sizeText, menu) => {
   const lead = document.createElement("div");
   lead.className = "row-lead";
   const text = document.createElement("div");
@@ -2025,8 +2027,16 @@ const rowLead = (img, name, sizeText) => {
   const size = document.createElement("span");
   size.textContent = sizeText;
   text.append(title, size);
-  lead.append(img, text);
+  if (menu) lead.append(img, menu, text);
+  else lead.append(img, text);
   return lead;
+};
+const ftNameHit = (name, query) => {
+  const text = String(name || "").trim().toLowerCase();
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return true;
+  const surname = text.split(/\s+/)[0] || "";
+  return text.includes(q) || surname.includes(q);
 };
 const rowBurger = (entries) => {
   const wrap = document.createElement("div");
@@ -2151,11 +2161,9 @@ const paintSplitList = (gid, fid) => {
   document.querySelectorAll("body > .row-drop").forEach((menu) => menu.remove());
   const mode = document.getElementById("split-sort")?.value || "order";
   let rows = orderedKids(gid, fid, childFolders(gid, fid));
-  const query = splitQuery.trim().toLowerCase();
-  const tool = (document.getElementById("tile-find")?.value || "").trim().toLowerCase();
+  const query = (document.getElementById("split-query")?.value || splitQuery).trim().toLowerCase();
   const surnameOf = (name) => (String(name || "").trim().split(/\s+/)[0] || "").toLowerCase();
-  if (tool) rows = rows.filter((node) => node.name.toLowerCase().includes(tool));
-  if (query) rows = rows.filter((node) => surnameOf(node.name).includes(query));
+  if (query) rows = rows.filter((node) => ftNameHit(node.name, query));
   const parentCover = coverMap()[splitKey(gid, fid)] || "";
   rows.sort((a, b) => {
     if (mode === "az") return a.name.localeCompare(b.name, "ru");
@@ -2199,8 +2207,7 @@ const paintSplitList = (gid, fid) => {
     gen.dataset.gen = "";
     gen.textContent = "Сгенерировать пароль";
     row.append(
-      rowLead(img, node.name, folderSizeLabel(gid, node.id)),
-      rowBurger([
+      rowLead(img, node.name, folderSizeLabel(gid, node.id), rowBurger([
         { label: "Выше", data: { move: "up", kind: "folder" } },
         { label: "Ниже", data: { move: "down", kind: "folder" } },
         { label: parentCover && parentCover === img.src ? "Обложка" : "На обложку", data: { cover: "", kind: "folder" } },
@@ -2208,7 +2215,7 @@ const paintSplitList = (gid, fid) => {
         { label: access.hidden ? "Показать" : "Скрыть", data: { hideFolder: "", kind: "folder" } },
         { label: "Удалить", data: { delFolder: "", kind: "folder" }, danger: true },
         secretEntry(gid, node.id)
-      ]),
+      ])),
       pass,
       gen,
       mailCapsule(gid, node.id)
@@ -2390,8 +2397,7 @@ const paintContentList = (gid, fid, withFolders) => {
       img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
       img.alt = "";
       row.append(
-        rowLead(img, node.name, folderSizeLabel(gid, node.id)),
-        rowBurger([
+        rowLead(img, node.name, folderSizeLabel(gid, node.id), rowBurger([
           { label: "Выше", data: { move: "up", kind: "folder" } },
           { label: "Ниже", data: { move: "down", kind: "folder" } },
           { label: parentCover && parentCover === img.src ? "Обложка" : "На обложку", data: { cover: "", kind: "folder" } },
@@ -2399,7 +2405,7 @@ const paintContentList = (gid, fid, withFolders) => {
           { label: access.hidden ? "Показать" : "Скрыть", data: { hideFolder: "", kind: "folder" } },
           { label: "Удалить", data: { delFolder: "", kind: "folder" }, danger: true },
           secretEntry(gid, node.id)
-        ])
+        ]))
       );
       host.appendChild(row);
     });
@@ -2416,15 +2422,14 @@ const paintContentList = (gid, fid, withFolders) => {
     img.alt = "";
     const isCover = parentCover && parentCover === img.src;
     row.append(
-      rowLead(img, file.name, formatSize(fileBytes(file))),
-      rowBurger([
+      rowLead(img, file.name, formatSize(fileBytes(file)), rowBurger([
         { label: "Выше", data: { move: "up", kind: "file" } },
         { label: "Ниже", data: { move: "down", kind: "file" } },
         { label: isCover ? "Обложка" : "На обложку", data: { cover: "", kind: "file" } },
         { label: hidden.has(file.id) ? "Показать" : "Скрыть", data: { hideFile: "", kind: "file" } },
         { label: "Удалить", data: { removeFile: "", kind: "file" }, danger: true },
         secretEntry(gid, fid)
-      ])
+      ]))
     );
     host.appendChild(row);
   });
@@ -2864,13 +2869,19 @@ const zipStore = (files) => {
   return blob;
 };
 const cell = (ref, text) => `<c r="${ref}" t="inlineStr"><is><t>${xmlEscape(text)}</t></is></c>`;
+const SAMPLE_NOTE = "* Названия должны совпадать с именами папок и идти в алфавитном порядке.";
 const buildSampleXlsx = (title) => {
+  const people = [
+    ["1", "Иванов", "Иван", "ivanov@mail.ru"],
+    ["2", "Петров", "Пётр", "petrov@mail.ru"]
+  ].sort((a, b) => a[1].localeCompare(b[1], "ru"));
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="12" customWidth="1"/><col min="2" max="2" width="16" customWidth="1"/><col min="3" max="3" width="12" customWidth="1"/><col min="4" max="4" width="20" customWidth="1"/></cols><sheetData>
 <row r="1">${cell("A1", title)}</row>
-<row r="2">${cell("A2", "Номер")}${cell("B2", "Фамилия")}${cell("C2", "Имя")}${cell("D2", "Почта")}</row>
-<row r="3">${cell("A3", "1")}${cell("B3", "Иванов")}${cell("C3", "Иван")}${cell("D3", "ivanov@mail.ru")}</row>
-<row r="4">${cell("A4", "2")}${cell("B4", "Петров")}${cell("C4", "Пётр")}${cell("D4", "petrov@mail.ru")}</row>
+<row r="2">${cell("A2", "Номер")}${cell("B2", "Фамилия*")}${cell("C2", "Имя")}${cell("D2", "Почта")}</row>
+<row r="3">${cell("A3", people[0][0])}${cell("B3", people[0][1])}${cell("C3", people[0][2])}${cell("D3", people[0][3])}</row>
+<row r="4">${cell("A4", people[1][0])}${cell("B4", people[1][1])}${cell("C4", people[1][2])}${cell("D4", people[1][3])}</row>
+<row r="6">${cell("A6", SAMPLE_NOTE)}</row>
 </sheetData><autoFilter ref="A2:D4"/></worksheet>`;
   const encoder = new TextEncoder();
   return zipStore([
@@ -2955,6 +2966,11 @@ const parseSheetRows = (xml, shared) => {
   });
   return rows;
 };
+const sheetPeople = (rows) => rows.filter((row) => {
+  const blob = [row.number, row.surname, row.first, row.email].join(" ").trim();
+  if (!blob || blob.startsWith("*") || blob.includes("Названия должны совпадать")) return false;
+  return true;
+});
 const rowsFromUpload = async (file) => {
   const name = (file.name || "").toLowerCase();
   if (name.endsWith(".xlsx")) {
@@ -2963,9 +2979,9 @@ const rowsFromUpload = async (file) => {
     const shared = [...sharedXml.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((match) => match[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
     const sheetName = Object.keys(packed).find((key) => key.startsWith("xl/worksheets/sheet"));
     const rows = parseSheetRows(packed[sheetName] || "", shared);
-    return rows.slice(2).map((row) => ({ number: row.A || "", surname: row.B || "", first: row.C || "", email: row.D || "" }));
+    return sheetPeople(rows.slice(2).map((row) => ({ number: row.A || "", surname: row.B || "", first: row.C || "", email: row.D || "" })));
   }
-  return parseCsvTable(await file.text());
+  return sheetPeople(parseCsvTable(await file.text()));
 };
 const normName = (value) => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
 const matchChild = (nodes, surname, first) => {
@@ -3006,7 +3022,7 @@ const applyMailSheet = async (file) => {
     filled.push(node.name);
   });
   paintSplitList(gid, fid);
-  if (missed.length) showSplitNote(`Не совпало: ${missed.join(", ")}. Почта для них не подставлена.${filled.length ? ` Подставлено: ${filled.join(", ")}.` : ""}`, true);
+  if (missed.length) showSplitNote(`Не совпало: ${missed.join(", ")}. Почта для них не подставлена.${filled.length ? ` Подставлено: ${filled.join(", ")}.` : ""} Названия должны совпадать с именами папок и идти в алфавитном порядке.`, true);
   else showSplitNote(`Почта подставлена: ${filled.join(", ")}.`, false);
 };
 document.getElementById("split-sample")?.addEventListener("click", () => {
@@ -3043,15 +3059,20 @@ document.getElementById("split-mail-all")?.addEventListener("click", () => {
   if (!ready.length && !empty.length) bits.push("В этой папке нет вложенных папок.");
   showSplitNote(bits.join(" "), empty.length > 0 && !ready.length);
 });
+const runSplitFind = () => {
+  const field = document.getElementById("split-query");
+  splitQuery = field?.value || "";
+  mountFolderBrowser();
+};
 document.getElementById("split-find")?.addEventListener("click", () => {
-  splitQuery = document.getElementById("split-query")?.value || "";
-  paintSplitList(galleryId(), folderId());
+  document.getElementById("split-query")?.focus();
+  runSplitFind();
 });
+document.getElementById("split-query")?.addEventListener("input", runSplitFind);
 document.getElementById("split-query")?.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();
-  splitQuery = event.target.value || "";
-  paintSplitList(galleryId(), folderId());
+  runSplitFind();
 });
 document.getElementById("split-gen-all")?.addEventListener("click", async () => {
   const gid = galleryId();
@@ -3193,10 +3214,6 @@ document.getElementById("client-lock")?.addEventListener("submit", (event) => {
   sessionStorage.setItem(`ft-foldpass-${gid}/${fid}`, need);
   if (note) note.textContent = "";
   paintClient(gid, fid);
-});
-document.getElementById("tile-find")?.addEventListener("input", () => {
-  paintFiles();
-  mountFolderBrowser();
 });
 document.getElementById("client-share")?.addEventListener("click", async () => {
   const note = document.getElementById("client-note");
@@ -3554,7 +3571,7 @@ const ftPaintGauge = (host) => {
   } else {
     lines = [plan.name === "Пробный период" ? "Пробный" : plan.name, `${plan.days} ${ftDaysWord(plan.days)}`];
   }
-  host.innerHTML = `<div class="gauge">${ftSpeedometer(ratio)}<p class="gauge-name">${lines[0]}</p>${lines.slice(1).map((line) => `<p class="gauge-meta">${line}</p>`).join("")}</div>`;
+  host.innerHTML = `<div class="gauge">${ftSpeedometer(ratio)}<div class="gauge-copy"><p class="gauge-name">${lines[0]}</p>${lines.slice(1).map((line) => `<p class="gauge-meta">${line}</p>`).join("")}</div></div>`;
 };
 document.querySelectorAll("[data-gauge]").forEach(ftPaintGauge);
 const paintTrash = () => {

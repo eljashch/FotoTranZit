@@ -512,18 +512,37 @@ input[type="text"], input[type="email"], input[type="password"] {
 .plan-gauge { min-width: 0; max-width: 100%; }
 .who .plan-gauge { flex: 0 1 240px; }
 .gauge-pair {
-  display: flex;
-  flex-direction: row-reverse;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
   gap: 10px;
+  width: min(100%, 420px);
   min-width: 0;
   max-width: 100%;
 }
-.gauge-pair .plan-gauge { flex: 1 1 148px; width: auto; max-width: 210px; }
-.gauge-pair .gauge { width: 100%; padding: 4px 8px 10px; }
-.gauge-pair .gauge svg { width: min(158px, 100%); }
+.gauge-pair .plan-gauge {
+  display: flex;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  flex: none;
+}
+.gauge-pair .plan-gauge[data-gauge="storage"] { order: -1; }
+.gauge-pair .gauge {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 4px 8px 10px;
+}
+.gauge-pair .gauge svg { width: min(148px, 100%); height: auto; flex: 0 0 auto; }
+.gauge-pair .gauge-copy {
+  width: 100%;
+  min-height: 4.8em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 .gauge {
   width: min(240px, 100%);
   max-width: 100%;
@@ -671,7 +690,29 @@ input[type="text"], input[type="email"], input[type="password"] {
 .split-filters { margin: 4px 0 12px; }
 .split-filters summary { cursor: pointer; font-weight: 700; }
 .split-list, .content-list { display: grid; margin-top: 8px; max-width: 100%; }
-#explorer-tools { max-width: 100%; min-width: 0; }
+#explorer-tools {
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+}
+#explorer-tools .btn,
+#explorer-tools .split-toggle {
+  height: 36px;
+  min-height: 36px;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1;
+  box-sizing: border-box;
+}
+#explorer-tools .split-toggle {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  gap: 8px;
+  white-space: nowrap;
+}
+#explorer-tools .split-toggle input { width: 16px; height: 16px; margin: 0; accent-color: #3ec8ff; }
 .view-switch { display: contents; }
 .view-switch .on { color: #fff; background: linear-gradient(180deg, #3ec8ff, #2f6dff); border-color: transparent; }
 .split-toggle { max-width: 100%; }
@@ -687,12 +728,14 @@ input[type="text"], input[type="email"], input[type="password"] {
 .row-lead {
   display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 10px;
   min-width: 0;
   max-width: 100%;
   flex: 1 1 180px;
 }
+.row-lead .row-menu { flex: 0 0 36px; }
 .row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .row-lead h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 .row-lead span { color: var(--muted); font-size: 13px; }
@@ -788,7 +831,7 @@ input[type="text"], input[type="email"], input[type="password"] {
   border-radius: 12px;
   padding: 0 12px;
 }
-.split-bar { align-items: flex-end; }
+.split-bar { align-items: flex-end; flex-wrap: wrap; }
 .split-method {
   display: grid;
   gap: 2px;
@@ -800,7 +843,7 @@ input[type="text"], input[type="email"], input[type="password"] {
 }
 .split-method select {
   width: auto;
-  min-width: 10.5rem;
+  min-width: 0;
   height: 36px;
   min-height: 36px;
   border-radius: 12px;
@@ -812,23 +855,37 @@ input[type="text"], input[type="email"], input[type="password"] {
   height: 36px;
   min-height: 36px;
   border-radius: 12px;
-  padding: 0 12px;
+  padding: 0 10px;
   font-size: 13px;
 }
-.split-search { flex: 0 1 220px; margin-left: auto; }
+.split-search {
+  flex: 0 0 auto;
+  width: 148px;
+  max-width: 100%;
+  min-width: 0;
+  height: 36px;
+  margin-left: auto;
+  align-self: flex-end;
+}
+@media (max-width: 1100px) {
+  .split-search { margin-left: 0; }
+}
+@media (min-width: 1280px) {
+  .split-bar { flex-wrap: nowrap; gap: 6px; }
+  .split-bar .btn,
+  .split-method select,
+  #explorer-tools .btn,
+  #explorer-tools .split-toggle {
+    font-size: 12px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .split-search { width: 140px; margin-left: auto; }
+}
 .split-note { margin: 8px 0 0; }
 .split-note.is-bad { color: #ffb4c0; }
-.tool-find {
-  width: 9rem;
-  flex: 0 0 9rem;
-  max-width: 9rem;
-  height: 42px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(4, 12, 22, 0.45);
-  padding: 0 14px;
-  color: white;
-}
+.split-search input[type="search"] { width: 0; min-width: 0; flex: 1 1 auto; font-size: 13px; padding: 0 8px; }
+.split-search .mail-send { padding: 0 8px; }
 .comment-panel {
   width: min(520px, 100%);
   max-height: min(86vh, 760px);
@@ -872,9 +929,9 @@ input[type="text"], input[type="email"], input[type="password"] {
   .list-row, .split-row { align-items: center; }
   .row-meta { margin-left: 0; width: 100%; text-align: left; }
   .split-filters .row-actions, #explorer-tools { width: 100%; max-width: 100%; }
-  .split-bar .btn, .split-search, .split-method, #explorer-tools .tool-find { max-width: 100%; }
-  #explorer-tools .tool-find { width: 9rem; flex: 0 0 9rem; }
-  .split-search { margin-left: 0; }
+  .split-bar .btn, .split-search, .split-method { max-width: 100%; }
+  #explorer-tools .btn, #explorer-tools .split-toggle { height: 36px; min-height: 36px; }
+  .split-search { margin-left: 0; width: 148px; flex: 0 0 auto; }
   .cover-actions { left: 6px; right: 6px; bottom: 6px; gap: 4px; }
   .cover-actions .btn { padding: 7px 3px; font-size: 12px; }
 }
@@ -1392,8 +1449,8 @@ textarea { min-height: 90px; resize: vertical; }
 @media (max-width: 640px) {
   .fn-list, .plans, .features, .steps, .app-main .plans { grid-template-columns: 1fr; }
   .who .plan-gauge { flex-basis: 100%; }
-  .gauge-pair { flex: 1 1 100%; }
-  .gauge-pair .plan-gauge { flex: 1 1 140px; width: auto; max-width: 100%; }
+  .gauge-pair { width: min(100%, 420px); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gauge-pair .plan-gauge { min-width: 0; width: auto; max-width: none; }
   .section { padding: 48px 0; }
   .wrap, .app, .g-top { width: min(1160px, calc(100% - 16px)); }
   .app-main h1, .auth h1, .legal h1 { font-size: 32px !important; }
