@@ -251,16 +251,42 @@ const locateFolder = (gid, fid, nodes = folderNodes(gid), ancestors = []) => {
   }
   return null;
 };
+const rehomeMap = () => {
+  try { return JSON.parse(localStorage.getItem("ft-rehome") || "{}"); } catch (error) { return {}; }
+};
+const rehomeOf = (gid, fid) => {
+  const map = rehomeMap();
+  const key = `${gid}/${fid}`;
+  return Object.prototype.hasOwnProperty.call(map, key) ? (map[key] || "") : null;
+};
 const isFolderGone = (gid, fid) => {
   const gone = new Set(goneFolders());
+  const key = `${gid}/${fid}`;
+  if (!gone.has(key) && rehomeOf(gid, fid) !== null) return false;
   const found = locateFolder(gid, fid);
-  if (!found) return false;
+  if (!found) return gone.has(key);
   return found.path.some((node) => gone.has(`${gid}/${node.id}`));
+};
+const foldersRehomedTo = (gid, place) => {
+  const wanted = place || "";
+  const out = [];
+  Object.entries(rehomeMap()).forEach(([key, parent]) => {
+    if (!key.startsWith(`${gid}/`)) return;
+    if ((parent || "") !== wanted) return;
+    const fid = key.slice(gid.length + 1);
+    if (goneFolders().includes(key)) return;
+    const found = locateFolder(gid, fid);
+    if (found) out.push(found.node);
+  });
+  return out;
 };
 const childFolders = (gid, fid) => {
   if (fid && isFolderGone(gid, fid)) return [];
+  const place = fid || "";
   const nodes = fid ? (locateFolder(gid, fid)?.node.children || []) : folderNodes(gid);
-  return nodes.filter((node) => !isFolderGone(gid, node.id));
+  const own = nodes.filter((node) => rehomeOf(gid, node.id) === null && !isFolderGone(gid, node.id));
+  const extra = foldersRehomedTo(gid, place).filter((node) => !own.some((item) => item.id === node.id));
+  return [...own, ...extra];
 };
 const folderTitle = (gid, fid) => locateFolder(gid, fid)?.node.name || "";
 const isClientGallery = () => pageFile() === "gallery.html";
@@ -1014,8 +1040,37 @@ const purgeFolder = (gid, fid) => {
   dropTrash((item) => item.kind === "folder" && item.id === fid && item.gallery === gid);
 };
 const trashFolder = (gid, fid, name, cover) => {
+  const found = locateFolder(gid, fid);
+  const parent = found?.ancestors?.[found.ancestors.length - 1];
   markFolderGone(gid, fid);
-  pushTrash({ kind: "folder", id: fid, gallery: gid, title: name || "папка", cover: cover || "" });
+  pushTrash({
+    kind: "folder",
+    id: fid,
+    gallery: gid,
+    title: name || "папка",
+    cover: cover || "",
+    parent: parent ? parent.id : ""
+  });
+};
+const restoreFolder = (item) => {
+  const gid = item.gallery;
+  const fid = item.id;
+  const key = `${gid}/${fid}`;
+  writeList("ft-gone-folders", goneFolders().filter((row) => row !== key));
+  const found = locateFolder(gid, fid);
+  const parentId = item.parent || found?.ancestors?.[found.ancestors.length - 1]?.id || "";
+  const parentGone = Boolean(parentId) && (goneFolders().includes(`${gid}/${parentId}`) || isFolderGone(gid, parentId));
+  const map = rehomeMap();
+  let note = "";
+  if (parentGone) {
+    map[key] = "";
+    note = `Папка «${item.title || "папка"}» вернулась в корень галереи: прежняя папка в корзине.`;
+  } else if (Object.prototype.hasOwnProperty.call(map, key)) {
+    delete map[key];
+  }
+  localStorage.setItem("ft-rehome", JSON.stringify(map));
+  dropTrash((row) => row.kind === "folder" && row.id === fid && (row.gallery || "") === (gid || ""));
+  return note;
 };
 let deleteJob = null;
 const closeDeleteAsk = () => {
@@ -1393,6 +1448,23 @@ const publicContacts = (target) => {
 const galName = document.getElementById("gal-name");
 if (galName) galName.textContent = personName();
 publicContacts(document.getElementById("gal-contacts"));
+const cabinetName = document.getElementById("cabinet-name");
+if (cabinetName) {
+  const profile = loadProfile();
+  const saved = personName();
+  cabinetName.textContent = saved || "Анна Соколова";
+  const place = document.getElementById("cabinet-place");
+  const about = document.getElementById("cabinet-about");
+  const placeText = [profile?.role, profile?.city].filter(Boolean).join(", ");
+  if (place) {
+    place.textContent = placeText;
+    place.hidden = !placeText;
+  }
+  if (about) {
+    about.textContent = profile?.about || "";
+    about.hidden = !profile?.about;
+  }
+}
 const phName = document.getElementById("ph-name");
 if (phName) {
   const profile = loadProfile();
@@ -2535,17 +2607,29 @@ const bindAddButton = (buttonId, fileId, treeId) => {
   const button = document.getElementById(buttonId);
   const files = document.getElementById(fileId);
   const tree = document.getElementById(treeId);
-  if (!button) return;
-  let taps = 0;
-  let timer = 0;
-  button.addEventListener("click", () => {
-    taps += 1;
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      const input = taps > 1 ? tree : files;
-      taps = 0;
-      input?.click();
-    }, 220);
+  if (!button || !files || !tree || button.dataset.addBound) return;
+  button.dataset.addBound = "1";
+  const menu = document.createElement("div");
+  menu.className = "add-menu";
+  menu.hidden = true;
+  const choice = (label, input) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "btn btn-line";
+    item.textContent = label;
+    item.addEventListener("click", (event) => {
+      event.stopPropagation();
+      menu.hidden = true;
+      input.click();
+    });
+    menu.appendChild(item);
+  };
+  choice("Файлы", files);
+  choice("Папка", tree);
+  button.insertAdjacentElement("afterend", menu);
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    menu.hidden = !menu.hidden;
   });
 };
 bindAddButton("add-any", "add-files", "add-tree");
@@ -2750,9 +2834,12 @@ const takeUploads = (event) => {
   ingestUploads(picked);
   event.target.value = "";
 };
-document.getElementById("add-files")?.addEventListener("change", takeUploads);
-document.getElementById("pick-files")?.addEventListener("change", takeUploads);
-document.getElementById("pick-folder")?.addEventListener("change", takeUploads);
+["add-files", "add-tree", "pick-files", "pick-folder"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("change", takeUploads);
+});
+document.addEventListener("click", () => {
+  document.querySelectorAll(".add-menu").forEach((menu) => { menu.hidden = true; });
+});
 const readEntryFile = (entry) => new Promise((resolve, reject) => entry.file(resolve, reject));
 const readEntryBatch = (reader) => new Promise((resolve, reject) => reader.readEntries(resolve, reject));
 const filesFromDrop = async (transfer) => {
@@ -3571,7 +3658,8 @@ const ftPaintGauge = (host) => {
   } else {
     lines = [plan.name === "Пробный период" ? "Пробный" : plan.name, `${plan.days} ${ftDaysWord(plan.days)}`];
   }
-  host.innerHTML = `<div class="gauge">${ftSpeedometer(ratio)}<div class="gauge-copy"><p class="gauge-name">${lines[0]}</p>${lines.slice(1).map((line) => `<p class="gauge-meta">${line}</p>`).join("")}</div></div>`;
+  const title = host.dataset.title ? `<p class="gauge-title">${host.dataset.title}</p>` : "";
+  host.innerHTML = `<div class="gauge">${title}${ftSpeedometer(ratio)}<div class="gauge-copy"><p class="gauge-name">${lines[0]}</p>${lines.slice(1).map((line) => `<p class="gauge-meta">${line}</p>`).join("")}</div></div>`;
 };
 document.querySelectorAll("[data-gauge]").forEach(ftPaintGauge);
 const paintTrash = () => {
@@ -3596,17 +3684,106 @@ const paintTrash = () => {
     meta.className = "hint";
     meta.textContent = `${kind}. Срок с создания не продлевается.`;
     row.append(title, meta);
+    if (item.kind === "folder") {
+      const restore = document.createElement("button");
+      restore.type = "button";
+      restore.className = "btn btn-line";
+      restore.textContent = "Восстановить";
+      restore.dataset.restoreFolder = item.id || "";
+      restore.dataset.restoreGallery = item.gallery || "";
+      row.appendChild(restore);
+    }
     host.appendChild(row);
   });
 };
-if (params.get("view") === "trash") {
-  const trash = document.getElementById("trash-view");
-  const panel = document.getElementById("gallery-panel");
-  const referral = document.getElementById("referral-box");
-  if (trash) trash.hidden = false;
-  if (panel) panel.hidden = true;
-  if (referral) referral.hidden = true;
+document.getElementById("trash-list")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-restore-folder]");
+  if (!button) return;
+  const gid = button.dataset.restoreGallery || "";
+  const fid = button.dataset.restoreFolder || "";
+  const item = loadTrash().find((row) => row.kind === "folder" && row.id === fid && (row.gallery || "") === gid);
+  if (!item) return;
+  const note = restoreFolder(item);
+  const noteNode = document.getElementById("trash-note");
+  if (noteNode) {
+    noteNode.hidden = !note;
+    noteNode.textContent = note;
+  }
   paintTrash();
+});
+const paintOffers = () => {
+  const offers = document.getElementById("offers-list");
+  const coupons = document.getElementById("coupon-list");
+  if (offers) {
+    offers.replaceChildren();
+    const card = document.createElement("article");
+    card.className = "list-row";
+    const title = document.createElement("h3");
+    title.textContent = "Пример: скидка на следующий пакет";
+    const meta = document.createElement("p");
+    meta.className = "hint";
+    meta.textContent = "Пример. Действует до 31 декабря 2026. Код FOTO10 — скидка 10%.";
+    const use = document.createElement("a");
+    use.className = "btn btn-dark";
+    use.href = "billing.html";
+    use.textContent = "Воспользоваться";
+    card.append(title, meta, use);
+    offers.appendChild(card);
+  }
+  if (coupons) {
+    coupons.replaceChildren();
+    const row = document.createElement("article");
+    row.className = "list-row";
+    const title = document.createElement("h3");
+    title.textContent = "DISK10";
+    const meta = document.createElement("p");
+    meta.className = "hint";
+    meta.textContent = "Пример. Скидка 10% на объём. Действует до 31 декабря 2026.";
+    row.append(title, meta);
+    coupons.appendChild(row);
+  }
+  const linkNode = document.getElementById("ref-link-text");
+  if (linkNode) {
+    let code = localStorage.getItem("ft-ref-code");
+    if (!code) {
+      code = `FT${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      localStorage.setItem("ft-ref-code", code);
+    }
+    const link = new URL("register.html", location.href);
+    link.searchParams.set("ref", code);
+    linkNode.textContent = link.href;
+  }
+};
+document.getElementById("ref-copy")?.addEventListener("click", async () => {
+  const text = document.getElementById("ref-link-text")?.textContent || "";
+  const button = document.getElementById("ref-copy");
+  try { await navigator.clipboard.writeText(text); } catch (error) {}
+  if (!button) return;
+  const old = button.textContent;
+  button.textContent = "Скопировано";
+  setTimeout(() => { button.textContent = old; }, 1200);
+});
+if (pageFile() === "cabinet.html") {
+  const view = params.get("view");
+  const offers = document.getElementById("offers-view");
+  const gallery = document.getElementById("gallery-panel");
+  const metrics = document.querySelector(".metrics");
+  const banner = document.getElementById("offer-banner");
+  const trash = document.getElementById("trash-view");
+  const isOffers = view === "offers";
+  const isTrash = view === "trash";
+  if (offers) offers.hidden = !isOffers;
+  if (gallery) gallery.hidden = isOffers || isTrash;
+  if (metrics) metrics.hidden = isOffers || isTrash;
+  if (banner) banner.hidden = isOffers || isTrash || Boolean(params.get("id"));
+  if (trash) trash.hidden = !isTrash;
+  document.querySelectorAll(".side a.item").forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    const on = isOffers ? href.includes("view=offers") : isTrash ? href.includes("view=trash") : href === "cabinet.html";
+    link.classList.toggle("on", on);
+  });
+  if (isOffers) paintOffers();
+  if (isTrash) paintTrash();
 }
 document.getElementById("empty-trash")?.addEventListener("click", () => {
   saveTrash([]);

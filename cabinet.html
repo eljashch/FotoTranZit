@@ -25,12 +25,24 @@
     </aside>
     <main class="app-main">
       <section class="panel who">
-        <div>
-          <h1 id="cabinet-name" style="font-size:40px">Анна Соколова</h1>
+        <div class="cabinet-id">
+          <div class="portrait-frame cabinet-portrait" data-portrait hidden>
+            <img class="portrait" data-use="photo" alt="" hidden>
+          </div>
+          <div>
+            <div class="name-line">
+              <div class="portrait-frame logo-frame" data-logo-frame hidden>
+                <img class="portrait" data-use="logo" alt="" hidden>
+              </div>
+              <h1 id="cabinet-name">Анна Соколова</h1>
+            </div>
+            <p class="kicker" id="cabinet-place" hidden></p>
+            <p class="hint" id="cabinet-about" hidden></p>
+          </div>
         </div>
         <div class="gauge-pair">
-          <div class="plan-gauge" data-gauge="active" data-plan="trial"></div>
-          <div class="plan-gauge" data-gauge="storage" data-plan="trial"></div>
+          <div class="plan-gauge" data-gauge="active" data-plan="trial" data-title="Куплено"></div>
+          <div class="plan-gauge" data-gauge="storage" data-plan="trial" data-title="Всего"></div>
         </div>
       </section>
       <section class="metrics">
@@ -39,23 +51,24 @@
         <article class="panel metric"><b>128</b><span>скачиваний</span></article>
       </section>
       <section class="panel" id="offer-banner" hidden>
-        <h2>Предложение</h2>
-        <p id="offer-banner-text"></p>
-        <p class="hint" id="offer-banner-until"></p>
-        <a class="btn btn-dark" id="offer-use" href="billing.html">Воспользоваться</a>
-      </section>
-      <section class="panel" id="referral-box">
-        <h2>Реферальная ссылка</h2>
-        <p class="hint">Регистрация по ссылке бесплатная. Друг получает скидку на первую оплату тарифа. Бонусы приходят на счёт кабинета после оплаты, если администратор задал величину.</p>
-        <p id="ref-link-text"></p>
-        <div class="row-actions">
-          <button class="btn btn-line" type="button" id="ref-copy">Скопировать ссылку</button>
-        </div>
-        <p class="hint" id="ref-stats"></p>
+        <h2>Есть предложение</h2>
+        <p id="offer-banner-text">Новое предложение ждёт во вкладке «Мои предложения».</p>
+        <a class="btn btn-dark" id="offer-use" href="cabinet.html?view=offers">Открыть</a>
       </section>
       <section class="panel" id="offers-view" hidden>
         <h2>Мои предложения</h2>
         <div id="offers-list"></div>
+        <h2>Промокоды</h2>
+        <div id="coupon-list"></div>
+        <div id="referral-box">
+          <h2>Реферальная ссылка</h2>
+          <p class="hint">Регистрация по ссылке бесплатная. Друг получает скидку 15% на первую оплату тарифа. Бонусы приходят на счёт кабинета после этой оплаты, если администратор задал величину.</p>
+          <p id="ref-link-text"></p>
+          <div class="row-actions">
+            <button class="btn btn-line" type="button" id="ref-copy">Скопировать ссылку</button>
+          </div>
+          <p class="hint" id="ref-stats"></p>
+        </div>
       </section>
       <section class="panel" id="trash-view" hidden>
         <div class="who">
@@ -65,6 +78,7 @@
           </div>
           <button class="btn btn-line btn-danger" id="empty-trash" type="button">Очистить корзину</button>
         </div>
+        <p class="hint" id="trash-note" hidden></p>
         <div id="trash-list"></div>
       </section>
       <section class="panel" id="gallery-panel">
@@ -273,11 +287,10 @@
           </form>
         </div>
       </div>
-      <div class="overlay" id="delete-ask" hidden>
-        <form class="modal" id="delete-ask-form">
-          <h2>Удаление</h2>
-          <p id="delete-ask-text"></p>
-          <div class="row-actions">
+      <div class="folder-ask" id="delete-ask" hidden>
+        <form class="folder-ask-card delete-ask-card" id="delete-ask-form">
+          <h2 id="delete-ask-text">Что сделать?</h2>
+          <div class="row-actions delete-ask-actions">
             <button class="btn btn-line btn-danger" type="button" id="delete-forever">Удалить безвозвратно</button>
             <button class="btn btn-dark" type="button" id="delete-to-trash">Переместить в корзину</button>
             <button class="btn btn-line" type="button" id="delete-cancel">Отмена</button>

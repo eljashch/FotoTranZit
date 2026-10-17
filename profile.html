@@ -32,7 +32,9 @@
             <div class="slot">
               <span>Ваше фото</span>
               <div class="portrait-frame" data-portrait data-crop="edit">
-                <img class="portrait" data-use="photo" data-empty="1" alt="" hidden>
+                <div class="portrait-clip">
+                  <img class="portrait" data-use="photo" data-empty="1" alt="" hidden>
+                </div>
                 <div class="crop-zoom">
                   <button type="button" data-zoom="in" aria-label="Ближе">＋</button>
                   <button type="button" data-zoom="out" aria-label="Дальше">−</button>
@@ -46,7 +48,9 @@
             <div class="slot">
               <span>Логотип</span>
               <div class="portrait-frame logo-frame" data-logo-frame data-crop="edit" hidden>
-                <img class="portrait" data-use="logo" alt="" hidden>
+                <div class="portrait-clip">
+                  <img class="portrait" data-use="logo" alt="" hidden>
+                </div>
                 <div class="crop-zoom">
                   <button type="button" data-zoom="in" aria-label="Ближе">＋</button>
                   <button type="button" data-zoom="out" aria-label="Дальше">−</button>
