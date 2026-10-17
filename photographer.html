@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
-  <header class="site-header"><div class="wrap header-row"><a class="logo" href="index.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a><a class="btn btn-line" href="profile.html">В кабинет</a></div></header>
+  <header class="site-header"><div class="wrap header-row"><a class="logo" href="index.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a><a class="btn btn-line" id="to-cabinet" href="profile.html">В кабинет</a></div></header>
   <main class="legal">
     <div class="person-head">
       <div class="portrait-frame" data-portrait hidden>
@@ -20,7 +20,9 @@
       <div>
         <p class="kicker" id="ph-role"></p>
         <div class="name-line">
-          <img class="brand-logo" data-use="logo" alt="" hidden>
+          <div class="portrait-frame logo-frame" data-logo-frame hidden>
+            <img class="portrait" data-use="logo" alt="" hidden>
+          </div>
           <h1 id="ph-name">Фотограф</h1>
         </div>
         <p id="ph-about"></p>

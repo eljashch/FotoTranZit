@@ -63,7 +63,9 @@
     <div class="g-cover js-shots">
       <img data-gallery-cover src="img/p1.jpg" alt="">
       <div class="veil">
-        <img class="cover-logo" data-use="logo" alt="" hidden>
+        <div class="portrait-frame logo-frame cover-logo-frame" data-logo-frame hidden>
+          <img class="portrait" data-use="logo" alt="" hidden>
+        </div>
         <p class="kicker" id="gal-name"></p>
         <h1 data-gallery-title>Свадьба Марии и Ильи</h1>
         <p id="pub-mark" hidden></p>
@@ -195,7 +197,7 @@
     <form class="modal">
       <h2 id="card-settings-title">Настройки</h2>
       <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную папку.</p>
-      <label>Секретный код<input id="card-secret" type="text" autocomplete="off"></label>
+      <label id="card-pass-label" hidden>Пароль папки<input id="card-folder-pass" type="text" autocomplete="off"></label>
       <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
       <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
       <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>

@@ -117,13 +117,13 @@
           </article>
         </div>
         <div class="row-actions" id="explorer-tools" hidden>
-          <button class="btn btn-line" id="add-folder" type="button">Папка</button>
-          <label class="btn btn-line">Файлы<input id="add-files" type="file" multiple hidden></label>
-          <label class="split-toggle" id="split-switch-wrap"><span>Раздельная выдача</span><input id="split-toggle" type="checkbox"></label>
           <div class="view-switch" id="view-switch" hidden>
             <button class="btn btn-line" type="button" data-view-mode="list">Список</button>
             <button class="btn btn-line" type="button" data-view-mode="tiles">Галерея</button>
           </div>
+          <button class="btn btn-line" id="add-folder" type="button">Папка</button>
+          <label class="btn btn-line">Файлы<input id="add-files" type="file" multiple hidden></label>
+          <label class="split-toggle" id="split-switch-wrap"><span>Раздельная выдача</span><input id="split-toggle" type="checkbox"></label>
           <div class="upload-line" id="upload-line" hidden><i></i></div>
           <ul class="upload-fails" id="upload-fails" hidden></ul>
         </div>
@@ -229,7 +229,7 @@
         <form class="modal">
           <h2 id="card-settings-title">Настройки</h2>
           <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную галерею.</p>
-          <label>Секретный код<input id="card-secret" type="text" autocomplete="off"></label>
+          <label id="card-pass-label">Пароль папки<input id="card-folder-pass" type="text" autocomplete="off"></label>
           <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
           <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
           <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
@@ -242,11 +242,40 @@
             </select>
           </label>
           <p class="hint">Список или галерея — только ваш экран. Клиент всегда видит плитки.</p>
-          <label>Найти<input id="card-find" type="search" placeholder="Имя файла" autocomplete="off"></label>
           <div class="row-actions">
             <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
             <button class="btn btn-dark" id="save-card" type="button" hidden>Сохранить</button>
             <button class="btn btn-line" type="button" data-close="card-settings">Готово</button>
+          </div>
+        </form>
+      </div>
+      <div class="overlay" id="comment-modal" hidden>
+        <form class="modal" id="comment-form">
+          <h2>Комментарии</h2>
+          <label>Текст<textarea id="comment-text" placeholder="Комментарий к кадру"></textarea></label>
+          <div class="row-actions">
+            <button class="btn btn-dark" type="button" id="comment-save">Сохранить</button>
+            <button class="btn btn-line" type="button" data-close="comment-modal">Закрыть</button>
+          </div>
+        </form>
+      </div>
+      <div class="folder-ask" id="secret-panel" hidden>
+        <form class="folder-ask-card" id="secret-panel-form">
+          <h2>Задать секретный код</h2>
+          <input id="secret-panel-code" type="text" autocomplete="off" aria-label="Секретный код">
+          <div class="row-actions">
+            <button class="btn btn-dark" type="submit">Сохранить</button>
+            <button class="btn btn-line" type="button" id="secret-panel-cancel">Отмена</button>
+          </div>
+        </form>
+      </div>
+      <div class="folder-ask" id="folder-ask" hidden>
+        <form class="folder-ask-card" id="folder-ask-form">
+          <h2>Новая папка</h2>
+          <input id="folder-ask-name" type="text" placeholder="Название папки" autocomplete="off" aria-label="Название папки" maxlength="120">
+          <div class="row-actions">
+            <button class="btn btn-dark" type="submit">Создать</button>
+            <button class="btn btn-line" type="button" id="folder-ask-cancel">Отмена</button>
           </div>
         </form>
       </div>

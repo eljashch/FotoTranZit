@@ -18,6 +18,9 @@
       <a class="item" href="reviews.html">Отзывы</a>
       <a class="item on" href="profile.html">Профиль</a>
       <a class="item" href="billing.html">Оплата</a>
+      <a class="item" href="photographer.html">Моя страница</a>
+      <a class="item" href="cabinet.html?view=offers">Мои предложения</a>
+      <a class="item" href="cabinet.html?view=trash">Корзина</a>
       <a class="item push" href="index.html">Выйти</a>
     </aside>
     <main class="app-main">
@@ -30,11 +33,11 @@
               <span>Ваше фото</span>
               <div class="portrait-frame" data-portrait data-crop="edit">
                 <img class="portrait" data-use="photo" data-empty="1" alt="" hidden>
+                <div class="crop-zoom">
+                  <button type="button" data-zoom="in" aria-label="Ближе">＋</button>
+                  <button type="button" data-zoom="out" aria-label="Дальше">−</button>
+                </div>
               </div>
-              <p class="hint crop-hint">Фото можно подвинуть внутри круга.</p>
-              <label class="zoom-line" id="photo-zoom-wrap" hidden>Дальше — ближе
-                <input id="photo-zoom" type="range" min="1" max="2.5" step="0.01" value="1" aria-label="Масштаб фото">
-              </label>
               <label class="file-pick">
                 <input type="file" accept="image/*" data-brand="photo">
                 <em>Загрузить фото</em>
@@ -42,8 +45,12 @@
             </div>
             <div class="slot">
               <span>Логотип</span>
-              <div class="logo-slot" data-logo-slot hidden>
-                <img class="brand-logo" data-use="logo" alt="" hidden>
+              <div class="portrait-frame logo-frame" data-logo-frame data-crop="edit" hidden>
+                <img class="portrait" data-use="logo" alt="" hidden>
+                <div class="crop-zoom">
+                  <button type="button" data-zoom="in" aria-label="Ближе">＋</button>
+                  <button type="button" data-zoom="out" aria-label="Дальше">−</button>
+                </div>
               </div>
               <label class="file-pick">
                 <input type="file" accept="image/*" data-brand="logo">
@@ -52,7 +59,7 @@
               <button class="btn btn-line" id="delete-logo" type="button" hidden>Удалить логотип</button>
             </div>
           </div>
-          <p class="hint">Логотип широкий, в естественных пропорциях. Если файл не загружен, на странице его нет.</p>
+          <p class="hint">Если логотип не загружен, на странице его нет.</p>
           <label>Имя<input id="pf-first" type="text" placeholder="Имя" autocomplete="given-name"></label>
           <label>Фамилия<input id="pf-last" type="text" placeholder="Фамилия" autocomplete="family-name"></label>
           <label>Род деятельности<input id="pf-role" type="text" placeholder="фотограф"></label>
@@ -69,6 +76,19 @@
           <label class="switch"><span>Показывать ВКонтакте</span><input id="pf-show-vk" type="checkbox"></label>
           <label>MAX<input id="pf-max" type="text" placeholder="https://max.ru/"></label>
           <label class="switch"><span>Показывать MAX</span><input id="pf-show-max" type="checkbox"></label>
+          <h2>Соцсети</h2>
+          <p class="hint">Можно добавить ВКонтакте, Instagram или TikTok. Заполненная ссылка на странице фотографа открывается как переход в эту сеть.</p>
+          <div id="social-extra"></div>
+          <div class="row-actions">
+            <label>Сеть
+              <select id="social-pick">
+                <option value="vk">ВКонтакте</option>
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+              </select>
+            </label>
+            <button class="btn btn-line" id="social-add" type="button">Добавить ещё</button>
+          </div>
           <h2>Пароль аккаунта</h2>
           <label>Текущий пароль<input type="password" autocomplete="current-password"></label>
           <label>Новый пароль<input type="password" autocomplete="new-password"></label>

@@ -487,6 +487,7 @@ document.querySelectorAll("[data-download]").forEach((button) => {
 const brandPending = {};
 let logoCleared = false;
 let cropPending = null;
+let logoCropPending = null;
 const defaultCrop = () => ({ x: 0, y: 0, z: 1 });
 const storedCrop = () => {
   try {
@@ -502,6 +503,20 @@ const storedCrop = () => {
   return defaultCrop();
 };
 const liveCrop = () => cropPending || storedCrop();
+const storedLogoCrop = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem("ft-logo-crop") || "null");
+    if (raw && typeof raw === "object") {
+      return {
+        x: Number(raw.x) || 0,
+        y: Number(raw.y) || 0,
+        z: Math.min(2.5, Math.max(1, Number(raw.z) || 1))
+      };
+    }
+  } catch (error) { /* keep the default crop */ }
+  return defaultCrop();
+};
+const liveLogoCrop = () => logoCropPending || storedLogoCrop();
 const currentLogo = () => {
   if (logoCleared) return "";
   if (Object.prototype.hasOwnProperty.call(brandPending, "ft-logo")) return brandPending["ft-logo"] || "";
@@ -518,8 +533,9 @@ const placePortrait = (frame, img, crop) => {
   const z = Math.min(2.5, Math.max(1, Number(crop.z) || 1));
   const cover = Math.max(size / nw, size / nh);
   const scale = cover * z;
-  const maxX = Math.max(0, (nw * scale - size) / 2);
-  const maxY = Math.max(0, (nh * scale - size) / 2);
+  const slack = size * 0.28;
+  const maxX = Math.max(slack, (nw * scale - size) / 2);
+  const maxY = Math.max(slack, (nh * scale - size) / 2);
   const ox = Math.max(-maxX, Math.min(maxX, (Number(crop.x) || 0) * size));
   const oy = Math.max(-maxY, Math.min(maxY, (Number(crop.y) || 0) * size));
   img.style.width = `${nw}px`;
@@ -537,6 +553,17 @@ const layoutPortraits = () => {
     if (frame.dataset.crop === "edit") placed = next;
   });
   if (cropPending && placed) cropPending = placed;
+};
+const layoutLogos = () => {
+  const crop = liveLogoCrop();
+  let placed = null;
+  document.querySelectorAll("[data-logo-frame]").forEach((frame) => {
+    const img = frame.querySelector("[data-use='logo']");
+    if (!img || img.hidden || !img.naturalWidth) return;
+    const next = placePortrait(frame, img, crop);
+    if (frame.dataset.crop === "edit") placed = next;
+  });
+  if (logoCropPending && placed) logoCropPending = placed;
 };
 const bindPortrait = (img, photo) => {
   const draw = () => layoutPortraits();
@@ -567,7 +594,28 @@ const applyBrand = () => {
     bindPortrait(img, photo);
   });
   requestAnimationFrame(() => layoutPortraits());
+  document.querySelectorAll("[data-logo-frame]").forEach((frame) => {
+    const img = frame.querySelector("[data-use='logo']");
+    if (!img) return;
+    frame.hidden = !logo;
+    frame.classList.toggle("is-empty", !logo);
+    if (!logo) {
+      img.hidden = true;
+      img.removeAttribute("src");
+      delete img.dataset.bound;
+      return;
+    }
+    img.hidden = false;
+    if (img.dataset.bound === logo && img.complete && img.naturalWidth) {
+      layoutLogos();
+      return;
+    }
+    img.dataset.bound = logo;
+    img.onload = () => layoutLogos();
+    img.src = logo;
+  });
   document.querySelectorAll("[data-use='logo']").forEach((img) => {
+    if (img.closest("[data-logo-frame]")) return;
     if (logo) {
       img.src = logo;
       img.hidden = false;
@@ -593,9 +641,15 @@ const storeImage = (file, key, max) => {
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(image.width * scale));
       canvas.height = Math.max(1, Math.round(image.height * scale));
-      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-      brandPending[key] = canvas.toDataURL("image/jpeg", 0.86);
-      if (key === "ft-logo") logoCleared = false;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const keepAlpha = key === "ft-logo";
+      brandPending[key] = keepAlpha ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.86);
+      if (key === "ft-logo") {
+        logoCleared = false;
+        logoCropPending = defaultCrop();
+      }
       if (key === "ft-photo") cropPending = defaultCrop();
       applyBrand();
       revealSave("save-profile");
@@ -624,36 +678,57 @@ document.getElementById("photo-zoom")?.addEventListener("input", (event) => {
   layoutPortraits();
   revealSave("save-profile");
 });
-const portraitEditor = document.querySelector("[data-crop='edit']");
-if (portraitEditor) {
+document.querySelectorAll("[data-crop='edit']").forEach((frame) => {
   let drag = null;
-  portraitEditor.addEventListener("pointerdown", (event) => {
-    const img = portraitEditor.querySelector("[data-use='photo']");
-    if (!img || img.hidden || !currentPhoto()) return;
-    portraitEditor.setPointerCapture(event.pointerId);
-    portraitEditor.classList.add("is-dragging");
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, crop: { ...liveCrop() } };
+  const logoFrame = frame.hasAttribute("data-logo-frame");
+  frame.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("[data-zoom]")) return;
+    const img = frame.querySelector(logoFrame ? "[data-use='logo']" : "[data-use='photo']");
+    if (!img || img.hidden || (logoFrame ? !currentLogo() : !currentPhoto())) return;
+    frame.setPointerCapture(event.pointerId);
+    frame.classList.add("is-dragging");
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, crop: { ...(logoFrame ? liveLogoCrop() : liveCrop()) } };
     event.preventDefault();
   });
-  portraitEditor.addEventListener("pointermove", (event) => {
+  frame.addEventListener("pointermove", (event) => {
     if (!drag || event.pointerId !== drag.id) return;
-    const img = portraitEditor.querySelector("[data-use='photo']");
-    const size = portraitEditor.clientWidth || 168;
-    cropPending = placePortrait(portraitEditor, img, {
+    event.preventDefault();
+    const img = frame.querySelector(logoFrame ? "[data-use='logo']" : "[data-use='photo']");
+    const size = frame.clientWidth || 168;
+    const next = placePortrait(frame, img, {
       x: drag.crop.x + (event.clientX - drag.x) / size,
       y: drag.crop.y + (event.clientY - drag.y) / size,
       z: drag.crop.z
     });
+    if (logoFrame) logoCropPending = next;
+    else cropPending = next;
     revealSave("save-profile");
   });
   const endDrag = (event) => {
     if (!drag || event.pointerId !== drag.id) return;
     drag = null;
-    portraitEditor.classList.remove("is-dragging");
+    frame.classList.remove("is-dragging");
   };
-  portraitEditor.addEventListener("pointerup", endDrag);
-  portraitEditor.addEventListener("pointercancel", endDrag);
-}
+  frame.addEventListener("pointerup", endDrag);
+  frame.addEventListener("pointercancel", endDrag);
+});
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-zoom]");
+  if (!button) return;
+  const frame = button.closest("[data-crop='edit']");
+  if (!frame) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const logoFrame = frame.hasAttribute("data-logo-frame");
+  const prev = logoFrame ? liveLogoCrop() : liveCrop();
+  const step = button.dataset.zoom === "in" ? 0.15 : -0.15;
+  const next = { x: prev.x, y: prev.y, z: Math.min(2.5, Math.max(1, (Number(prev.z) || 1) + step)) };
+  const img = frame.querySelector(logoFrame ? "[data-use='logo']" : "[data-use='photo']");
+  const placed = img && !img.hidden && img.naturalWidth ? placePortrait(frame, img, next) : next;
+  if (logoFrame) logoCropPending = placed;
+  else cropPending = placed;
+  revealSave("save-profile");
+});
 window.addEventListener("resize", () => layoutPortraits());
 applyBrand();
 
@@ -827,11 +902,13 @@ document.addEventListener("click", (event) => {
   const scope = manageScope();
   const id = scope || galleryId();
   const list = (scope ? folderSettingsView(galleryId(), folderId()) : liveSettings(id)).hidden;
-  const next = list.includes(file) ? list.filter((item) => item !== file) : [...list, file];
+  const hiding = !list.includes(file);
+  const next = hiding ? [...list, file] : list.filter((item) => item !== file);
   pending[id] = { ...(pending[id] || {}), hidden: next };
   revealSave(scope ? "save-folder-manage" : "save-project");
   if (button.closest(".tile-drop")) closeTileMenus();
   paintFiles();
+  if (hiding) openSecretPanel(galleryId(), folderId() || "");
 });
 
 document.addEventListener("click", (event) => {
@@ -882,6 +959,21 @@ document.querySelectorAll("[data-gallery]").forEach((card) => {
 const galleryCards = document.getElementById("gallery-cards");
 const galleriesEmpty = document.getElementById("galleries-empty");
 if (galleryCards && galleriesEmpty) galleriesEmpty.hidden = galleryCards.children.length > 0;
+function fitCardGrid(board) {
+  if (!board || board.hidden) return;
+  const count = [...board.children].filter((node) => node.classList && node.classList.contains("gcard") && !node.hidden).length;
+  const width = board.clientWidth || 320;
+  const gap = 12;
+  const minCard = width < 700 ? 150 : 120;
+  const maxFit = Math.max(1, Math.floor((width + gap) / (minCard + gap)));
+  const cols = count <= 1 ? 2 : Math.min(Math.max(count, 1), 6, maxFit);
+  board.style.setProperty("--card-cols", String(cols));
+}
+function fitCardGrids() {
+  document.querySelectorAll("#gallery-cards, #folder-cards").forEach((board) => fitCardGrid(board));
+}
+fitCardGrids();
+window.addEventListener("resize", () => fitCardGrids());
 
 document.querySelectorAll("[data-del-gallery]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -891,6 +983,7 @@ document.querySelectorAll("[data-del-gallery]").forEach((button) => {
     moveGalleryToTrash(card.dataset.gallery, card);
     card.remove();
     if (galleriesEmpty) galleriesEmpty.hidden = galleryCards.children.length > 0;
+    fitCardGrids();
   });
 });
 
@@ -914,8 +1007,10 @@ const fillCardSettings = (id, folder = "") => {
   if (titleNode) titleNode.textContent = folder ? (folderTitle(id, folder) || GALLERY_META[id].title) : GALLERY_META[id].title;
   const hint = document.getElementById("card-settings-hint");
   if (hint) hint.textContent = folder ? "Эти переключатели действуют только на выбранную папку." : "Эти переключатели действуют только на выбранную галерею.";
-  const secret = document.getElementById("card-secret");
-  if (secret) secret.value = state.secret;
+  const passLabel = document.getElementById("card-pass-label");
+  const pass = document.getElementById("card-folder-pass");
+  if (passLabel) passLabel.hidden = !folder;
+  if (pass) pass.value = folder ? (folderAccessOf(id, folder).password || "") : "";
   document.querySelectorAll("[data-card-opt]").forEach((field) => {
     field.checked = Boolean(state[field.dataset.cardOpt]);
   });
@@ -924,7 +1019,7 @@ const fillCardSettings = (id, folder = "") => {
     const next = new URLSearchParams();
     next.set("id", id);
     if (folder) next.set("folder", folder);
-    files.href = `${folder ? "cabinet.html" : "project.html"}?${next.toString()}`;
+    files.href = `project.html?${next.toString()}`;
   }
 };
 document.addEventListener("click", (event) => {
@@ -938,9 +1033,20 @@ document.addEventListener("click", (event) => {
   openOverlay("card-settings");
 });
 document.querySelector("#card-settings form")?.addEventListener("submit", (event) => event.preventDefault());
-document.getElementById("card-secret")?.addEventListener("input", (event) => {
-  pending[settingsCard] = { ...(pending[settingsCard] || {}), secret: event.target.value.trim() };
-  revealSave("save-card");
+document.getElementById("card-folder-pass")?.addEventListener("input", (event) => {
+  if (!settingsFolder) return;
+  const gid = settingsCard.split("::")[0] || galleryId();
+  saveFolderAccess(gid, settingsFolder, { password: event.target.value });
+  const field = document.querySelector(`#split-list [data-folder="${CSS.escape(settingsFolder)}"] .split-pass`);
+  if (field) field.value = event.target.value;
+});
+document.getElementById("card-files")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  const gid = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) : settingsCard;
+  openSecretPanel(gid, settingsFolder || "");
+});
+document.querySelector("#card-settings [data-close='card-settings']")?.addEventListener("click", () => {
+  document.getElementById("save-card")?.click();
 });
 document.querySelectorAll("[data-card-opt]").forEach((field) => {
   field.addEventListener("change", () => {
@@ -1062,12 +1168,18 @@ if (profileForm) {
     }
     if (logoCleared) {
       localStorage.removeItem("ft-logo");
+      localStorage.removeItem("ft-logo-crop");
       delete brandPending["ft-logo"];
       logoCleared = false;
+      logoCropPending = null;
     } else if (Object.prototype.hasOwnProperty.call(brandPending, "ft-logo")) {
       if (brandPending["ft-logo"]) localStorage.setItem("ft-logo", brandPending["ft-logo"]);
       else localStorage.removeItem("ft-logo");
       delete brandPending["ft-logo"];
+    }
+    if (!logoCleared && logoCropPending) {
+      localStorage.setItem("ft-logo-crop", JSON.stringify(logoCropPending));
+      logoCropPending = null;
     }
     if (cropPending) {
       localStorage.setItem("ft-photo-crop", JSON.stringify(cropPending));
@@ -1326,27 +1438,30 @@ const makeFolderCard = (gid, node, client) => {
   settingsBtn.setAttribute("aria-label", "Настройки");
   settingsBtn.textContent = "Настройки";
   wrap.append(cover, settingsBtn);
+  if (!client) {
+    const actions = document.createElement("div");
+    actions.className = "cover-actions";
+    const open = document.createElement("a");
+    open.className = "btn btn-line";
+    open.href = folderOpenHref(gid, node, client);
+    open.textContent = "Открыть";
+    const link = document.createElement("a");
+    link.className = "btn btn-line";
+    link.href = folderLinkHref(gid, node);
+    link.textContent = "Ссылка";
+    const remove = document.createElement("button");
+    remove.className = "btn btn-line btn-danger";
+    remove.type = "button";
+    remove.dataset.delFolder = "";
+    remove.textContent = "Удалить";
+    actions.append(open, link, remove);
+    wrap.append(actions);
+  }
   const heading = document.createElement("h3");
   heading.textContent = node.name;
   const meta = document.createElement("p");
   meta.textContent = node.meta || "";
-  const actions = document.createElement("div");
-  actions.className = "row-actions";
-  const open = document.createElement("a");
-  open.className = "btn btn-line";
-  open.href = folderOpenHref(gid, node, client);
-  open.textContent = "Открыть";
-  const link = document.createElement("a");
-  link.className = "btn btn-line";
-  link.href = folderLinkHref(gid, node);
-  link.textContent = "Ссылка";
-  const remove = document.createElement("button");
-  remove.className = "btn btn-line btn-danger";
-  remove.type = "button";
-  remove.dataset.delFolder = "";
-  remove.textContent = "Удалить";
-  actions.append(open, link, remove);
-  card.append(wrap, heading, meta, actions);
+  card.append(wrap, heading, meta);
   return card;
 };
 
@@ -1407,12 +1522,15 @@ const buildPhotoTile = (file) => {
   item("Оригинал", "data-tile-download", "file");
   item("Уменьшенная", "data-tile-download", "small");
   item("Отзыв", "data-tile-download", "review");
-  const comment = document.createElement("button");
-  comment.type = "button";
-  comment.className = "btn btn-line";
-  comment.dataset.comment = file.id;
-  comment.textContent = "Посмотреть комментарии";
-  tile.append(frame, name, comment, menu);
+  item("Посмотреть комментарии", "data-comment", file.id);
+  const code = readSecret(galleryId(), folderId() || "");
+  item(`Секретный код: ${code || "не задан"}`, "data-edit-secret", "");
+  const secretBtn = menu.lastElementChild;
+  if (secretBtn) {
+    secretBtn.dataset.secretGallery = galleryId();
+    secretBtn.dataset.secretFolder = folderId() || "";
+  }
+  tile.append(frame, name, menu);
   return tile;
 };
 const fillFolderManage = (gid, fid) => {
@@ -1645,6 +1763,7 @@ const mountFolderBrowser = () => {
     board.insertAdjacentElement("afterend", empty);
   }
   if (empty) empty.hidden = true;
+  requestAnimationFrame(() => fitCardGrids());
 };
 
 document.addEventListener("click", (event) => {
@@ -1761,6 +1880,100 @@ const genPass = () => {
 };
 const absFolderLink = (gid, node) => new URL(folderLinkHref(gid, node), location.href).href;
 let splitQuery = "";
+const rowLead = (img, name, sizeText) => {
+  const lead = document.createElement("div");
+  lead.className = "row-lead";
+  const title = document.createElement("h3");
+  title.textContent = name;
+  const size = document.createElement("span");
+  size.textContent = sizeText;
+  lead.append(title, size, img);
+  return lead;
+};
+const rowBurger = (entries) => {
+  const wrap = document.createElement("div");
+  wrap.className = "row-menu";
+  const burger = document.createElement("button");
+  burger.type = "button";
+  burger.className = "row-burger";
+  burger.setAttribute("aria-label", "Действия");
+  burger.setAttribute("aria-haspopup", "true");
+  burger.setAttribute("aria-expanded", "false");
+  for (let i = 0; i < 3; i += 1) burger.appendChild(document.createElement("span"));
+  const menu = document.createElement("div");
+  menu.className = "row-drop";
+  menu.hidden = true;
+  menu.setAttribute("role", "menu");
+  entries.forEach((entry) => {
+    if (entry.href) {
+      const link = document.createElement("a");
+      link.href = entry.href;
+      link.textContent = entry.label;
+      menu.appendChild(link);
+      return;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = entry.label;
+    if (entry.danger) button.className = "is-danger";
+    Object.entries(entry.data || {}).forEach(([key, value]) => { button.dataset[key] = value; });
+    menu.appendChild(button);
+  });
+  wrap.append(burger, menu);
+  return wrap;
+};
+const closeRowMenus = () => {
+  document.querySelectorAll(".row-drop").forEach((menu) => { menu.hidden = true; });
+  document.querySelectorAll(".row-burger").forEach((button) => button.setAttribute("aria-expanded", "false"));
+};
+const placeRowMenu = (burger, menu) => {
+  menu.hidden = false;
+  burger.setAttribute("aria-expanded", "true");
+  const margin = 8;
+  const rect = burger.getBoundingClientRect();
+  const width = Math.min(Math.max(menu.scrollWidth, 200), window.innerWidth - margin * 2);
+  menu.style.maxWidth = `${Math.round(window.innerWidth - margin * 2)}px`;
+  const height = menu.offsetHeight;
+  let left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - width - margin));
+  let top = rect.bottom + 6;
+  if (top + height > window.innerHeight - margin) top = Math.max(margin, rect.top - height - 6);
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+};
+document.addEventListener("click", (event) => {
+  const burger = event.target.closest(".row-burger");
+  if (burger) {
+    event.preventDefault();
+    const menu = burger.parentElement?.querySelector(".row-drop");
+    const willOpen = Boolean(menu && menu.hidden);
+    closeRowMenus();
+    if (willOpen && menu) placeRowMenu(burger, menu);
+    return;
+  }
+  if (event.target.closest(".row-drop button, .row-drop a")) closeRowMenus();
+  else if (!event.target.closest(".row-drop")) closeRowMenus();
+});
+const secretEntry = (gid, fid) => ({
+  label: `Секретный код: ${readSecret(gid, fid) || "не задан"}`,
+  data: { editSecret: "", secretGallery: gid, secretFolder: fid || "" }
+});
+const mailCapsule = () => {
+  const wrap = document.createElement("div");
+  wrap.className = "mail-capsule";
+  const field = document.createElement("input");
+  field.type = "email";
+  field.className = "split-mail";
+  field.placeholder = "почта";
+  field.autocomplete = "off";
+  field.setAttribute("aria-label", "Почта");
+  const send = document.createElement("button");
+  send.type = "button";
+  send.className = "mail-send";
+  send.dataset.sendMail = "";
+  send.textContent = "Отправить";
+  wrap.append(field, send);
+  return wrap;
+};
 const paintSplitList = (gid, fid) => {
   const host = document.getElementById("split-list");
   if (!host) return;
@@ -1797,37 +2010,6 @@ const paintSplitList = (gid, fid) => {
     const img = document.createElement("img");
     img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
     img.alt = "";
-    const title = document.createElement("h3");
-    title.textContent = node.name;
-    const up = document.createElement("button");
-    up.type = "button";
-    up.className = "btn btn-line";
-    up.dataset.move = "up";
-    up.textContent = "Выше";
-    const down = document.createElement("button");
-    down.type = "button";
-    down.className = "btn btn-line";
-    down.dataset.move = "down";
-    down.textContent = "Ниже";
-    const coverBtn = document.createElement("button");
-    coverBtn.type = "button";
-    coverBtn.className = "btn btn-line";
-    coverBtn.dataset.cover = "";
-    coverBtn.textContent = parentCover && parentCover === img.src ? "Обложка" : "На обложку";
-    const open = document.createElement("a");
-    open.className = "btn btn-line";
-    open.href = `cabinet.html?${folderQuery(gid, node.id)}`;
-    open.textContent = "Открыть";
-    const hide = document.createElement("button");
-    hide.type = "button";
-    hide.className = "btn btn-line";
-    hide.dataset.hideFolder = "";
-    hide.textContent = access.hidden ? "Показать" : "Скрыть";
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "btn btn-line btn-danger";
-    remove.dataset.delFolder = "";
-    remove.textContent = "Удалить";
     const passLabel = document.createElement("label");
     passLabel.textContent = "Задать пароль";
     const pass = document.createElement("input");
@@ -1841,24 +2023,21 @@ const paintSplitList = (gid, fid) => {
     gen.className = "btn btn-line";
     gen.dataset.gen = "";
     gen.textContent = "Сгенерировать пароль";
-    const mailLabel = document.createElement("label");
-    mailLabel.textContent = "Отправить по почте";
-    const mail = document.createElement("input");
-    mail.type = "email";
-    mail.className = "split-mail";
-    mail.placeholder = "client@mail.ru";
-    mailLabel.appendChild(mail);
-    const send = document.createElement("button");
-    send.type = "button";
-    send.className = "btn btn-line";
-    send.dataset.sendMail = "";
-    send.textContent = "Отправить";
-    const size = document.createElement("span");
-    size.textContent = folderSizeLabel(gid, node.id);
-    const meta = document.createElement("div");
-    meta.className = "row-meta";
-    meta.append(title, size);
-    row.append(img, up, down, coverBtn, open, hide, remove, passLabel, gen, mailLabel, send, meta);
+    row.append(
+      rowLead(img, node.name, folderSizeLabel(gid, node.id)),
+      rowBurger([
+        { label: "Выше", data: { move: "up", kind: "folder" } },
+        { label: "Ниже", data: { move: "down", kind: "folder" } },
+        { label: parentCover && parentCover === img.src ? "Обложка" : "На обложку", data: { cover: "", kind: "folder" } },
+        { label: "Открыть", href: `cabinet.html?${folderQuery(gid, node.id)}` },
+        { label: access.hidden ? "Показать" : "Скрыть", data: { hideFolder: "", kind: "folder" } },
+        { label: "Удалить", data: { delFolder: "", kind: "folder" }, danger: true },
+        secretEntry(gid, node.id)
+      ]),
+      passLabel,
+      gen,
+      mailCapsule()
+    );
     host.appendChild(row);
   });
 };
@@ -2034,28 +2213,17 @@ const paintContentList = (gid, fid, withFolders) => {
       const img = document.createElement("img");
       img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
       img.alt = "";
-      const open = document.createElement("a");
-      open.className = "btn btn-line";
-      open.href = `cabinet.html?${folderQuery(gid, node.id)}`;
-      open.textContent = "Открыть";
-      const title = document.createElement("h3");
-      title.textContent = node.name;
-      const size = document.createElement("span");
-      size.textContent = folderSizeLabel(gid, node.id);
-      const meta = document.createElement("div");
-      meta.className = "row-meta";
-      meta.append(title, size);
       row.append(
-        img,
-        lineButton("↑", { move: "up", kind: "folder" }),
-        lineButton("↓", { move: "down", kind: "folder" }),
-        lineButton("Выше", { move: "up", kind: "folder" }),
-        lineButton("Ниже", { move: "down", kind: "folder" }),
-        lineButton(parentCover && parentCover === img.src ? "Обложка" : "На обложку", { cover: "", kind: "folder" }),
-        open,
-        lineButton(access.hidden ? "Показать" : "Скрыть", { hideFolder: "", kind: "folder" }),
-        lineButton("Удалить", { delFolder: "", kind: "folder" }, true),
-        meta
+        rowLead(img, node.name, folderSizeLabel(gid, node.id)),
+        rowBurger([
+          { label: "Выше", data: { move: "up", kind: "folder" } },
+          { label: "Ниже", data: { move: "down", kind: "folder" } },
+          { label: parentCover && parentCover === img.src ? "Обложка" : "На обложку", data: { cover: "", kind: "folder" } },
+          { label: "Открыть", href: `cabinet.html?${folderQuery(gid, node.id)}` },
+          { label: access.hidden ? "Показать" : "Скрыть", data: { hideFolder: "", kind: "folder" } },
+          { label: "Удалить", data: { delFolder: "", kind: "folder" }, danger: true },
+          secretEntry(gid, node.id)
+        ])
       );
       host.appendChild(row);
     });
@@ -2070,24 +2238,17 @@ const paintContentList = (gid, fid, withFolders) => {
     const img = document.createElement("img");
     img.src = file.src || "img/p2.jpg";
     img.alt = "";
-    const title = document.createElement("h3");
-    title.textContent = file.name;
-    const size = document.createElement("span");
-    size.textContent = formatSize(fileBytes(file));
-    const meta = document.createElement("div");
-    meta.className = "row-meta";
-    meta.append(title, size);
     const isCover = parentCover && parentCover === img.src;
     row.append(
-      img,
-      lineButton("↑", { move: "up", kind: "file" }),
-      lineButton("↓", { move: "down", kind: "file" }),
-      lineButton("Выше", { move: "up", kind: "file" }),
-      lineButton("Ниже", { move: "down", kind: "file" }),
-      lineButton(isCover ? "Обложка" : "На обложку", { cover: "", kind: "file" }),
-      lineButton(hidden.has(file.id) ? "Показать" : "Скрыть", { hideFile: "", kind: "file" }),
-      lineButton("Удалить", { removeFile: "", kind: "file" }, true),
-      meta
+      rowLead(img, file.name, formatSize(fileBytes(file))),
+      rowBurger([
+        { label: "Выше", data: { move: "up", kind: "file" } },
+        { label: "Ниже", data: { move: "down", kind: "file" } },
+        { label: isCover ? "Обложка" : "На обложку", data: { cover: "", kind: "file" } },
+        { label: hidden.has(file.id) ? "Показать" : "Скрыть", data: { hideFile: "", kind: "file" } },
+        { label: "Удалить", data: { removeFile: "", kind: "file" }, danger: true },
+        secretEntry(gid, fid)
+      ])
     );
     host.appendChild(row);
   });
@@ -2100,16 +2261,161 @@ const paintContentList = (gid, fid, withFolders) => {
 };
 
 mountFolderBrowser();
-document.getElementById("add-folder")?.addEventListener("click", () => {
-  if (!params.get("id")) return;
-  const name = window.prompt("Название папки");
-  if (!name || !name.trim()) return;
+const folderAsk = document.getElementById("folder-ask");
+const folderAskInput = document.getElementById("folder-ask-name");
+const placeOverlayBox = (node) => {
+  if (!node || node.hidden) return;
+  const main = document.querySelector(".app-main") || document.querySelector("main");
+  const vv = window.visualViewport;
+  const viewTop = vv ? vv.offsetTop : 0;
+  const viewLeft = vv ? vv.offsetLeft : 0;
+  const viewW = vv ? vv.width : window.innerWidth;
+  const viewH = vv ? vv.height : window.innerHeight;
+  const margin = 12;
+  let left = viewLeft + margin;
+  let top = viewTop + margin;
+  let width = Math.max(0, viewW - margin * 2);
+  let height = Math.max(0, viewH - margin * 2);
+  if (main) {
+    const rect = main.getBoundingClientRect();
+    const colLeft = Math.max(rect.left, viewLeft + margin);
+    const colRight = Math.min(rect.right, viewLeft + viewW - margin);
+    const colTop = Math.max(rect.top, viewTop + margin);
+    const colBottom = Math.min(rect.bottom, viewTop + viewH - margin);
+    if (colRight - colLeft >= 160 && colBottom - colTop >= 140) {
+      left = colLeft;
+      top = colTop;
+      width = colRight - colLeft;
+      height = colBottom - colTop;
+    }
+  }
+  node.style.left = `${Math.round(left)}px`;
+  node.style.top = `${Math.round(top)}px`;
+  node.style.width = `${Math.round(width)}px`;
+  node.style.height = `${Math.round(height)}px`;
+};
+function readSecret(gid, fid) {
+  if (fid) return folderSettingsView(gid, fid).secret || "";
+  return settings(gid).secret || "";
+}
+function writeSecret(gid, fid, code) {
+  const value = String(code || "").trim();
+  if (fid) {
+    const key = folderStoreKey(gid, fid);
+    const all = loadSettings();
+    all[key] = { ...settings(gid), ...(all[key] || {}), secret: value };
+    localStorage.setItem("ft-settings", JSON.stringify(all));
+    return;
+  }
+  saveSettings({ secret: value }, gid);
+}
+let secretEdit = { gid: "", fid: "" };
+function openSecretPanel(gid, fid) {
+  const panel = document.getElementById("secret-panel");
+  const field = document.getElementById("secret-panel-code");
+  if (!panel) return;
+  secretEdit = { gid: gid || galleryId(), fid: fid || "" };
+  if (field) field.value = readSecret(secretEdit.gid, secretEdit.fid);
+  panel.hidden = false;
+  placeOverlayBox(panel);
+  field?.focus();
+  field?.select();
+}
+function closeSecretPanel() {
+  const panel = document.getElementById("secret-panel");
+  if (panel) panel.hidden = true;
+}
+const placeFolderAsk = () => placeOverlayBox(folderAsk);
+const closeFolderAsk = () => {
+  if (!folderAsk) return;
+  folderAsk.hidden = true;
+};
+const openFolderAsk = () => {
+  if (!folderAsk || !params.get("id")) return;
+  if (folderAskInput) folderAskInput.value = "";
+  folderAsk.hidden = false;
+  placeFolderAsk();
+  folderAskInput?.focus();
+};
+window.addEventListener("resize", () => {
+  placeFolderAsk();
+  placeOverlayBox(document.getElementById("secret-panel"));
+});
+window.visualViewport?.addEventListener("resize", () => {
+  placeFolderAsk();
+  placeOverlayBox(document.getElementById("secret-panel"));
+});
+window.visualViewport?.addEventListener("scroll", () => {
+  placeFolderAsk();
+  placeOverlayBox(document.getElementById("secret-panel"));
+});
+document.getElementById("add-folder")?.addEventListener("click", () => openFolderAsk());
+document.getElementById("folder-ask-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = folderAskInput?.value.trim() || "";
+  if (!name || !params.get("id")) return;
   const gid = galleryId();
   const all = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
   all[gid] = all[gid] || [];
-  all[gid].push({ id: "u" + Date.now().toString(36), name: name.trim(), parent: folderId(), cover: "img/p3.jpg", meta: "Новая папка", created: Date.now() });
+  all[gid].push({ id: "u" + Date.now().toString(36), name, parent: folderId(), cover: "img/p3.jpg", meta: "Новая папка", created: Date.now() });
   localStorage.setItem("ft-user-folders", JSON.stringify(all));
+  closeFolderAsk();
   mountFolderBrowser();
+});
+document.getElementById("folder-ask-cancel")?.addEventListener("click", () => closeFolderAsk());
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const panel = document.getElementById("secret-panel");
+  if (panel && !panel.hidden) {
+    event.preventDefault();
+    closeSecretPanel();
+    return;
+  }
+  if (!folderAsk || folderAsk.hidden) return;
+  event.preventDefault();
+  closeFolderAsk();
+});
+document.getElementById("secret-panel-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const field = document.getElementById("secret-panel-code");
+  writeSecret(secretEdit.gid || galleryId(), secretEdit.fid || "", field?.value || "");
+  closeSecretPanel();
+  if (pageFile() === "cabinet.html") mountFolderBrowser();
+  paintFiles();
+});
+document.getElementById("secret-panel-cancel")?.addEventListener("click", () => closeSecretPanel());
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-comment]");
+  if (!button) return;
+  const modal = document.getElementById("comment-modal");
+  if (!modal) return;
+  event.preventDefault();
+  const area = document.getElementById("comment-text");
+  const key = `${galleryId()}/${button.getAttribute("data-comment") || "folder"}`;
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem("ft-comments") || "{}"); } catch (error) { stored = {}; }
+  if (area) {
+    area.dataset.for = key;
+    area.value = stored[key] || "";
+  }
+  openOverlay("comment-modal");
+  if (button.closest(".tile-drop")) closeTileMenus();
+});
+document.getElementById("comment-save")?.addEventListener("click", () => {
+  const area = document.getElementById("comment-text");
+  if (!area) return;
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem("ft-comments") || "{}"); } catch (error) { stored = {}; }
+  stored[area.dataset.for || "folder"] = area.value;
+  localStorage.setItem("ft-comments", JSON.stringify(stored));
+  const modal = document.getElementById("comment-modal");
+  if (modal) modal.hidden = true;
+});
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-edit-secret]");
+  if (!button) return;
+  event.preventDefault();
+  openSecretPanel(button.dataset.secretGallery || galleryId(), button.dataset.secretFolder || "");
 });
 const takeUploads = (event) => {
   const picked = event.target.files;
@@ -2214,8 +2520,10 @@ document.addEventListener("click", (event) => {
     const row = hideFolder.closest("[data-folder]");
     if (!row) return;
     const access = folderAccessOf(row.dataset.gallery, row.dataset.folder);
+    const hiding = !access.hidden;
     saveFolderAccess(row.dataset.gallery, row.dataset.folder, { hidden: !access.hidden });
     mountFolderBrowser();
+    if (hiding) openSecretPanel(row.dataset.gallery, row.dataset.folder);
     return;
   }
   const hideFile = event.target.closest("[data-hide-file]");
@@ -2224,10 +2532,12 @@ document.addEventListener("click", (event) => {
     if (!row) return;
     const gid = galleryId();
     const current = new Set(settings(gid).hidden || []);
-    if (current.has(row.dataset.file)) current.delete(row.dataset.file);
-    else current.add(row.dataset.file);
+    const hiding = !current.has(row.dataset.file);
+    if (hiding) current.add(row.dataset.file);
+    else current.delete(row.dataset.file);
     saveSettings({ hidden: [...current] }, gid);
     mountFolderBrowser();
+    if (hiding) openSecretPanel(gid, folderId() || "");
     return;
   }
   const delFile = event.target.closest("[data-remove-file]");
