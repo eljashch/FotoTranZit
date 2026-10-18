@@ -295,6 +295,13 @@
             <label><input type="checkbox" data-folder-access="open"> Открытие</label>
             <label><input type="checkbox" data-folder-access="hidden"> Скрыта</label>
           </div>
+          <div class="cover-line" id="folder-cover-line">
+            <span>Обложка</span>
+            <img id="folder-cover-preview" alt="">
+            <button class="btn btn-line" id="folder-cover-choose" type="button">Выбрать</button>
+            <input id="folder-cover-file" type="file" accept="image/*" hidden>
+          </div>
+          <div id="folder-cover-choices" class="cover-choices" hidden></div>
           <label>Пароль<input id="folder-password" type="text" autocomplete="off"></label>
           <label>Секретный код<input id="folder-secret" type="text" autocomplete="off"></label>
           <label class="switch"><span>Скачивание оригиналов</span><input data-folder-opt="originals" type="checkbox"></label>
@@ -307,9 +314,10 @@
             <input data-folder-opt="watermark" type="checkbox" aria-label="Водяной знак">
           </div>
           <label class="switch"><span>Согласие на публикацию</span><input data-folder-opt="consent" type="checkbox"></label>
+          <label class="switch"><span>Выводить на мою страницу</span><input data-folder-opt="onpage" type="checkbox"></label>
           <p class="hint">Согласие выключено, пока вы его не включите. Клиент увидит его при скачивании.</p>
           <div class="row-actions">
-            <button class="btn btn-dark" id="save-folder-manage" type="button" hidden>Сохранить</button>
+            <button class="btn btn-dark" id="save-folder-manage" type="button">Сохранить</button>
           </div>
           <div class="who">
             <div>
@@ -351,10 +359,14 @@
           <div class="settings-scroll">
           <input id="card-name" class="card-name" type="text" maxlength="120" autocomplete="off" aria-label="Название" placeholder="Название">
           <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную галерею.</p>
-          <div id="cover-pick">
-            <p class="hint" id="cover-pick-label">Обложка</p>
-            <div id="cover-choices" class="cover-choices"></div>
+          <div id="cover-pick" class="cover-line">
+            <span id="cover-pick-label">Обложка</span>
+            <img id="cover-preview" alt="">
+            <button class="btn btn-line" id="cover-choose" type="button">Выбрать</button>
+            <input id="cover-file" type="file" accept="image/*" hidden>
           </div>
+          <div id="cover-choices" class="cover-choices" hidden></div>
+          <label id="card-secret-label">Секретный код<input id="card-secret" type="text" autocomplete="off"></label>
           <label id="card-pass-label">Пароль папки<input id="card-folder-pass" type="text" autocomplete="off"></label>
           <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
           <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>

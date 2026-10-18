@@ -1430,6 +1430,18 @@ const fillCardSettings = (id, folder = "") => {
   const pass = document.getElementById("card-folder-pass");
   if (passLabel) passLabel.hidden = !folder;
   if (pass) pass.value = folder ? (folderAccessOf(id, folder).password || "") : "";
+  const secretField = document.getElementById("card-secret");
+  const secretLabel = document.getElementById("card-secret-label");
+  if (secretLabel) secretLabel.hidden = false;
+  if (secretField) secretField.value = state.secret || "";
+  const coverPick = document.getElementById("cover-pick");
+  if (coverPick) coverPick.hidden = false;
+  const wmRow = document.querySelector("#card-settings .wm-switch");
+  if (wmRow) wmRow.hidden = false;
+  document.querySelectorAll("#card-settings [data-card-opt='consent'], #card-settings [data-card-opt='onpage'], #card-settings [data-card-opt='watermark']").forEach((field) => {
+    const row = field.closest("label, .wm-switch, .switch");
+    if (row) row.hidden = false;
+  });
   document.querySelectorAll("[data-card-opt]").forEach((field) => {
     field.checked = Boolean(state[field.dataset.cardOpt]);
   });
@@ -1455,8 +1467,11 @@ document.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
   const card = button.closest("[data-gallery]");
-  if (!card) return;
-  fillCardSettings(card.dataset.gallery, card.dataset.folder || "");
+  const host = card || menuHost(button);
+  const gid = button.dataset.settingsGallery || host?.dataset?.gallery || "";
+  const fid = button.dataset.settingsFolder || host?.dataset?.folder || "";
+  if (!gid) return;
+  fillCardSettings(gid, fid);
   openOverlay("card-settings");
 });
 document.getElementById("cover-choices")?.addEventListener("click", (event) => {
@@ -1477,6 +1492,10 @@ document.querySelector("#card-settings form")?.addEventListener("submit", (event
 document.getElementById("card-settings")?.addEventListener("click", (event) => {
   if (event.target !== event.currentTarget) return;
   event.currentTarget.hidden = true;
+});
+document.getElementById("card-secret")?.addEventListener("input", (event) => {
+  pending[settingsCard] = { ...(pending[settingsCard] || {}), secret: event.target.value.trim() };
+  revealSave("save-card");
 });
 document.getElementById("card-folder-pass")?.addEventListener("input", (event) => {
   if (!settingsFolder) return;
@@ -2137,7 +2156,7 @@ const fillFolderManage = (gid, fid) => {
   const copy = document.getElementById("copy-client");
   if (copy) copy.setAttribute("data-copy", new URL(`gallery.html?${folderQuery(gid, fid)}`, location.href).href);
   const photos = document.getElementById("photo-tiles");
-  if (photos && !photos.childElementCount) {
+  if (photos && !photos.hidden && !photos.childElementCount) {
     FILE_CATALOG.forEach((file) => {
       if (!(file.in || "wedding").split(/\s+/).includes(gid)) return;
       photos.appendChild(buildPhotoTile(file));
@@ -2322,7 +2341,19 @@ const mountFolderBrowser = () => {
   }
 
   const manage = document.getElementById("folder-manage");
-  if (manage) manage.hidden = true;
+  const showManage = inCabinet && drilled && Boolean(fid) && !galleryGone && !removedHere;
+  if (manage) {
+    manage.hidden = !showManage;
+    if (showManage) {
+      const tools = document.getElementById("explorer-tools");
+      if (tools && manage.previousElementSibling !== tools) tools.insertAdjacentElement("afterend", manage);
+      fillFolderManage(gid, fid);
+      if (typeof syncFolderWmLink === "function") syncFolderWmLink();
+      const saveManage = document.getElementById("save-folder-manage");
+      if (saveManage) saveManage.hidden = false;
+      paintFolderCoverLine(gid, fid);
+    }
+  }
 
   const tools = document.getElementById("explorer-tools");
   const photos = document.getElementById("photo-tiles");
@@ -2459,7 +2490,7 @@ document.getElementById("save-folder-manage")?.addEventListener("click", () => {
     delete pending[key];
   }
   const button = document.getElementById("save-folder-manage");
-  if (button) button.hidden = true;
+  if (button) button.hidden = false;
   paintFiles();
   flashSaved();
 });
@@ -2535,13 +2566,18 @@ function paintCoverChoices(gid, folder) {
     seen.add(src);
     coverChoiceSrcs.push(src);
   });
-  const current = folder ? folderCover(gid, folder) : galleryCardCover(gid);
-  host.replaceChildren();
-  if (!coverChoiceSrcs.length) {
-    if (label) label.textContent = "Обложка — заглушка, пока нет фото";
-    return;
-  }
+  const current = pendingCoverSrc || (folder ? folderCover(gid, folder) : galleryCardCover(gid));
+  const preview = document.getElementById("cover-preview");
+  const choose = document.getElementById("cover-choose");
   if (label) label.textContent = "Обложка";
+  if (preview) {
+    preview.hidden = false;
+    preview.src = current || NEON_COVER;
+  }
+  if (choose) choose.hidden = false;
+  host.hidden = true;
+  host.replaceChildren();
+  if (!coverChoiceSrcs.length) return;
   coverChoiceSrcs.forEach((src, index) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -2554,6 +2590,77 @@ function paintCoverChoices(gid, folder) {
     host.appendChild(button);
   });
 }
+function paintFolderCoverLine(gid, fid) {
+  const preview = document.getElementById("folder-cover-preview");
+  const host = document.getElementById("folder-cover-choices");
+  const current = folderCover(gid, fid);
+  if (preview) preview.src = current || NEON_COVER;
+  if (!host) return;
+  host.hidden = true;
+  host.replaceChildren();
+  const seen = new Set();
+  imageFilesUnder(gid, fid).forEach((file) => {
+    const src = ownSrc(file);
+    if (!src || seen.has(src)) return;
+    seen.add(src);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.classList.toggle("on", src === current);
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    button.appendChild(img);
+    button.addEventListener("click", () => {
+      const covers = coverMap();
+      covers[`${gid}::${fid || ""}`] = src;
+      localStorage.setItem("ft-covers", JSON.stringify(covers));
+      mountFolderBrowser();
+    });
+    host.appendChild(button);
+  });
+}
+document.getElementById("cover-choose")?.addEventListener("click", () => {
+  const host = document.getElementById("cover-choices");
+  if (coverChoiceSrcs.length && host) {
+    host.hidden = !host.hidden;
+    return;
+  }
+  document.getElementById("cover-file")?.click();
+});
+document.getElementById("cover-file")?.addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingCoverSrc = String(reader.result || "");
+    const preview = document.getElementById("cover-preview");
+    if (preview) preview.src = pendingCoverSrc;
+    revealSave("save-card");
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById("folder-cover-choose")?.addEventListener("click", () => {
+  const host = document.getElementById("folder-cover-choices");
+  if (host && host.childElementCount) {
+    host.hidden = !host.hidden;
+    return;
+  }
+  document.getElementById("folder-cover-file")?.click();
+});
+document.getElementById("folder-cover-file")?.addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  if (!file || !folderId()) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const covers = coverMap();
+    covers[`${galleryId()}::${folderId()}`] = String(reader.result || "");
+    localStorage.setItem("ft-covers", JSON.stringify(covers));
+    mountFolderBrowser();
+  };
+  reader.readAsDataURL(file);
+});
 const splitMap = () => {
   try { return JSON.parse(localStorage.getItem("ft-split") || "{}"); } catch (error) { return {}; }
 };
@@ -2693,7 +2800,11 @@ const placeRowMenu = (burger, menu) => {
   anchoredMenu = menu;
   anchoredButton = burger;
 };
+const folderNavBlocked = (target) => Boolean(target.closest(
+  "input, select, textarea, .pick, .split-pass, .split-mail, .mail-capsule, .mail-send, #split-switch-wrap, .split-toggle, .card-set, .row-burger, button, label"
+));
 document.addEventListener("click", (event) => {
+  if (pageFile() !== "cabinet.html") return;
   const openLink = event.target.closest(".row-drop a[href]");
   if (openLink) {
     event.preventDefault();
@@ -2705,24 +2816,27 @@ document.addEventListener("click", (event) => {
   const burger = event.target.closest(".row-burger");
   if (burger) {
     event.preventDefault();
+    event.stopPropagation();
     const menu = document.getElementById(burger.dataset.menu) || burger.parentElement?.querySelector(".row-drop");
     const willOpen = Boolean(menu && menu.hidden);
     closeRowMenus();
     if (willOpen && menu) placeRowMenu(burger, menu);
     return;
   }
-  if (event.target.closest(".row-drop")) {
-    closeRowMenus();
-    return;
-  }
+  if (event.target.closest(".row-drop")) return;
   closeRowMenus();
-  if (event.target.closest("a, button, input, select, textarea, label, .pick")) return;
-  const opener = event.target.closest("#split-list [data-folder] h3, #split-list [data-folder] .row-text, #content-list [data-folder] h3, #content-list [data-folder] .row-text, #folder-cards [data-folder] h3");
-  if (!opener || pageFile() !== "cabinet.html") return;
-  const row = opener.closest("[data-folder]");
-  const folder = row?.dataset.folder;
-  if (!folder || row.dataset.file) return;
-  location.href = `cabinet.html?${folderQuery(row.dataset.gallery || galleryId(), folder)}`;
+  if (folderNavBlocked(event.target)) return;
+  const link = event.target.closest("a[href]");
+  if (link) {
+    const label = (link.textContent || "").replace(/\s+/g, " ").trim();
+    if (label === "Открыть" || link.classList.contains("cover-open")) return;
+    if (label && label !== "Открыть") return;
+  }
+  const host = event.target.closest("#folder-cards .gcard[data-folder], #content-list [data-folder], #split-list [data-folder]");
+  if (!host || host.dataset.file) return;
+  const folder = host.dataset.folder;
+  if (!folder) return;
+  location.href = `cabinet.html?${folderQuery(host.dataset.gallery || galleryId(), folder)}`;
 });
 const menuHost = (node) => {
   const row = node.closest(".list-row, .split-row");
@@ -2869,6 +2983,7 @@ const paintSplitList = (gid, fid) => {
         { label: "Ниже", data: { move: "down", kind: "folder" } },
         { label: parentCover && parentCover === img.src ? "Обложка" : "На обложку", data: { cover: "", kind: "folder" } },
         { label: "Открыть", href: `cabinet.html?${folderQuery(gid, node.id)}` },
+        { label: "Настройки", data: { openSettings: "1", settingsGallery: gid, settingsFolder: node.id } },
         { label: access.hidden ? "Показать" : "Скрыть", data: { hideFolder: "", kind: "folder" } },
         { label: "Удалить", data: { delFolder: "", kind: "folder" }, danger: true },
         secretEntry(gid, node.id)
@@ -3145,6 +3260,7 @@ const paintContentList = (gid, fid, withFolders) => {
           { label: "Ниже", data: { move: "down", kind: "folder" } },
           { label: parentCover && parentCover === img.src ? "Обложка" : "На обложку", data: { cover: "", kind: "folder" } },
           { label: "Открыть", href: `cabinet.html?${folderQuery(gid, node.id)}` },
+          { label: "Настройки", data: { openSettings: "1", settingsGallery: gid, settingsFolder: node.id } },
           { label: access.hidden ? "Показать" : "Скрыть", data: { hideFolder: "", kind: "folder" } },
           { label: "Удалить", data: { delFolder: "", kind: "folder" }, danger: true },
           secretEntry(gid, node.id)

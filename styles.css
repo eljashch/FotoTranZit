@@ -1123,6 +1123,26 @@ input[type="number"] { height: 40px; min-height: 40px; padding: 0 14px; border-r
 .comment-compose textarea, .comment-edit { min-height: 72px; }
 .tile-drop { z-index: 80; }
 .list-row.is-hidden, .split-row.is-hidden { opacity: 0.55; }
+.cover-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+.cover-line img {
+  width: 72px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #07111c;
+  flex: 0 0 auto;
+}
+.cover-line .btn { margin-left: auto; }
+.gcard[data-folder],
+.list-row[data-folder] .row-lead,
+.split-row[data-folder] .row-lead { cursor: pointer; }
+#explorer-tools, #split-switch-wrap, #folder-manage { position: relative; z-index: 1; }
+#split-switch-wrap { flex: 0 0 auto; width: auto; }
 .cover-choices {
   display: flex;
   flex-wrap: wrap;
