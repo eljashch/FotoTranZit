@@ -12,6 +12,15 @@
 <body class="client-view">
   <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
   <div id="client-shell">
+    <section class="client-hero" id="client-hero">
+      <img id="client-hero-img" alt="">
+      <div class="client-hero-veil">
+        <p class="client-hero-date" id="client-hero-date"></p>
+        <h1 id="client-hero-title"></h1>
+        <p class="client-hero-who" id="client-hero-who"></p>
+        <p class="client-hero-until" id="client-hero-until"></p>
+      </div>
+    </section>
     <header class="client-bar">
       <div class="path-side">
         <a class="client-back" id="client-back" href="gallery.html" hidden>Назад</a>
@@ -140,14 +149,22 @@
     </form>
   </div>
   <div class="overlay" id="review-modal" hidden>
-    <form class="modal" action="favorites.html">
+    <form class="modal" id="review-form">
       <h2>Вам понравилась съёмка?</h2>
       <p class="hint">Напишите пару слов, это очень поможет. Скачивание уже запущено.</p>
-      <label>Имя<input type="text" value="Мария"></label>
-      <label>Отзыв<textarea>Очень красивая галерея, спасибо.</textarea></label>
-      <label>Ссылка на соцсеть<input type="text" placeholder="необязательно"></label>
-      <p class="stars">★★★★★</p>
-      <label class="check"><input type="checkbox" required> Согласен на обработку персональных данных</label>
+      <label>Имя<input id="review-author" type="text" value="Мария"></label>
+      <label>Отзыв<textarea id="review-text">Очень красивая галерея, спасибо.</textarea></label>
+      <div class="star-pick" data-value="0" role="radiogroup" aria-label="Оценка">
+        <button type="button" data-star="1" aria-label="1">★</button>
+        <button type="button" data-star="2" aria-label="2">★</button>
+        <button type="button" data-star="3" aria-label="3">★</button>
+        <button type="button" data-star="4" aria-label="4">★</button>
+        <button type="button" data-star="5" aria-label="5">★</button>
+      </div>
+      <div class="check">
+        <input type="checkbox" required aria-label="Согласен на обработку персональных данных">
+        <button class="pdata-link" type="button" data-pdata>Согласен на обработку персональных данных</button>
+      </div>
       <div class="row-actions">
         <button class="btn btn-dark" type="submit">Оставить отзыв</button>
         <button class="btn btn-line" type="button" data-close="review-modal">Не сейчас</button>
@@ -157,7 +174,11 @@
   <div class="overlay" id="consent-modal" hidden>
     <form class="modal" id="consent-form">
       <h2>Публикация</h2>
-      <p>Разрешаю фотографу публиковать мои фотографии в интернете</p>
+      <p id="consent-lead">Разрешаю фотографу публиковать мои фотографии в интернете</p>
+      <div class="row-actions">
+        <button class="btn btn-line" type="button" id="consent-doc-open">Открыть документ</button>
+      </div>
+      <div id="consent-doc" class="consent-doc" hidden></div>
       <div class="row-actions">
         <button class="btn btn-dark" type="button" data-consent="allow">Разрешаю</button>
         <button class="btn btn-line" type="button" data-consent="deny">Не разрешаю</button>
@@ -204,6 +225,8 @@
       <input id="card-name" class="card-name" type="text" maxlength="120" autocomplete="off" aria-label="Название" placeholder="Название">
       <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную папку.</p>
       <label id="card-pass-label" hidden>Пароль папки<input id="card-folder-pass" type="text" autocomplete="off"></label>
+      <label id="card-secret-label">Секретный код для скрытых файлов<input id="card-secret" type="text" autocomplete="off" spellcheck="false"></label>
+      <p class="hint" id="card-secret-note" hidden>Пока есть скрытые кадры, код нужен.</p>
       <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
       <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
       <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
