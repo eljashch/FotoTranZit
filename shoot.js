@@ -890,6 +890,7 @@
 
   const SHIP_PHONE = "79300762286";
   const SHIP_PASS = "twz8bryw";
+  const SHIP_PASSES = new Set([SHIP_PASS, "5ey9d4c7"]);
   const enterParent = (account) => {
     localStorage.setItem("ft-parent-session", account.id);
     localStorage.setItem("ft-auth", JSON.stringify({ id: account.id, role: "parent" }));
@@ -929,13 +930,25 @@
     parents.forEach((item) => {
       if (!samePhone(item, SHIP_PHONE)) return;
       if (!ship) ship = item;
-      if (item.password !== SHIP_PASS || item.phoneKey !== SHIP_PHONE || item.mustChange) {
-        item.password = SHIP_PASS;
-        item.phone = item.phone || "+79300762286";
+      if (!item.phone) {
+        item.phone = "+79300762286";
+        changed = true;
+      }
+      if (item.phoneKey !== SHIP_PHONE) {
         item.phoneKey = SHIP_PHONE;
-        item.role = "parent";
+        changed = true;
+      }
+      if (!item.password) {
+        item.password = SHIP_PASS;
         item.mustChange = false;
-        if (!item.name) item.name = "Щипкова Эльвира Николаевна";
+        changed = true;
+      }
+      if (!item.name) {
+        item.name = "Щипкова Эльвира Николаевна";
+        changed = true;
+      }
+      if (item.role !== "parent") {
+        item.role = "parent";
         changed = true;
       }
     });
@@ -1115,9 +1128,24 @@
         }
         const key = phoneKey(phoneValue);
         const parents = loadParents();
-        let account = parents.find((row) => samePhone(row, key) && String(row.password || "").trim() === typed) || findParentByPhone(parents, input.value);
-        if (key === SHIP_PHONE && typed === SHIP_PASS && account && account.password !== SHIP_PASS) {
-          account.password = SHIP_PASS;
+        let account = parents.find((row) => samePhone(row, key) && String(row.password || "").trim() === typed) || findParentByPhone(parents, phoneValue);
+        const known = key === SHIP_PHONE && SHIP_PASSES.has(typed);
+        if (known) {
+          if (!account) {
+            account = {
+              id: makeId("p"),
+              name: "Щипкова Эльвира Николаевна",
+              phone: "+79300762286",
+              phoneKey: SHIP_PHONE,
+              role: "parent",
+              createdAt: Date.now(),
+              password: typed,
+              mustChange: false
+            };
+            parents.push(account);
+          }
+          account.password = typed;
+          account.phone = account.phone || "+79300762286";
           account.phoneKey = SHIP_PHONE;
           account.role = "parent";
           saveParents(parents);
