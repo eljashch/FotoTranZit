@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Списки на фотосессию — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-app="lists">
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="app">
+    <aside class="side">
+      <a class="logo" href="cabinet.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="item" href="cabinet.html">Галереи</a>
+      <a class="item on" href="lists.html">Списки на фотосессию</a>
+      <a class="item" href="clients.html">Мои клиенты</a>
+      <a class="item" href="reviews.html">Отзывы</a>
+      <a class="item" href="profile.html">Профиль</a>
+      <a class="item" href="billing.html">Оплата</a>
+      <a class="item" href="photographer.html">Моя страница</a>
+      <a class="item" href="cabinet.html?view=watermark">Водяной знак</a>
+      <a class="item" href="cabinet.html?view=consent">Согласие на публикацию</a>
+      <a class="item" href="cabinet.html?view=offers">Мои предложения</a>
+      <a class="item" href="cabinet.html?view=trash">Корзина</a>
+      <a class="item push" href="index.html">Выйти</a>
+    </aside>
+    <main class="app-main">
+      <section class="panel" id="lists-root"></section>
+    </main>
+  </div>
+  <div class="folder-ask" id="delete-ask" hidden>
+    <form class="folder-ask-card delete-ask-card" id="delete-ask-form">
+      <h2 id="delete-ask-text">Что сделать?</h2>
+      <div class="row-actions delete-ask-actions">
+        <button class="btn btn-line btn-danger" type="button" id="delete-forever">Удалить безвозвратно</button>
+        <button class="btn btn-dark" type="button" id="delete-to-trash" hidden>Переместить в корзину</button>
+        <button class="btn btn-line" type="button" id="delete-cancel">Отмена</button>
+      </div>
+    </form>
+  </div>
+  <script src="site.js"></script>
+  <script src="shoot.js"></script>
+</body>
+</html>

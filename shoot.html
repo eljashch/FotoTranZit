@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Список на фотосессию — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="light-app" data-app="shoot">
+  <header class="light-bar">
+    <a class="logo" href="role.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+  </header>
+  <main class="light-main">
+    <header class="shoot-head">
+      <p class="kicker">Список на фотосессию</p>
+      <h1 id="shoot-title">Фотосессия</h1>
+      <p class="shoot-status" id="shoot-status"></p>
+    </header>
+    <div class="shoot-table-wrap">
+      <table class="shoot-sheet">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>ФИО ребенка</th>
+            <th>ФИО родителя</th>
+            <th>Телефон</th>
+          </tr>
+        </thead>
+        <tbody id="shoot-body"></tbody>
+      </table>
+    </div>
+    <p class="hint shoot-note" id="shoot-closed" hidden>Регистрация закрыта.</p>
+    <div id="shoot-consent">
+      <p class="shoot-note">Нажимая кнопку, вы соглашаетесь с <a href="service-rules.html" target="_blank" rel="noopener">правилами сервиса</a> и <a href="data-consent.html" target="_blank" rel="noopener">согласием на обработку персональных данных</a>.</p>
+      <label class="check light-check"><input type="checkbox" id="shoot-agree"> <span>Подтверждаю</span></label>
+      <p class="hint shoot-note" id="shoot-need" hidden>Заполните ФИО родителя, ФИО ребёнка, телефон и отметьте согласие.</p>
+    </div>
+  </main>
+  <script src="phone.js"></script>
+  <script src="shoot.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход — ФотоТранзит</title>
+  <script>
+    const parentId = localStorage.getItem("ft-parent-session");
+    let auth = null;
+    try { auth = JSON.parse(localStorage.getItem("ft-auth") || "null"); } catch (error) { auth = null; }
+    if (parentId || (auth && auth.role === "parent")) location.replace("parent.html");
+    else if (auth && auth.role === "photo") location.replace("cabinet.html");
+    else location.replace("login.html");
+  </script>
+</head>
+<body></body>
+</html>

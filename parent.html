@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет родителя — ФотоТранзит</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-app="parent">
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="app" id="parent-shell" hidden>
+    <aside class="side" id="parent-nav">
+      <a class="logo" href="parent.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a>
+      <a class="item" href="parent.html" data-nav="shots">Фотосессии</a>
+      <a class="item" href="parent.html?view=mine" data-nav="mine">Мои галереи</a>
+      <a class="item" href="parent.html?view=settings" data-nav="settings">Настройки</a>
+      <button class="item push" type="button" id="parent-out">Выйти</button>
+    </aside>
+    <main class="app-main">
+      <section class="panel who cabinet-head" id="parent-head">
+        <div class="cabinet-id">
+          <div class="cabinet-copy">
+            <h1 id="parent-name"></h1>
+            <p class="hint" id="parent-phone"></p>
+          </div>
+        </div>
+        <div class="gauge-pair" id="parent-gauges"></div>
+      </section>
+      <section class="panel" id="parent-root"></section>
+    </main>
+  </div>
+  <main class="auth" id="parent-gate" hidden></main>
+  <script src="phone.js"></script>
+  <script src="auth.js"></script>
+  <script src="shoot.js?v=lk2"></script>
+</body>
+</html>

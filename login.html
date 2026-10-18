@@ -19,15 +19,20 @@
   </header>
   <main class="auth">
     <h1>Вход</h1>
-    <p class="sub">Логин — это почта, которую вы указали при регистрации.</p>
-    <form action="cabinet.html">
-      <label>Email<input type="email" name="email" required placeholder="anna@studio.ru"></label>
-      <label>Пароль<input type="password" name="password" required placeholder="Ваш пароль"></label>
-      <label class="check"><input type="checkbox" name="remember"> Запомнить меня</label>
+    <form id="login-form">
+      <label>Телефон или email<input id="login-id" type="text" required autocomplete="username" placeholder="+7 900 000-00-00 или почта"></label>
+      <label>Пароль<input id="login-pass" type="password" required placeholder="Ваш пароль"></label>
+      <p class="hint" id="login-error" hidden></p>
       <button class="btn btn-dark btn-wide" type="submit">Войти</button>
     </form>
+    <div class="auth-social">
+      <button class="btn btn-line btn-wide" id="via-vk" type="button">Войти через ВКонтакте</button>
+      <button class="btn btn-line btn-wide" id="via-google" type="button">Войти через Google</button>
+      <p class="hint" id="oauth-note" hidden></p>
+    </div>
     <p class="hint"><a href="forgot.html">Забыли пароль?</a></p>
     <p class="hint"><a href="register.html">Нет аккаунта? Зарегистрироваться</a></p>
   </main>
+  <script src="auth.js"></script>
 </body>
 </html>

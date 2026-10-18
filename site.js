@@ -178,6 +178,7 @@ const folderNodes = (gid) => {
     name: displayName(gid, item.id, item.name),
     cover: item.cover || "img/folder-neon.svg",
     meta: item.meta && item.meta !== "Новая папка" ? item.meta : "",
+    shootOwner: item.shootOwner || "",
     children: extras.filter((row) => row.parent === item.id).map(pack)
   });
   const walk = (nodes) => (nodes || []).map((node) => ({
@@ -1250,6 +1251,8 @@ const askDelete = (name, job) => {
   deleteJob = job;
   const text = document.getElementById("delete-ask-text");
   if (text) text.textContent = `Что сделать с «${name}»?`;
+  const trashBtn = document.getElementById("delete-to-trash");
+  if (trashBtn) trashBtn.hidden = typeof job?.trash !== "function";
   const modal = document.getElementById("delete-ask");
   if (!modal) {
     if (job?.trash) job.trash();
@@ -1257,6 +1260,7 @@ const askDelete = (name, job) => {
   }
   openOverlay("delete-ask");
 };
+window.askDelete = askDelete;
 document.getElementById("delete-ask-form")?.addEventListener("submit", (event) => event.preventDefault());
 document.getElementById("delete-cancel")?.addEventListener("click", () => closeDeleteAsk());
 document.getElementById("delete-forever")?.addEventListener("click", () => {
@@ -1460,6 +1464,7 @@ const fillCardSettings = (id, folder = "") => {
   if (keepAuto) keepAuto.checked = !folder && Boolean(galleryState.autoDelete);
   pendingCoverSrc = "";
   paintCoverChoices(id, folder);
+  if (typeof window.ftPaintShootSettings === "function") window.ftPaintShootSettings(id, folder);
 };
 document.addEventListener("click", (event) => {
   const button = event.target.closest("[data-open-settings]");
@@ -1671,6 +1676,7 @@ if (profileForm) {
     const node = document.getElementById(id);
     if (node) node.value = value;
   });
+  window.ftPhone?.refresh(document.getElementById("pf-phone"));
   const banner = document.getElementById("fill-card");
   if (banner && localStorage.getItem("ft-ask-card") === "1") banner.hidden = false;
   if (!saved && user) revealSave("save-profile");
@@ -1683,6 +1689,18 @@ if (profileForm) {
   profileForm.addEventListener("submit", (event) => event.preventDefault());
   document.getElementById("save-profile")?.addEventListener("click", () => {
     const read = (id) => document.getElementById(id)?.value.trim() || "";
+    const phoneInput = document.getElementById("pf-phone");
+    if (phoneInput && window.ftPhone && !window.ftPhone.ready(phoneInput.value)) {
+      let note = document.getElementById("pf-phone-note");
+      if (!note) {
+        note = document.createElement("p");
+        note.id = "pf-phone-note";
+        note.className = "hint";
+        phoneInput.closest("label")?.after(note);
+      }
+      note.textContent = "Укажите номер: 10 цифр после +7.";
+      return;
+    }
     const profile = {
       first: read("pf-first"),
       last: read("pf-last"),
@@ -1690,7 +1708,7 @@ if (profileForm) {
       city: read("pf-city"),
       about: read("pf-about"),
       slug: read("pf-slug"),
-      phone: read("pf-phone"),
+      phone: window.ftPhone ? window.ftPhone.read(phoneInput) : read("pf-phone"),
       email: read("pf-email"),
       site: read("pf-site"),
       max: read("pf-max"),
@@ -1749,7 +1767,7 @@ if (profileForm) {
 }
 
 const registerForm = document.getElementById("register-form");
-if (registerForm) {
+if (registerForm && !window.ftAuth) {
   const fillDraft = (first, last, email) => {
     document.getElementById("reg-first").value = first;
     document.getElementById("reg-last").value = last;
@@ -2192,6 +2210,17 @@ const paintClient = (gid, fid) => {
     location.replace(clientHref(gid, root));
     return;
   }
+  if (found && found.path.some((node) => node.shootOwner)) {
+    const gate = document.getElementById("client-lock");
+    if (gate) gate.hidden = true;
+    document.getElementById("client-folders")?.replaceChildren();
+    document.getElementById("client-grid")?.replaceChildren();
+    const note = document.getElementById("client-note");
+    if (note) note.textContent = "Эта папка открывается только в кабинете родителя.";
+    document.getElementById("path-tabs")?.replaceChildren();
+    document.title = "Папка родителя — ФотоТранзит";
+    return;
+  }
   const tabs = document.getElementById("path-tabs");
   if (tabs) {
     tabs.replaceChildren();
@@ -2239,7 +2268,7 @@ const paintClient = (gid, fid) => {
   const folders = document.getElementById("client-folders");
   if (folders) {
     folders.replaceChildren();
-    if (!onlyFile) childFolders(gid, fid).filter((node) => !folderAccessOf(gid, node.id).hidden).forEach((node) => {
+    if (!onlyFile) childFolders(gid, fid).filter((node) => !node.shootOwner && !folderAccessOf(gid, node.id).hidden).forEach((node) => {
       const link = document.createElement("a");
       link.className = "client-folder";
       link.href = clientHref(gid, node.id);
@@ -3413,6 +3442,81 @@ document.getElementById("select-delete")?.addEventListener("click", () => {
     }
   });
 });
+const ftEnsureShootRows = () => {
+  let lists;
+  try { lists = JSON.parse(localStorage.getItem("ft-shoot-lists") || "{}"); } catch (error) { return; }
+  if (!lists || typeof lists !== "object" || Array.isArray(lists)) return;
+  const read = (key, fallback) => {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || "");
+      return value == null ? fallback : value;
+    } catch (error) { return fallback; }
+  };
+  const folders = read("ft-user-folders", {});
+  const parents = read("ft-parents", []);
+  const linksAll = read("ft-parent-links", {});
+  const user = read("ft-user", null);
+  const owner = user && user.email ? String(user.email).trim().toLowerCase() : "cabinet";
+  const phoneKey = (value) => {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.length === 11 && digits.startsWith("8")) digits = `7${digits.slice(1)}`;
+    if (digits.length === 10) digits = `7${digits}`;
+    return digits;
+  };
+  const makeId = (prefix) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  let listsChanged = false;
+  let foldersChanged = false;
+  let parentsChanged = false;
+  let linksChanged = false;
+  Object.entries(lists).forEach(([gid, list]) => {
+    if (!list || !Array.isArray(list.rows)) return;
+    list.rows.forEach((row) => {
+      const child = String(row.childName || "").trim();
+      if (!child) return;
+      const key = phoneKey(row.phone);
+      if (!row.parentId && key && Array.isArray(parents)) {
+        let account = parents.find((item) => item.phoneKey === key);
+        if (!account) {
+          account = { id: makeId("p"), name: row.parentName || "", phone: row.phone || "", phoneKey: key, role: "parent", createdAt: Date.now() };
+          parents.push(account);
+          parentsChanged = true;
+        } else if (!account.name && row.parentName) {
+          account.name = row.parentName;
+          parentsChanged = true;
+        }
+        row.parentId = account.id;
+        listsChanged = true;
+      }
+      if (!row.folderId) {
+        const bag = Array.isArray(folders[gid]) ? folders[gid] : [];
+        const exact = bag.find((item) => String(item.name || "").trim() === child && !(item.parent || ""));
+        if (exact) row.folderId = exact.id;
+        else {
+          const id = makeId("u");
+          bag.push({ id, name: child, parent: "", cover: "img/folder-neon.svg", meta: "", created: Date.now(), shootOwner: row.parentId || "list" });
+          folders[gid] = bag;
+          row.folderId = id;
+          foldersChanged = true;
+        }
+        listsChanged = true;
+      }
+      if (row.parentId && row.folderId) {
+        const links = Array.isArray(linksAll[row.parentId]) ? linksAll[row.parentId] : [];
+        if (!links.some((item) => item.folderId === row.folderId || item.rowId === row.id)) {
+          links.push({ id: makeId("l"), galleryId: gid, folderId: row.folderId, childName: child, rowId: row.id, owner });
+          linksAll[row.parentId] = links;
+          linksChanged = true;
+        }
+      }
+    });
+  });
+  if (listsChanged) localStorage.setItem("ft-shoot-lists", JSON.stringify(lists));
+  if (foldersChanged) localStorage.setItem("ft-user-folders", JSON.stringify(folders));
+  if (parentsChanged) localStorage.setItem("ft-parents", JSON.stringify(parents));
+  if (linksChanged) localStorage.setItem("ft-parent-links", JSON.stringify(linksAll));
+};
+window.ftEnsureShootRows = ftEnsureShootRows;
+ftEnsureShootRows();
 mountFolderBrowser();
 const folderAsk = document.getElementById("folder-ask");
 const folderAskInput = document.getElementById("folder-ask-name");
@@ -5242,7 +5346,9 @@ function consentFieldsNow() {
     studio: pick("consent-studio", "studio", profile.role),
     city: pick("consent-city", "city", profile.city),
     email: pick("consent-email", "email", profile.email),
-    phone: pick("consent-phone", "phone", profile.phone)
+    phone: (live && document.getElementById("consent-phone") && window.ftPhone)
+      ? window.ftPhone.read(document.getElementById("consent-phone"))
+      : pick("consent-phone", "phone", profile.phone)
   };
 }
 function consentPopupText() {
@@ -5289,6 +5395,7 @@ function paintConsentScreen() {
     if (field && !field.dataset.ready) {
       field.value = value;
       field.dataset.ready = "1";
+      if (id === "consent-phone") window.ftPhone?.refresh(field);
     }
   });
   const fileName = document.getElementById("consent-file-name");
@@ -5391,6 +5498,12 @@ document.getElementById("consent-file")?.addEventListener("change", (event) => {
 });
 document.getElementById("consent-open")?.addEventListener("click", () => openConsentDoc());
 document.getElementById("consent-save")?.addEventListener("click", () => {
+  const phoneInput = document.getElementById("consent-phone");
+  if (phoneInput && window.ftPhone && !window.ftPhone.ready(phoneInput.value)) {
+    const status = document.getElementById("consent-status");
+    if (status) status.textContent = "Укажите номер: 10 цифр после +7.";
+    return;
+  }
   const view = document.getElementById("consent-view");
   const mode = view?.dataset.mode || "template";
   const prev = consentStore();
