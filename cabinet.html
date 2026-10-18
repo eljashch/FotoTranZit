@@ -19,6 +19,8 @@
       <a class="item" href="profile.html">Профиль</a>
       <a class="item" href="billing.html">Оплата</a>
       <a class="item" href="photographer.html">Моя страница</a>
+      <a class="item" href="cabinet.html?view=watermark">Водяной знак</a>
+      <a class="item" href="cabinet.html?view=consent">Согласие на публикацию</a>
       <a class="item" href="cabinet.html?view=offers">Мои предложения</a>
       <a class="item" href="cabinet.html?view=trash">Корзина</a>
       <a class="item push" href="index.html">Выйти</a>
@@ -66,6 +68,72 @@
           </div>
           <p class="hint" id="ref-stats"></p>
         </div>
+      </section>
+      <section class="panel tool-screen" id="watermark-view" hidden>
+        <form class="wm-screen" id="wm-form">
+          <h2 id="wm-title">Водяной знак</h2>
+          <div class="wm-kind" role="group" aria-label="Вид знака">
+            <button class="btn btn-line on" id="wm-kind-text" type="button">Надпись</button>
+            <button class="btn btn-line" id="wm-kind-image" type="button">Картинка</button>
+            <label class="btn btn-line wm-file" id="wm-file-label">Загрузить PNG
+              <input id="wm-file" type="file" accept="image/png,.png">
+            </label>
+          </div>
+          <label id="wm-text-label">Слова<input id="wm-text" type="text" maxlength="80" autocomplete="off"></label>
+          <div class="wm-body">
+            <div class="wm-sliders">
+              <label>Количество в ряд <output id="wm-across-out">1</output>
+                <input id="wm-across" type="range" min="1" max="8" step="1" value="1">
+              </label>
+              <label>Размер <output id="wm-size-out">28</output>
+                <input id="wm-size" type="range" min="12" max="72" step="1" value="28">
+              </label>
+              <label>Прозрачность <output id="wm-opacity-out">42</output>
+                <input id="wm-opacity" type="range" min="8" max="100" step="1" value="42">
+              </label>
+              <label>Наклон <output id="wm-angle-out">-18</output>
+                <input id="wm-angle" type="range" min="-180" max="180" step="1" value="-18">
+              </label>
+            </div>
+            <div class="wm-stage" id="wm-stage">
+              <img src="img/p2.jpg" alt="">
+              <div id="wm-layer"></div>
+            </div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-line" id="wm-apply-all" type="button">Применить ко всем</button>
+            <button class="btn btn-line" id="wm-apply-rest" type="button">Применить, где свой не выбран</button>
+            <button class="btn btn-dark" id="wm-save" type="submit">Сохранить</button>
+          </div>
+          <p class="hint" id="wm-status"></p>
+        </form>
+      </section>
+      <section class="panel tool-screen" id="consent-view" hidden>
+        <h2>Согласие на публикацию</h2>
+        <label>Сопроводительный текст
+          <textarea id="consent-popup" rows="2">Разрешаю фотографу публиковать мои фотографии в интернете</textarea>
+        </label>
+        <div class="wm-kind" role="group" aria-label="Документ">
+          <button class="btn btn-line on" id="consent-mode-template" type="button">Наш шаблон</button>
+          <button class="btn btn-line" id="consent-mode-file" type="button">Свой документ</button>
+        </div>
+        <div id="consent-fields" class="consent-fields">
+          <label>Имя фотографа<input id="consent-name" type="text" autocomplete="name" maxlength="120"></label>
+          <label>Студия<input id="consent-studio" type="text" maxlength="120"></label>
+          <label>Город<input id="consent-city" type="text" maxlength="80"></label>
+          <label>Почта<input id="consent-email" type="email" maxlength="120"></label>
+          <label>Телефон<input id="consent-phone" type="tel" maxlength="40"></label>
+        </div>
+        <label id="consent-file-label" class="btn btn-line wm-file" hidden>Загрузить документ
+          <input id="consent-file" type="file" accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,image/*,application/pdf,text/plain">
+        </label>
+        <p class="hint" id="consent-file-name" hidden></p>
+        <div class="row-actions">
+          <button class="btn btn-line" id="consent-open" type="button">Открыть</button>
+          <button class="btn btn-dark" id="consent-save" type="button">Сохранить</button>
+        </div>
+        <div id="consent-sheet" class="consent-paper" hidden></div>
+        <p class="hint" id="consent-status"></p>
       </section>
       <section class="panel" id="trash-view" hidden>
         <div class="who">
@@ -232,7 +300,12 @@
           <label class="switch"><span>Скачивание оригиналов</span><input data-folder-opt="originals" type="checkbox"></label>
           <label class="switch"><span>Уменьшенная версия</span><input data-folder-opt="small" type="checkbox"></label>
           <label class="switch"><span>Открывать файлы без скачивания</span><input data-folder-opt="open" type="checkbox"></label>
-          <label class="switch"><span>Водяной знак</span><input data-folder-opt="watermark" type="checkbox"></label>
+          <div class="wm-switch">
+            <span>Водяной знак</span>
+            <span id="wm-folder-chosen" class="wm-chosen">не задан</span>
+            <a class="btn btn-line" id="wm-folder-setup" href="cabinet.html?view=watermark">Настроить</a>
+            <input data-folder-opt="watermark" type="checkbox" aria-label="Водяной знак">
+          </div>
           <label class="switch"><span>Согласие на публикацию</span><input data-folder-opt="consent" type="checkbox"></label>
           <p class="hint">Согласие выключено, пока вы его не включите. Клиент увидит его при скачивании.</p>
           <div class="row-actions">
@@ -274,7 +347,8 @@
         </form>
       </div>
       <div class="overlay" id="card-settings" hidden>
-        <form class="modal">
+        <form class="modal settings-modal">
+          <div class="settings-scroll">
           <input id="card-name" class="card-name" type="text" maxlength="120" autocomplete="off" aria-label="Название" placeholder="Название">
           <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную галерею.</p>
           <div id="cover-pick">
@@ -285,8 +359,14 @@
           <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
           <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
           <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
-          <label class="switch"><span>Водяной знак</span><input data-card-opt="watermark" type="checkbox"></label>
+          <div class="wm-switch">
+            <span>Водяной знак</span>
+            <span id="wm-chosen" class="wm-chosen">не задан</span>
+            <button class="btn btn-line" id="wm-setup" type="button">Настроить</button>
+            <input data-card-opt="watermark" type="checkbox" aria-label="Водяной знак">
+          </div>
           <label class="switch"><span>Согласие на публикацию</span><input data-card-opt="consent" type="checkbox"></label>
+          <label class="switch"><span>Выводить на мою страницу</span><input data-card-opt="onpage" type="checkbox"></label>
           <label>Как показывать содержимое
             <select data-display-choice>
               <option value="tiles">Галерея</option>
@@ -301,9 +381,10 @@
             <label class="switch"><span>Удалять автоматически</span><input id="keep-auto" type="checkbox"></label>
             <p class="hint keep-warn" id="keep-warn">Если заканчивается тариф, максимальный срок хранения с момента создания — 30 дней.</p>
           </div>
-          <div class="row-actions">
+          </div>
+          <div class="row-actions settings-pin">
             <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
-            <button class="btn btn-dark" id="save-card" type="button" hidden>Сохранить</button>
+            <button class="btn btn-dark" id="save-card" type="button">Сохранить</button>
             <button class="btn btn-line" type="button" data-close="card-settings">Готово</button>
           </div>
         </form>

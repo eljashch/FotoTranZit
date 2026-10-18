@@ -19,11 +19,31 @@
       <a class="item" href="profile.html">Профиль</a>
       <a class="item on" href="billing.html">Оплата</a>
       <a class="item" href="photographer.html">Моя страница</a>
+      <a class="item" href="cabinet.html?view=watermark">Водяной знак</a>
+      <a class="item" href="cabinet.html?view=consent">Согласие на публикацию</a>
       <a class="item" href="cabinet.html?view=offers">Мои предложения</a>
       <a class="item" href="cabinet.html?view=trash">Корзина</a>
       <a class="item push" href="index.html">Выйти</a>
     </aside>
     <main class="app-main">
+      <section class="panel who cabinet-head" id="cabinet-head">
+        <div class="cabinet-id">
+          <div class="portrait-frame logo-frame" data-logo-frame hidden>
+            <div class="portrait-clip">
+              <img class="portrait" data-use="logo" alt="">
+            </div>
+          </div>
+          <div class="cabinet-copy">
+            <h1 id="cabinet-name"></h1>
+            <p class="kicker" id="cabinet-place" hidden></p>
+            <p class="hint" id="cabinet-about" hidden></p>
+          </div>
+        </div>
+        <div class="gauge-pair">
+          <div class="plan-gauge" data-gauge="active" data-plan="trial" data-title="Куплено"></div>
+          <div class="plan-gauge" data-gauge="storage" data-plan="trial" data-title="Всего"></div>
+        </div>
+      </section>
       <section class="panel who">
         <div>
           <h1 style="font-size:36px">Пробный период</h1>

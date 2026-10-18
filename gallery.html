@@ -157,10 +157,11 @@
   <div class="overlay" id="consent-modal" hidden>
     <form class="modal" id="consent-form">
       <h2>Публикация</h2>
-      <p>Разрешаю фотографу публиковать мои фотографии в интернете</p>
+      <p id="consent-client-text">Разрешаю фотографу публиковать мои фотографии в интернете</p>
       <div class="row-actions">
         <button class="btn btn-dark" type="button" data-consent="allow">Разрешаю</button>
         <button class="btn btn-line" type="button" data-consent="deny">Не разрешаю</button>
+        <button class="btn btn-line" type="button" id="consent-doc-open">Открыть</button>
         <button class="btn btn-line" type="button" id="consent-partial-open">Разрешить частично</button>
       </div>
       <div id="consent-partial" hidden>
@@ -207,7 +208,12 @@
       <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
       <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
       <label class="switch"><span>Открывать файлы без скачивания</span><input data-card-opt="open" type="checkbox"></label>
-      <label class="switch"><span>Водяной знак</span><input data-card-opt="watermark" type="checkbox"></label>
+      <div class="wm-switch">
+        <span>Водяной знак</span>
+        <span id="wm-chosen" class="wm-chosen">не задан</span>
+        <button class="btn btn-line" id="wm-setup" type="button">Настроить</button>
+        <input data-card-opt="watermark" type="checkbox" aria-label="Водяной знак">
+      </div>
       <label class="switch"><span>Согласие на публикацию</span><input data-card-opt="consent" type="checkbox"></label>
       <div class="row-actions">
         <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>

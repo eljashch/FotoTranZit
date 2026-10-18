@@ -451,7 +451,10 @@ const paintFiles = () => {
   document.querySelectorAll("[data-download='file']").forEach((button) => { button.hidden = !state.originals; });
   document.querySelectorAll("[data-download='small']").forEach((button) => { button.hidden = !state.small; });
   const mark = document.getElementById("shot-wm");
-  if (mark) mark.hidden = !state.watermark || state.originals;
+  if (mark) {
+    mark.hidden = !state.watermark || state.originals;
+    if (typeof paintViewerWm === "function") paintViewerWm();
+  }
   if (typeof window.ftPaintConsent === "function") window.ftPaintConsent();
 };
 
@@ -1405,7 +1408,9 @@ const fillCardSettings = (id, folder = "") => {
   settingsCard = folder ? folderStoreKey(id, folder) : id;
   delete pending[settingsCard];
   const saveCard = document.getElementById("save-card");
-  if (saveCard) saveCard.hidden = true;
+  if (saveCard) saveCard.hidden = false;
+  const chosen = document.getElementById("wm-chosen");
+  if (chosen && typeof wmLabel === "function") chosen.textContent = wmLabel(folder ? id : settingsCard, folder);
   const galleryState = settings(id);
   const saved = folder ? (loadSettings()[settingsCard] || {}) : {};
   const state = folder ? {
@@ -1577,7 +1582,8 @@ document.getElementById("save-card")?.addEventListener("click", () => {
     }
   }
   delete pending[settingsCard];
-  document.getElementById("save-card").hidden = true;
+  const saveCardBtn = document.getElementById("save-card");
+  if (saveCardBtn) saveCardBtn.hidden = false;
   paintKeepDates();
   sweepExpiredGalleries();
   paintFiles();
@@ -2251,6 +2257,10 @@ const paintClient = (gid, fid) => {
         img.src = file.src;
         img.alt = file.name;
         shot.appendChild(img);
+        if (typeof clientWmNode === "function") {
+          const layer = clientWmNode(gid, fid);
+          if (layer) shot.appendChild(layer);
+        }
       }
       const heart = document.createElement("button");
       heart.type = "button";
@@ -4320,15 +4330,20 @@ document.getElementById("client-download-menu")?.addEventListener("click", async
   }
   if (button.dataset.dl === "folder" && note) note.textContent = "Браузер сохранит файлы в загрузки, папкой. Отдельного приложения нет.";
   if (button.dataset.dl === "phone" && note) note.textContent = "Кадр уходит в загрузки браузера. На телефоне его можно отправить в галерею через «Поделиться». Отдельного приложения нет.";
-  for (const file of list) {
-    if (!file.src) continue;
-    if (button.dataset.dl === "phone") {
-      const shared = await shareUrl(file.src, file.name);
-      if (shared) continue;
+  const go = async () => {
+    for (const file of list) {
+      if (!file.src) continue;
+      if (button.dataset.dl === "phone") {
+        const shared = await shareUrl(file.src, file.name);
+        if (shared) continue;
+      }
+      saveLink(file.src, file.name);
+      await new Promise((resolve) => setTimeout(resolve, 180));
     }
-    saveLink(file.src, file.name);
-    await new Promise((resolve) => setTimeout(resolve, 180));
-  }
+  };
+  if (!list.length) return;
+  if (typeof window.ftGateDownload === "function") window.ftGateDownload(go);
+  else await go();
 });
 document.addEventListener("click", (event) => {
   if (event.target.closest(".dl-wrap")) return;
@@ -4745,7 +4760,7 @@ const paintOffers = () => {
       code = `FT${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       localStorage.setItem("ft-ref-code", code);
     }
-    const link = new URL("register.html", location.href);
+    const link = new URL("https://eljashch.github.io/FotoTranZit/register.html");
     link.searchParams.set("ref", code);
     linkNode.textContent = link.href;
   }
@@ -4766,23 +4781,36 @@ if (pageFile() === "cabinet.html") {
   const metrics = document.querySelector(".metrics");
   const banner = document.getElementById("offer-banner");
   const trash = document.getElementById("trash-view");
+  const watermark = document.getElementById("watermark-view");
+  const consent = document.getElementById("consent-view");
   const isOffers = view === "offers";
   const isTrash = view === "trash";
-  const insideGallery = Boolean(params.get("id")) && !isOffers && !isTrash;
+  const isWm = view === "watermark";
+  const isConsent = view === "consent";
+  const tool = isOffers || isTrash || isWm || isConsent;
+  const insideGallery = Boolean(params.get("id")) && !tool;
   const head = document.getElementById("cabinet-head");
   if (offers) offers.hidden = !isOffers;
-  if (gallery) gallery.hidden = isOffers || isTrash;
-  if (metrics) metrics.hidden = isOffers || isTrash || insideGallery;
+  if (watermark) watermark.hidden = !isWm;
+  if (consent) consent.hidden = !isConsent;
+  if (gallery) gallery.hidden = tool;
+  if (metrics) metrics.hidden = tool || insideGallery;
   if (head) head.hidden = insideGallery;
-  if (banner) banner.hidden = isOffers || isTrash || Boolean(params.get("id"));
+  if (banner) banner.hidden = tool || Boolean(params.get("id"));
   if (trash) trash.hidden = !isTrash;
   document.querySelectorAll(".side a.item").forEach((link) => {
     const href = link.getAttribute("href") || "";
-    const on = isOffers ? href.includes("view=offers") : isTrash ? href.includes("view=trash") : href === "cabinet.html";
+    const on = isWm ? href.includes("view=watermark")
+      : isConsent ? href.includes("view=consent")
+      : isOffers ? href.includes("view=offers")
+      : isTrash ? href.includes("view=trash")
+      : href === "cabinet.html";
     link.classList.toggle("on", on);
   });
   if (isOffers) paintOffers();
   if (isTrash) paintTrash();
+  if (isWm && typeof paintWmScreen === "function") paintWmScreen();
+  if (isConsent && typeof paintConsentScreen === "function") paintConsentScreen();
 }
 document.getElementById("empty-trash")?.addEventListener("click", () => {
   saveTrash([]);
@@ -4796,3 +4824,743 @@ if (billingLead) {
   billingLead.textContent = `${head}, до ${ftRuDate(trial.end)}. Занято 6,4 из 20 ГБ. Пакет ещё действует: новый можно оплатить сейчас, он начнётся 21 октября 2026, когда текущий закончится.`;
 }
 paintKeepDates();
+
+
+function wmDefaults() {
+  return { kind: "text", text: "", image: "", imageName: "", across: 1, size: 28, opacity: 42, angle: -18, x: 50, y: 46 };
+}
+function readWmCommon() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("ft-wm-common") || "null");
+    return raw && typeof raw === "object" ? { ...wmDefaults(), ...raw } : null;
+  } catch (error) { return null; }
+}
+function writeWmCommon(mark) {
+  localStorage.setItem("ft-wm-common", JSON.stringify(mark));
+}
+function wmBlank(mark) {
+  if (!mark) return true;
+  if (mark.kind === "image") return !String(mark.image || "").trim();
+  return !String(mark.text || "").trim();
+}
+function readOwnWm(gid, fid) {
+  if (!gid) return null;
+  const saved = loadSettings()[fid ? folderStoreKey(gid, fid) : gid] || {};
+  if (!saved.wmOwn || !saved.wm) return null;
+  return { ...wmDefaults(), ...saved.wm };
+}
+function resolvedWm(gid, fid) {
+  return readOwnWm(gid, fid) || readWmCommon();
+}
+function wmLabel(gid, fid) {
+  const own = readOwnWm(gid, fid);
+  const common = readWmCommon();
+  const mark = own || common;
+  if (wmBlank(mark)) return "не задан";
+  const name = mark.kind === "image" ? "картинка" : (mark.text || "надпись");
+  return own ? `свой: ${name}` : `общий: ${name}`;
+}
+function eachWmScope(fn) {
+  const ids = [...new Set([...Object.keys(GALLERY_META), ...loadUserGalleries().map((row) => row.id)])];
+  ids.forEach((gid) => {
+    if (goneGalleries().includes(gid)) return;
+    fn(gid, "");
+    const walk = (nodes) => (nodes || []).forEach((node) => {
+      if (!node || !node.id || isFolderGone(gid, node.id)) return;
+      fn(gid, node.id);
+      walk(node.children || []);
+    });
+    walk(folderNodes(gid));
+  });
+}
+function wmScope() {
+  return { gid: params.get("id") || "", fid: params.get("folder") || "" };
+}
+function wmCursor() {
+  if (!wmCursor.state) wmCursor.state = { x: 50, y: 46 };
+  return wmCursor.state;
+}
+function readWmForm() {
+  const kind = document.getElementById("wm-kind-image")?.classList.contains("on") ? "image" : "text";
+  return {
+    kind,
+    text: document.getElementById("wm-text")?.value || "",
+    image: document.getElementById("wm-form")?.dataset.image || "",
+    imageName: document.getElementById("wm-form")?.dataset.imageName || "",
+    across: Number(document.getElementById("wm-across")?.value) || 1,
+    size: Number(document.getElementById("wm-size")?.value) || 28,
+    opacity: Number(document.getElementById("wm-opacity")?.value) || 42,
+    angle: Number(document.getElementById("wm-angle")?.value) || 0,
+    x: wmCursor().x,
+    y: wmCursor().y
+  };
+}
+function fillWmForm(mark) {
+  const next = { ...wmDefaults(), ...(mark || {}) };
+  wmCursor().x = Number(next.x) || 50;
+  wmCursor().y = Number(next.y) || 46;
+  document.getElementById("wm-kind-text")?.classList.toggle("on", next.kind !== "image");
+  document.getElementById("wm-kind-image")?.classList.toggle("on", next.kind === "image");
+  const text = document.getElementById("wm-text");
+  if (text) text.value = next.text || "";
+  const form = document.getElementById("wm-form");
+  if (form) {
+    form.dataset.image = next.image || "";
+    form.dataset.imageName = next.imageName || "";
+  }
+  const textLabel = document.getElementById("wm-text-label");
+  if (textLabel) textLabel.hidden = next.kind === "image";
+  [["wm-across", next.across, "wm-across-out"], ["wm-size", next.size, "wm-size-out"], ["wm-opacity", next.opacity, "wm-opacity-out"], ["wm-angle", next.angle, "wm-angle-out"]].forEach(([id, value, out]) => {
+    const field = document.getElementById(id);
+    const node = document.getElementById(out);
+    if (field) field.value = String(value);
+    if (node) node.textContent = String(value);
+  });
+}
+function paintWmStage() {
+  const layer = document.getElementById("wm-layer");
+  if (!layer) return;
+  const mark = readWmForm();
+  layer.replaceChildren();
+  const row = document.createElement("div");
+  row.className = "wm-row";
+  row.style.left = `${mark.x}%`;
+  row.style.top = `${mark.y}%`;
+  row.style.transform = `translate(-50%, -50%) rotate(${mark.angle}deg)`;
+  row.style.opacity = String(Math.max(0.08, Math.min(1, mark.opacity / 100)));
+  const across = Math.max(1, Math.min(8, mark.across));
+  for (let i = 0; i < across; i += 1) {
+    const spot = document.createElement("span");
+    spot.className = "wm-spot";
+    if (mark.kind === "image" && mark.image) {
+      const img = document.createElement("img");
+      img.src = mark.image;
+      img.alt = "";
+      img.style.width = `${Math.max(18, mark.size)}px`;
+      spot.appendChild(img);
+    } else {
+      spot.textContent = mark.text || "Знак";
+      spot.style.fontSize = `${Math.max(12, mark.size)}px`;
+    }
+    row.appendChild(spot);
+  }
+  layer.appendChild(row);
+}
+function paintWmScreen() {
+  if (!document.getElementById("wm-form")) return;
+  const scope = wmScope();
+  const own = scope.gid ? readOwnWm(scope.gid, scope.fid) : null;
+  fillWmForm(own || readWmCommon() || wmDefaults());
+  const title = document.getElementById("wm-title");
+  if (title) title.textContent = scope.gid ? "Водяной знак этой папки" : "Водяной знак";
+  paintWmStage();
+}
+function saveWmHere(mark) {
+  const scope = wmScope();
+  if (!scope.gid) {
+    writeWmCommon(mark);
+    return;
+  }
+  saveSettings({ wm: mark, wmOwn: true }, scope.fid ? folderStoreKey(scope.gid, scope.fid) : scope.gid);
+}
+function wmStatus(text) {
+  const node = document.getElementById("wm-status");
+  if (node) node.textContent = text;
+}
+function paintViewerWm() {
+  const node = document.getElementById("shot-wm");
+  if (!node) return;
+  const gid = galleryId();
+  const fid = folderId();
+  const state = fid ? folderSettingsView(gid, fid) : settings(gid);
+  const mark = resolvedWm(gid, fid);
+  node.hidden = !state.watermark || state.originals || wmBlank(mark);
+  if (node.hidden || !mark) return;
+  node.textContent = mark.kind === "image" ? "" : (mark.text || "");
+  node.style.opacity = String(Math.max(0.08, Math.min(1, (Number(mark.opacity) || 40) / 100)));
+  node.style.transform = `rotate(${Number(mark.angle) || 0}deg)`;
+}
+function clientWmNode(gid, fid) {
+  const state = fid ? folderSettingsView(gid, fid) : settings(gid);
+  const mark = resolvedWm(gid, fid);
+  if (!state.watermark || state.originals || wmBlank(mark)) return null;
+  const layer = document.createElement("span");
+  layer.className = "client-wm";
+  const row = document.createElement("span");
+  row.className = "wm-row";
+  row.style.left = `${mark.x}%`;
+  row.style.top = `${mark.y}%`;
+  row.style.transform = `translate(-50%, -50%) rotate(${mark.angle}deg)`;
+  row.style.opacity = String(Math.max(0.08, Math.min(1, (Number(mark.opacity) || 40) / 100)));
+  const across = Math.max(1, Math.min(8, Number(mark.across) || 1));
+  for (let i = 0; i < across; i += 1) {
+    const spot = document.createElement("span");
+    spot.className = "wm-spot";
+    if (mark.kind === "image" && mark.image) {
+      const img = document.createElement("img");
+      img.src = mark.image;
+      img.alt = "";
+      img.style.width = `${Math.max(18, Number(mark.size) || 28)}px`;
+      spot.appendChild(img);
+    } else {
+      spot.textContent = mark.text || "";
+      spot.style.fontSize = `${Math.max(12, Number(mark.size) || 28)}px`;
+    }
+    row.appendChild(spot);
+  }
+  layer.appendChild(row);
+  return layer;
+}
+function syncFolderWmLink() {
+  const gid = galleryId();
+  const fid = folderId();
+  const link = document.getElementById("wm-folder-setup");
+  const label = document.getElementById("wm-folder-chosen");
+  if (link && gid) {
+    const q = new URLSearchParams();
+    q.set("view", "watermark");
+    q.set("id", gid);
+    if (fid) q.set("folder", fid);
+    link.href = `cabinet.html?${q.toString()}`;
+  }
+  if (label && gid) label.textContent = wmLabel(gid, fid);
+}
+document.getElementById("wm-kind-text")?.addEventListener("click", () => {
+  document.getElementById("wm-kind-text")?.classList.add("on");
+  document.getElementById("wm-kind-image")?.classList.remove("on");
+  const textLabel = document.getElementById("wm-text-label");
+  if (textLabel) textLabel.hidden = false;
+  paintWmStage();
+});
+document.getElementById("wm-kind-image")?.addEventListener("click", () => {
+  document.getElementById("wm-kind-image")?.classList.add("on");
+  document.getElementById("wm-kind-text")?.classList.remove("on");
+  const textLabel = document.getElementById("wm-text-label");
+  if (textLabel) textLabel.hidden = true;
+  paintWmStage();
+});
+["wm-text", "wm-across", "wm-size", "wm-opacity", "wm-angle"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("input", () => {
+    const field = document.getElementById(id);
+    const out = document.getElementById(`${id}-out`);
+    if (field && out) out.textContent = field.value;
+    paintWmStage();
+  });
+});
+const wmStage = document.getElementById("wm-stage");
+let wmDrag = null;
+wmStage?.addEventListener("pointerdown", (event) => {
+  wmStage.setPointerCapture(event.pointerId);
+  wmDrag = event.pointerId;
+  const box = wmStage.getBoundingClientRect();
+  wmCursor().x = Math.max(4, Math.min(96, ((event.clientX - box.left) / box.width) * 100));
+  wmCursor().y = Math.max(4, Math.min(96, ((event.clientY - box.top) / box.height) * 100));
+  paintWmStage();
+});
+wmStage?.addEventListener("pointermove", (event) => {
+  if (wmDrag !== event.pointerId) return;
+  const box = wmStage.getBoundingClientRect();
+  wmCursor().x = Math.max(4, Math.min(96, ((event.clientX - box.left) / box.width) * 100));
+  wmCursor().y = Math.max(4, Math.min(96, ((event.clientY - box.top) / box.height) * 100));
+  paintWmStage();
+});
+wmStage?.addEventListener("pointerup", () => { wmDrag = null; });
+wmStage?.addEventListener("pointercancel", () => { wmDrag = null; });
+document.getElementById("wm-file")?.addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const form = document.getElementById("wm-form");
+    if (form) {
+      form.dataset.image = String(reader.result || "");
+      form.dataset.imageName = file.name;
+    }
+    document.getElementById("wm-kind-image")?.click();
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById("wm-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveWmHere(readWmForm());
+  wmStatus("Сохранено");
+});
+document.getElementById("wm-apply-all")?.addEventListener("click", () => {
+  const mark = readWmForm();
+  writeWmCommon(mark);
+  eachWmScope((gid, fid) => saveSettings({ wm: null, wmOwn: false }, fid ? folderStoreKey(gid, fid) : gid));
+  wmStatus("Этот знак теперь общий для всех");
+});
+document.getElementById("wm-apply-rest")?.addEventListener("click", () => {
+  writeWmCommon(readWmForm());
+  wmStatus("Общий знак записан. Свои знаки папок не трогал");
+});
+document.getElementById("wm-setup")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  const gid = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) : settingsCard;
+  const q = new URLSearchParams();
+  q.set("view", "watermark");
+  if (gid) q.set("id", gid);
+  if (settingsFolder) q.set("folder", settingsFolder);
+  location.href = `cabinet.html?${q.toString()}`;
+});
+function consentStore() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("ft-consent-doc") || "null");
+    return raw && typeof raw === "object" ? raw : {};
+  } catch (error) { return {}; }
+}
+function consentFieldsNow() {
+  const stored = consentStore().fields || {};
+  const profile = loadProfile() || {};
+  const live = document.getElementById("consent-view") && !document.getElementById("consent-view").hidden;
+  const pick = (id, key, fallback) => {
+    const field = document.getElementById(id);
+    if (live && field) return field.value.trim();
+    return String(stored[key] || fallback || "").trim();
+  };
+  return {
+    name: pick("consent-name", "name", personName()),
+    studio: pick("consent-studio", "studio", profile.role),
+    city: pick("consent-city", "city", profile.city),
+    email: pick("consent-email", "email", profile.email),
+    phone: pick("consent-phone", "phone", profile.phone)
+  };
+}
+function consentPopupText() {
+  const field = document.getElementById("consent-popup");
+  const live = document.getElementById("consent-view") && !document.getElementById("consent-view").hidden;
+  if (live && field) return field.value.trim();
+  return String(consentStore().popup || "Разрешаю фотографу публиковать мои фотографии в интернете");
+}
+function renderConsentPaper(host, fields) {
+  if (!host) return;
+  host.replaceChildren();
+  const title = document.createElement("h3");
+  title.textContent = "Согласие на публикацию фотографий";
+  const lead = document.createElement("p");
+  const who = [fields.name, fields.studio, fields.city].filter(Boolean).join(", ");
+  lead.textContent = who
+    ? `Я разрешаю фотографу ${who} публиковать мои фотографии в интернете, в портфолио и в социальных сетях.`
+    : "Я разрешаю фотографу публиковать мои фотографии в интернете, в портфолио и в социальных сетях.";
+  const contacts = document.createElement("p");
+  contacts.textContent = `Почта: ${fields.email || "—"}. Телефон: ${fields.phone || "—"}.`;
+  const tail = document.createElement("p");
+  tail.textContent = "Согласие даётся добровольно. Его можно отозвать, написав фотографу.";
+  host.append(title, lead, contacts, tail);
+  host.hidden = false;
+}
+function paintConsentScreen() {
+  const saved = consentStore();
+  const popup = document.getElementById("consent-popup");
+  if (popup && !popup.dataset.ready) {
+    popup.value = saved.popup || popup.value;
+    popup.dataset.ready = "1";
+  }
+  const fields = saved.fields || {};
+  const profile = loadProfile() || {};
+  const map = {
+    "consent-name": fields.name || personName(),
+    "consent-studio": fields.studio || profile.role || "",
+    "consent-city": fields.city || profile.city || "",
+    "consent-email": fields.email || profile.email || "",
+    "consent-phone": fields.phone || profile.phone || ""
+  };
+  Object.entries(map).forEach(([id, value]) => {
+    const field = document.getElementById(id);
+    if (field && !field.dataset.ready) {
+      field.value = value;
+      field.dataset.ready = "1";
+    }
+  });
+  const fileName = document.getElementById("consent-file-name");
+  if (fileName && saved.fileName) {
+    fileName.hidden = false;
+    fileName.textContent = saved.fileName;
+  }
+  const view = document.getElementById("consent-view");
+  if (view && saved.fileData) view.dataset.fileData = saved.fileData;
+  if (view && saved.fileName) view.dataset.fileName = saved.fileName;
+  consentMode(saved.mode || "template");
+}
+function consentMode(mode) {
+  const template = mode !== "file";
+  document.getElementById("consent-mode-template")?.classList.toggle("on", template);
+  document.getElementById("consent-mode-file")?.classList.toggle("on", !template);
+  const fields = document.getElementById("consent-fields");
+  const fileLabel = document.getElementById("consent-file-label");
+  if (fields) fields.hidden = !template;
+  if (fileLabel) fileLabel.hidden = template;
+  const view = document.getElementById("consent-view");
+  if (view) view.dataset.mode = template ? "template" : "file";
+}
+function openConsentDoc() {
+  const saved = consentStore();
+  const mode = document.getElementById("consent-view")?.dataset.mode || saved.mode || "template";
+  const data = document.getElementById("consent-view")?.dataset.fileData || saved.fileData || "";
+  if (mode === "file" && data) {
+    const frame = document.getElementById("consent-sheet");
+    if (frame && document.getElementById("consent-view") && !document.getElementById("consent-view").hidden) {
+      frame.hidden = false;
+      frame.replaceChildren();
+      if (String(data).startsWith("data:image/")) {
+        const img = document.createElement("img");
+        img.src = data;
+        img.alt = "";
+        img.style.maxWidth = "100%";
+        frame.appendChild(img);
+      } else {
+        const link = document.createElement("a");
+        link.href = data;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = saved.fileName || document.getElementById("consent-view")?.dataset.fileName || "Открытый документ";
+        frame.appendChild(link);
+        link.click();
+      }
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = data;
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return;
+  }
+  let box = document.getElementById("consent-doc-view");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "consent-doc-view";
+    box.className = "overlay";
+    box.innerHTML = `<div class="modal consent-doc-modal"><div id="consent-doc-body" class="consent-paper"></div><div class="row-actions"><button class="btn btn-line" type="button" id="consent-doc-close">Закрыть</button></div></div>`;
+    document.body.appendChild(box);
+    box.querySelector("#consent-doc-close").addEventListener("click", () => { box.hidden = true; });
+    box.addEventListener("click", (event) => { if (event.target === box) box.hidden = true; });
+  }
+  renderConsentPaper(box.querySelector("#consent-doc-body"), consentFieldsNow());
+  box.hidden = false;
+}
+document.getElementById("consent-mode-template")?.addEventListener("click", () => {
+  consentMode("template");
+  renderConsentPaper(document.getElementById("consent-sheet"), consentFieldsNow());
+});
+document.getElementById("consent-mode-file")?.addEventListener("click", () => consentMode("file"));
+["consent-name", "consent-studio", "consent-city", "consent-email", "consent-phone", "consent-popup"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("input", () => {
+    const sheet = document.getElementById("consent-sheet");
+    if (sheet && !sheet.hidden) renderConsentPaper(sheet, consentFieldsNow());
+  });
+});
+document.getElementById("consent-file")?.addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const view = document.getElementById("consent-view");
+    if (view) {
+      view.dataset.fileData = String(reader.result || "");
+      view.dataset.fileName = file.name;
+    }
+    const name = document.getElementById("consent-file-name");
+    if (name) {
+      name.hidden = false;
+      name.textContent = file.name;
+    }
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById("consent-open")?.addEventListener("click", () => openConsentDoc());
+document.getElementById("consent-save")?.addEventListener("click", () => {
+  const view = document.getElementById("consent-view");
+  const mode = view?.dataset.mode || "template";
+  const prev = consentStore();
+  const next = {
+    popup: consentPopupText(),
+    mode,
+    fields: consentFieldsNow(),
+    fileName: view?.dataset.fileName || prev.fileName || "",
+    fileData: view?.dataset.fileData || prev.fileData || ""
+  };
+  localStorage.setItem("ft-consent-doc", JSON.stringify(next));
+  const status = document.getElementById("consent-status");
+  if (status) status.textContent = "Сохранено";
+});
+document.getElementById("consent-doc-open")?.addEventListener("click", () => openConsentDoc());
+window.ftPaintConsent = () => {
+  const node = document.getElementById("consent-client-text");
+  if (node) node.textContent = consentPopupText();
+};
+window.ftGateDownload = (run) => {
+  const gid = galleryId();
+  const fid = folderId();
+  const state = fid ? folderSettingsView(gid, fid) : settings(gid);
+  if (!state.consent) { run(); return; }
+  if (localStorage.getItem(`ft-consent-allow-${gid}`) === "1") { run(); return; }
+  const modal = document.getElementById("consent-modal");
+  if (!modal) { run(); return; }
+  window.ftConsentContinue = run;
+  window.ftPaintConsent();
+  modal.hidden = false;
+};
+document.querySelectorAll("[data-consent]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const modal = document.getElementById("consent-modal");
+    const allow = button.dataset.consent === "allow";
+    if (allow) localStorage.setItem(`ft-consent-allow-${galleryId()}`, "1");
+    if (modal) modal.hidden = true;
+    const job = window.ftConsentContinue;
+    window.ftConsentContinue = null;
+    if (allow && typeof job === "function") job();
+  });
+});
+function pageBook() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("ft-page-book") || "{}");
+    return { galleries: Array.isArray(raw.galleries) ? raw.galleries : [], loose: Array.isArray(raw.loose) ? raw.loose : [] };
+  } catch (error) { return { galleries: [], loose: [] }; }
+}
+function savePageBook(book) { localStorage.setItem("ft-page-book", JSON.stringify(book)); }
+function shrinkShot(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const max = 1400;
+        const scale = Math.min(1, max / Math.max(image.width || 1, image.height || 1));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round((image.width || 1) * scale));
+        canvas.height = Math.max(1, Math.round((image.height || 1) * scale));
+        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      image.onerror = () => resolve("");
+      image.src = String(reader.result || "");
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+let pageFocus = "";
+let pageAskJob = null;
+function publishedCards() {
+  const items = [];
+  const seen = new Set();
+  [...Object.keys(GALLERY_META), ...loadUserGalleries().map((row) => row.id)].forEach((gid) => {
+    if (seen.has(gid) || goneGalleries().includes(gid)) return;
+    seen.add(gid);
+    if (settings(gid).onpage) items.push({ title: galleryMeta(gid).title || "Галерея", cover: galleryCardCover(gid), href: `gallery.html?id=${encodeURIComponent(gid)}` });
+    const walk = (nodes) => (nodes || []).forEach((node) => {
+      const saved = loadSettings()[folderStoreKey(gid, node.id)] || {};
+      if (saved.onpage && !isFolderGone(gid, node.id)) {
+        items.push({ title: node.name || "Папка", cover: folderCover(gid, node.id), href: `gallery.html?id=${encodeURIComponent(gid)}&folder=${encodeURIComponent(node.id)}` });
+      }
+      walk(node.children || []);
+    });
+    walk(folderNodes(gid));
+  });
+  return items;
+}
+function pageCover(gallery) {
+  const first = (gallery.files || []).find((file) => file.src);
+  return first ? first.src : NEON_COVER;
+}
+function paintPage() {
+  const board = document.getElementById("page-board");
+  if (!board) return;
+  board.replaceChildren();
+  const book = pageBook();
+  if (pageFocus) {
+    const gallery = book.galleries.find((item) => item.id === pageFocus);
+    if (!gallery) { pageFocus = ""; paintPage(); return; }
+    const bar = document.createElement("div");
+    bar.className = "who page-inside-bar";
+    const name = document.createElement("input");
+    name.type = "text";
+    name.className = "page-name";
+    name.placeholder = "Название";
+    name.value = gallery.title || "";
+    name.setAttribute("aria-label", "Название");
+    name.addEventListener("input", () => {
+      const fresh = pageBook();
+      const row = fresh.galleries.find((item) => item.id === pageFocus);
+      if (!row) return;
+      row.title = name.value;
+      savePageBook(fresh);
+    });
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "btn btn-dark";
+    add.textContent = "Добавить";
+    add.addEventListener("click", () => pickPagePhotos("gallery"));
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "btn btn-line";
+    back.textContent = "Назад";
+    back.addEventListener("click", () => { pageFocus = ""; paintPage(); });
+    actions.append(add, back);
+    bar.append(name, actions);
+    const shots = document.createElement("div");
+    shots.className = "page-shots";
+    (gallery.files || []).forEach((file) => shots.appendChild(pageShot(file, gallery.id)));
+    board.append(bar, shots);
+    return;
+  }
+  const grid = document.createElement("div");
+  grid.className = "page-board-grid";
+  publishedCards().forEach((item) => grid.appendChild(pageLiveCard(item)));
+  book.galleries.forEach((gallery) => grid.appendChild(pageMadeCard(gallery)));
+  board.appendChild(grid);
+  if (book.loose.length) {
+    const shots = document.createElement("div");
+    shots.className = "page-shots";
+    book.loose.forEach((file) => shots.appendChild(pageShot(file, "")));
+    board.appendChild(shots);
+  }
+}
+function pageLiveCard(item) {
+  const link = document.createElement("a");
+  link.className = "page-card";
+  link.href = item.href;
+  const title = document.createElement("strong");
+  title.textContent = item.title || "";
+  const cover = document.createElement("span");
+  cover.className = "page-cover";
+  const img = document.createElement("img");
+  img.src = item.cover || NEON_COVER;
+  img.alt = "";
+  cover.appendChild(img);
+  link.append(title, cover);
+  return link;
+}
+function pageMadeCard(gallery) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "page-card";
+  const title = document.createElement("strong");
+  title.textContent = gallery.title || "Галерея";
+  const cover = document.createElement("span");
+  cover.className = "page-cover";
+  const img = document.createElement("img");
+  img.src = pageCover(gallery);
+  img.alt = "";
+  cover.appendChild(img);
+  button.append(title, cover);
+  button.addEventListener("click", () => { pageFocus = gallery.id; paintPage(); });
+  return button;
+}
+function pageShot(file, owner) {
+  const card = document.createElement("article");
+  card.className = "page-shot";
+  const img = document.createElement("img");
+  img.src = file.src;
+  img.alt = file.name || "";
+  const caption = document.createElement("p");
+  caption.textContent = file.name || "";
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "btn btn-line";
+  remove.textContent = "Удалить";
+  remove.addEventListener("click", () => {
+    pageAskJob = () => {
+      const book = pageBook();
+      if (owner) {
+        const gallery = book.galleries.find((item) => item.id === owner);
+        if (gallery) gallery.files = (gallery.files || []).filter((item) => item.id !== file.id);
+      } else book.loose = book.loose.filter((item) => item.id !== file.id);
+      savePageBook(book);
+      paintPage();
+    };
+    const node = document.getElementById("page-ask-text");
+    if (node) node.textContent = "Удалить этот кадр со страницы?";
+    const ask = document.getElementById("page-ask");
+    if (ask) ask.hidden = false;
+  });
+  card.append(img, caption, remove);
+  return card;
+}
+function pickPagePhotos(mode) {
+  const input = document.getElementById("page-photo-input");
+  if (!input) return;
+  input.dataset.mode = mode;
+  if (typeof input.showPicker === "function") {
+    try { input.showPicker(); return; } catch (error) {}
+  }
+  input.click();
+}
+async function takePagePhotos(files, mode) {
+  const shots = [];
+  for (const file of files) {
+    if (!String(file.type || "").startsWith("image/")) continue;
+    const src = await shrinkShot(file);
+    if (!src) continue;
+    shots.push({ id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, name: file.name, src });
+  }
+  if (!shots.length) return;
+  const book = pageBook();
+  if (mode === "gallery" && pageFocus) {
+    const gallery = book.galleries.find((item) => item.id === pageFocus);
+    if (gallery) gallery.files = (gallery.files || []).concat(shots);
+  } else book.loose = book.loose.concat(shots);
+  savePageBook(book);
+  paintPage();
+}
+document.getElementById("page-add")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  const menu = document.getElementById("page-add-menu");
+  if (!menu) return;
+  menu.hidden = !menu.hidden;
+  event.currentTarget.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+});
+document.addEventListener("click", (event) => {
+  if (event.target.closest("#page-add, #page-add-menu")) return;
+  const menu = document.getElementById("page-add-menu");
+  if (menu && !menu.hidden) menu.hidden = true;
+});
+document.getElementById("page-add-gallery")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  const menu = document.getElementById("page-add-menu");
+  if (menu) menu.hidden = true;
+  const book = pageBook();
+  const id = `pg${Date.now().toString(36)}`;
+  book.galleries.push({ id, title: "", files: [] });
+  savePageBook(book);
+  pageFocus = id;
+  paintPage();
+});
+document.getElementById("page-add-photos")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  const menu = document.getElementById("page-add-menu");
+  if (menu) menu.hidden = true;
+  pickPagePhotos("loose");
+});
+document.getElementById("page-photo-input")?.addEventListener("change", (event) => {
+  const files = [...(event.target.files || [])];
+  const mode = event.target.dataset.mode || "loose";
+  event.target.value = "";
+  takePagePhotos(files, mode);
+});
+document.getElementById("page-ask-no")?.addEventListener("click", () => {
+  pageAskJob = null;
+  const ask = document.getElementById("page-ask");
+  if (ask) ask.hidden = true;
+});
+document.getElementById("page-ask-yes")?.addEventListener("click", () => {
+  const job = pageAskJob;
+  pageAskJob = null;
+  const ask = document.getElementById("page-ask");
+  if (ask) ask.hidden = true;
+  if (job) job();
+});
+if (document.getElementById("page-board")) paintPage();
+syncFolderWmLink();
+if (typeof window.ftPaintConsent === "function") window.ftPaintConsent();
