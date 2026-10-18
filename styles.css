@@ -594,12 +594,33 @@ input[type="text"], input[type="email"], input[type="password"], input[type="num
 .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .metric b { display: block; font-family: var(--display); font-size: 32px; letter-spacing: -0.04em; }
 .metric span { color: var(--muted); font-size: 14px; }
-.gallery-cards { display: grid; grid-template-columns: repeat(var(--card-cols, 2), minmax(0, 1fr)); gap: 12px; justify-content: start; }
-.gcard { display: grid; gap: 10px; min-width: 0; }
+.gallery-cards {
+  display: grid;
+  grid-template-columns: repeat(var(--card-cols, 2), minmax(0, 1fr));
+  column-gap: 12px;
+  row-gap: 18px;
+  justify-content: start;
+  align-items: stretch;
+}
+.gcard {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+  row-gap: 8px;
+  min-width: 0;
+  height: auto;
+}
 .gcard:hover { transform: none; }
-.cover-wrap { position: relative; }
-.cover-open { display: block; text-decoration: none; color: inherit; }
-.gcard img { height: 170px; width: 100%; object-fit: cover; border-radius: 16px; }
+.cover-wrap {
+  position: relative;
+  height: 170px;
+  min-height: 170px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #07111c url("img/folder-neon.svg") center / cover no-repeat;
+}
+.cover-open { display: block; height: 100%; text-decoration: none; color: inherit; }
+.gcard img { height: 100%; width: 100%; object-fit: cover; border-radius: 0; display: block; }
 .crumbs {
   display: flex;
   flex-wrap: wrap;
@@ -617,17 +638,22 @@ input[type="text"], input[type="email"], input[type="password"], input[type="num
 .crumbs .sep { margin: 0 6px; color: var(--cyan); }
 .card-set {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
   border: 0;
   border-radius: 12px;
-  padding: 8px 10px;
-  background: rgba(7, 17, 28, 0.78);
+  padding: 0 10px;
+  background: rgba(7, 17, 28, 0.82);
   color: white;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1;
 }
 .cover-actions {
   position: absolute;
@@ -646,11 +672,11 @@ input[type="text"], input[type="email"], input[type="password"], input[type="num
   flex: 1 1 0;
   min-width: 0;
   max-width: 100%;
-  height: 38px;
-  min-height: 38px;
-  padding: 0 8px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 6px;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
   background: rgba(7, 17, 28, 0.84);
@@ -663,8 +689,9 @@ input[type="text"], input[type="email"], input[type="password"], input[type="num
   border-color: rgba(255, 140, 160, 0.55);
 }
 .cover-actions .btn:hover { transform: none; }
-.gcard h3 { margin: 0; font-size: 18px; }
-.gcard p { margin: 0; color: var(--muted); font-size: 14px; }
+.gcard h3 { margin: 0; font-size: 16px; line-height: 1.3; min-height: 1.3em; }
+.gcard p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.35; min-height: 1.35em; }
+.gcard p:empty { color: transparent; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .tabs a {
@@ -1242,14 +1269,54 @@ textarea { min-height: 90px; resize: vertical; }
   user-select: none;
   -webkit-user-drag: none;
 }
-.logo-frame .portrait {
-  left: 0;
-  top: 0;
+.modal .card-name {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transform: none;
+  margin: 0;
+  padding: 2px 2px 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(126, 240, 255, 0.55);
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-family: var(--display), "Syne", sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  box-shadow: none;
 }
+.modal .card-name:focus { outline: none; border-bottom-color: #7ef0ff; }
+.new-gallery { position: relative; flex: 0 0 auto; }
+.new-gallery-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 180px;
+  display: grid;
+  background: #07111c;
+  border: 1px solid rgba(126, 240, 255, 0.45);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+.new-gallery-menu[hidden] { display: none; }
+.new-gallery-menu button {
+  height: 40px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.new-gallery-menu button + button { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.new-gallery-menu button:hover { background: rgba(78, 162, 255, 0.22); }
 .crop-hint { margin: 0; max-width: 190px; }
 .zoom-line {
   display: grid;
@@ -1488,9 +1555,10 @@ textarea { min-height: 90px; resize: vertical; }
   min-width: 0;
 }
 .name-line h1 { min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.cabinet-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.cabinet-portrait { width: 84px; height: 84px; }
-.cabinet-id .logo-frame { width: 56px; height: 56px; }
+.cabinet-id { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 280px; }
+.cabinet-copy { min-width: 0; display: grid; gap: 2px; justify-items: start; }
+.cabinet-copy .kicker, .cabinet-copy .hint { margin: 0; }
+.cabinet-id .logo-frame { width: 72px; height: 72px; flex: 0 0 72px; }
 .name-line .brand-logo {
   width: auto;
   height: auto;
@@ -1717,15 +1785,8 @@ label.btn input[type="file"] {
 [data-logo-frame]:not([data-crop="edit"]) {
   background: #fff;
 }
-[data-logo-frame]:not([data-crop="edit"]) .portrait {
-  position: absolute;
-  left: 10% !important;
-  top: 10% !important;
-  width: 80% !important;
-  height: 80% !important;
-  max-width: none !important;
-  max-height: none !important;
-  transform: none !important;
-  object-fit: contain;
-  background: transparent;
+@media (max-width: 700px) {
+  .panel.cabinet-head { align-items: stretch; }
+  .panel.cabinet-head .cabinet-id { width: 100%; }
+  .panel.cabinet-head .gauge-pair { margin-left: 0; width: 100%; }
 }

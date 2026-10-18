@@ -160,17 +160,29 @@ const FILE_CATALOG = [
 const userFolders = (gid) => {
   try { return JSON.parse(localStorage.getItem("ft-user-folders") || "{}")[gid] || []; } catch (error) { return []; }
 };
+const readNames = () => {
+  try {
+    const value = JSON.parse(localStorage.getItem("ft-names") || "{}");
+    return value && typeof value === "object" ? value : {};
+  } catch (error) { return {}; }
+};
+const displayName = (gid, fid, fallback) => {
+  const key = fid ? `${gid}/${fid}` : String(gid || "");
+  const saved = String(readNames()[key] || "").trim();
+  return saved || fallback || "";
+};
 const folderNodes = (gid) => {
   const extras = userFolders(gid);
   const pack = (item) => ({
     id: item.id,
-    name: item.name,
-    cover: item.cover || "img/p3.jpg",
-    meta: item.meta || "Новая папка",
+    name: displayName(gid, item.id, item.name),
+    cover: item.cover || "img/folder-neon.svg",
+    meta: item.meta && item.meta !== "Новая папка" ? item.meta : "",
     children: extras.filter((row) => row.parent === item.id).map(pack)
   });
   const walk = (nodes) => (nodes || []).map((node) => ({
     ...node,
+    name: displayName(gid, node.id, node.name),
     children: [...walk(node.children || []), ...extras.filter((row) => row.parent === node.id).map(pack)]
   }));
   return [...walk(FOLDER_TREE[gid] || []), ...extras.filter((row) => !row.parent).map(pack)];
@@ -196,17 +208,15 @@ const loadUserGalleries = () => {
 const galleryBook = GALLERY_META;
 const galleryMeta = (id) => {
   const custom = loadUserGalleries().find((row) => row.id === id);
-  if (custom) {
-    return {
-      title: custom.title || "",
-      date: custom.date || "",
-      cover: custom.cover || "img/folder-neon.svg",
-      until: custom.until || "",
-      created: custom.created || "",
-      untilDate: custom.untilDate || ""
-    };
-  }
-  return galleryBook[id] || { title: "", date: "", cover: "img/p3.jpg", until: "", created: "", untilDate: "" };
+  const base = custom ? {
+    title: custom.title || "",
+    date: custom.date || "",
+    cover: custom.cover || "img/folder-neon.svg",
+    until: custom.until || "",
+    created: custom.created || "",
+    untilDate: custom.untilDate || ""
+  } : (galleryBook[id] || { title: "", date: "", cover: "img/folder-neon.svg", until: "", created: "", untilDate: "" });
+  return { ...base, title: displayName(id, "", base.title) };
 };
 const galleryId = () => {
   const id = new URLSearchParams(location.search).get("id");
@@ -707,11 +717,11 @@ const layoutPortraits = () => {
 const layoutLogos = () => {
   const crop = liveLogoCrop();
   let placed = null;
-  document.querySelectorAll("[data-logo-frame][data-crop='edit']").forEach((frame) => {
+  document.querySelectorAll("[data-logo-frame]").forEach((frame) => {
     const img = frame.querySelector("[data-use='logo']");
     if (!img || img.hidden || !img.naturalWidth) return;
     const next = placePortrait(frame, img, crop);
-    placed = next;
+    if (frame.dataset.crop === "edit") placed = next;
   });
   if (logoCropPending && placed) logoCropPending = placed;
 };
@@ -1306,8 +1316,15 @@ function paintUserGalleryCards() {
     openCover.className = "cover-open";
     openCover.href = `cabinet.html?id=${row.id}`;
     const img = document.createElement("img");
-    img.src = row.cover || "img/folder-neon.svg";
+    let src = row.cover || "img/folder-neon.svg";
+    try { src = galleryCardCover(row.id) || src; } catch (error) {}
+    img.src = src;
     img.alt = "";
+    img.addEventListener("error", () => {
+      if (img.dataset.fallback === "1") return;
+      img.dataset.fallback = "1";
+      img.src = "img/folder-neon.svg";
+    });
     openCover.appendChild(img);
     const settingsBtn = document.createElement("button");
     settingsBtn.className = "card-set";
@@ -1315,9 +1332,8 @@ function paintUserGalleryCards() {
     settingsBtn.dataset.openSettings = "";
     settingsBtn.setAttribute("aria-label", "Настройки");
     settingsBtn.textContent = "Настройки";
-    wrap.append(openCover, settingsBtn);
     const actions = document.createElement("div");
-    actions.className = "row-actions";
+    actions.className = "cover-actions";
     const open = document.createElement("a");
     open.className = "btn btn-line";
     open.href = `cabinet.html?id=${row.id}`;
@@ -1332,23 +1348,34 @@ function paintUserGalleryCards() {
     remove.dataset.delGallery = "";
     remove.textContent = "Удалить";
     actions.append(open, link, remove);
+    wrap.append(openCover, settingsBtn, actions);
     const heading = document.createElement("h3");
-    heading.textContent = row.title || "";
+    heading.textContent = galleryMeta(row.id).title || row.title || "";
     const meta = document.createElement("p");
-    meta.textContent = row.until ? `Удалится ${row.until}` : "";
-    card.append(wrap, heading, meta, actions);
+    const until = String(row.until || "").replace(/^Удалится\s+/i, "").trim();
+    meta.textContent = until && until !== "Новая папка" ? `Удалится ${until}` : "";
+    card.append(heading, wrap, meta);
     board.appendChild(card);
+  });
+  board.querySelectorAll(":scope > [data-gallery]:not([data-user-gallery])").forEach((card) => {
+    const heading = card.querySelector(":scope > h3");
+    const title = galleryMeta(card.dataset.gallery).title;
+    if (heading && title) heading.textContent = title;
   });
   if (galleriesEmpty) galleriesEmpty.hidden = board.children.length > 0;
   fitCardGrids();
 }
 paintUserGalleryCards();
 
-document.querySelectorAll("[data-del-gallery]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const card = button.closest("[data-gallery]");
-    const name = card.querySelector("h3")?.textContent || "галерею";
-    const id = card.dataset.gallery;
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-del-gallery]");
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const card = button.closest("[data-gallery]");
+  if (!card) return;
+  const name = card.querySelector("h3")?.textContent || "галерею";
+  const id = card.dataset.gallery;
     askDelete(name, {
       trash: () => {
         moveGalleryToTrash(id, card);
@@ -1363,7 +1390,6 @@ document.querySelectorAll("[data-del-gallery]").forEach((button) => {
         fitCardGrids();
       }
     });
-  });
 });
 
 let settingsCard = "wedding";
@@ -1382,8 +1408,11 @@ const fillCardSettings = (id, folder = "") => {
     hidden: Array.isArray(saved.hidden) ? saved.hidden : galleryState.hidden,
     deleted: galleryState.deleted
   } : galleryState;
+  const currentName = folder ? (folderTitle(id, folder) || "") : (galleryMeta(id).title || "");
+  const nameField = document.getElementById("card-name");
+  if (nameField) nameField.value = currentName;
   const titleNode = document.getElementById("card-settings-title");
-  if (titleNode) titleNode.textContent = folder ? (folderTitle(id, folder) || galleryMeta(id).title) : galleryMeta(id).title;
+  if (titleNode) titleNode.textContent = currentName || "Настройки";
   const hint = document.getElementById("card-settings-hint");
   if (hint) hint.textContent = folder ? "Эти переключатели действуют только на выбранную папку." : "Эти переключатели действуют только на выбранную галерею.";
   const passLabel = document.getElementById("card-pass-label");
@@ -1417,7 +1446,16 @@ document.addEventListener("click", (event) => {
   fillCardSettings(card.dataset.gallery, card.dataset.folder || "");
   openOverlay("card-settings");
 });
-document.querySelector("#card-settings form")?.addEventListener("submit", (event) => event.preventDefault());
+document.querySelector("#card-settings form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  document.getElementById("save-card")?.click();
+  const modal = document.getElementById("card-settings");
+  if (modal) modal.hidden = true;
+});
+document.getElementById("card-settings")?.addEventListener("click", (event) => {
+  if (event.target !== event.currentTarget) return;
+  event.currentTarget.hidden = true;
+});
 document.getElementById("card-folder-pass")?.addEventListener("input", (event) => {
   if (!settingsFolder) return;
   const gid = settingsCard.split("::")[0] || galleryId();
@@ -1451,7 +1489,60 @@ document.getElementById("keep-auto")?.addEventListener("change", (event) => {
   pending[settingsCard] = { ...(pending[settingsCard] || {}), autoDelete: event.target.checked };
   revealSave("save-card");
 });
+const saveDisplayName = (gid, fid, raw) => {
+  const name = String(raw || "").trim();
+  if (!name || !gid) return false;
+  const all = readNames();
+  all[fid ? `${gid}/${fid}` : gid] = name;
+  localStorage.setItem("ft-names", JSON.stringify(all));
+  if (!fid) {
+    const list = loadUserGalleries();
+    const row = list.find((item) => item.id === gid);
+    if (row) {
+      row.title = name;
+      localStorage.setItem("ft-user-galleries", JSON.stringify(list));
+    }
+  } else {
+    try {
+      const folders = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
+      const row = (folders[gid] || []).find((item) => item.id === fid);
+      if (row) {
+        row.name = name;
+        localStorage.setItem("ft-user-folders", JSON.stringify(folders));
+      }
+    } catch (error) {}
+  }
+  return true;
+};
+const refreshVisibleNames = () => {
+  document.querySelectorAll("#gallery-cards > [data-gallery]").forEach((card) => {
+    if (card.dataset.folder) return;
+    const heading = card.querySelector(":scope > h3");
+    const title = galleryMeta(card.dataset.gallery).title;
+    if (heading && title) heading.textContent = title;
+  });
+  if (pageFile() === "cabinet.html" && params.get("id")) mountFolderBrowser();
+  const gid = galleryId();
+  const fid = folderId();
+  const projectTitle = document.querySelector("[data-project-title]");
+  if (projectTitle && !params.get("name")) {
+    const current = fid ? (folderTitle(gid, fid) || galleryMeta(gid).title) : galleryMeta(gid).title;
+    if (current) projectTitle.textContent = current;
+  }
+  if (pageFile() === "gallery.html") {
+    const label = fid ? (folderTitle(gid, fid) || galleryMeta(gid).title) : galleryMeta(gid).title;
+    document.querySelectorAll("[data-gallery-title]").forEach((node) => { if (label) node.textContent = label; });
+    if (label) document.title = `${label} — ФотоТранзит`;
+  }
+};
 document.getElementById("save-card")?.addEventListener("click", () => {
+  const nameField = document.getElementById("card-name");
+  if (nameField) {
+    const gid = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) : settingsCard;
+    const next = nameField.value.trim();
+    if (next) saveDisplayName(gid, settingsFolder, next);
+    else nameField.value = settingsFolder ? (folderTitle(gid, settingsFolder) || "") : (galleryMeta(gid).title || "");
+  }
   if (pending[settingsCard]) {
     if (settingsFolder) {
       const gid = settingsCard.split("::")[0];
@@ -1467,6 +1558,7 @@ document.getElementById("save-card")?.addEventListener("click", () => {
   paintKeepDates();
   sweepExpiredGalleries();
   paintFiles();
+  refreshVisibleNames();
   flashSaved();
 });
 
@@ -1891,7 +1983,13 @@ const makeFolderCard = (gid, node, client) => {
   const heading = document.createElement("h3");
   heading.textContent = node.name;
   const meta = document.createElement("p");
-  meta.textContent = node.meta || "";
+  const rawMeta = String(node.meta || "").trim();
+  meta.textContent = rawMeta === "Новая папка" ? "" : rawMeta;
+  img.addEventListener("error", () => {
+    if (img.dataset.fallback === "1") return;
+    img.dataset.fallback = "1";
+    img.src = "img/folder-neon.svg";
+  });
   card.append(heading, wrap, meta);
   return card;
 };
@@ -2287,13 +2385,23 @@ const imageFilesUnder = (gid, fid) => {
 };
 const folderCover = (gid, id, fallback) => {
   const manual = coverMap()[`${gid}::${id || ""}`] || "";
-  const photos = id ? imageFilesUnder(gid, id) : [];
+  const photos = (id ? imageFilesUnder(gid, id) : []).filter((file) => file.src && !file.doc);
   if (manual && photos.some((file) => file.src === manual)) return manual;
+  if (!photos.length) return NEON_COVER;
   const uploaded = photos.find((file) => String(file.id).startsWith("file"));
-  if (String(id || "").startsWith("u")) return (uploaded || photos[0] || {}).src || NEON_COVER;
+  if (String(id || "").startsWith("u")) return (uploaded || photos[0]).src || NEON_COVER;
   if (uploaded) return uploaded.src;
-  return fallback || NEON_COVER;
+  return fallback || photos[0].src || NEON_COVER;
 };
+paintUserGalleryCards();
+function galleryCardCover(id) {
+  if (GALLERY_META[id]) return GALLERY_META[id].cover;
+  const photos = imageFilesUnder(id, "").filter((file) => file.src && !file.doc);
+  const manual = coverMap()[`${id}::`] || "";
+  if (manual && photos.some((file) => file.src === manual)) return manual;
+  if (photos[0]) return photos[0].src;
+  return NEON_COVER;
+}
 const splitMap = () => {
   try { return JSON.parse(localStorage.getItem("ft-split") || "{}"); } catch (error) { return {}; }
 };
@@ -2565,7 +2673,7 @@ const ensureChildFolder = (gid, parent, name) => {
   const all = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
   all[gid] = all[gid] || [];
   const id = "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  all[gid].push({ id, name, parent: parent || "", cover: "img/folder-neon.svg", meta: "Новая папка", created: Date.now() });
+  all[gid].push({ id, name, parent: parent || "", cover: "img/folder-neon.svg", meta: "", created: Date.now() });
   localStorage.setItem("ft-user-folders", JSON.stringify(all));
   return id;
 };
@@ -2596,7 +2704,7 @@ const showUploadedFiles = (gid, folder) => {
     list.appendChild(row);
   });
 };
-const ingestUploads = async (fileList, extraFails = [], dirPaths = []) => {
+const ingestUploads = async (fileList, extraFails = [], dirPaths = [], options = {}) => {
   const files = [...fileList || []];
   const dirs = [...dirPaths || []];
   const fails = [...extraFails || []];
@@ -2608,11 +2716,14 @@ const ingestUploads = async (fileList, extraFails = [], dirPaths = []) => {
   if (line) line.hidden = false;
   if (failsBox) { failsBox.hidden = true; failsBox.replaceChildren(); }
   const started = Date.now();
-  const gid = galleryId();
-  const parent = folderId();
+  const gid = options.gallery || galleryId();
+  const parent = Object.prototype.hasOwnProperty.call(options, "folder") ? (options.folder || "") : folderId();
+  const stripRoot = Boolean(options.stripRoot);
   const stored = readList("ft-user-files");
+  let firstShot = "";
   const ensurePath = (rel) => {
-    const parts = String(rel || "").split(/[/\\]/).filter(Boolean);
+    let parts = String(rel || "").split(/[/\\]/).filter(Boolean);
+    if (stripRoot && parts.length) parts = parts.slice(1);
     let folder = parent;
     for (const part of parts) folder = ensureChildFolder(gid, folder, part);
     return folder;
@@ -2629,6 +2740,7 @@ const ingestUploads = async (fileList, extraFails = [], dirPaths = []) => {
       parts.pop();
       const folder = ensurePath(parts.join("/"));
       const src = await readPreview(file);
+      if (!firstShot && src && file.type.startsWith("image/")) firstShot = src;
       stored.push({
         id: "file" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
         name: filename,
@@ -2661,7 +2773,16 @@ const ingestUploads = async (fileList, extraFails = [], dirPaths = []) => {
       failsBox.appendChild(item);
     });
   }
+  if (options.home && firstShot) {
+    const list = loadUserGalleries();
+    const row = list.find((item) => item.id === gid);
+    if (row) {
+      row.cover = firstShot;
+      localStorage.setItem("ft-user-galleries", JSON.stringify(list));
+    }
+  }
   showUploadedFiles(gid, parent);
+  if (options.home) paintUserGalleryCards();
   mountFolderBrowser();
 };
 
@@ -2877,7 +2998,7 @@ document.getElementById("folder-ask-form")?.addEventListener("submit", (event) =
   const gid = galleryId();
   const all = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
   all[gid] = all[gid] || [];
-  all[gid].push({ id: "u" + Date.now().toString(36), name, parent: folderId(), cover: "img/folder-neon.svg", meta: "Новая папка", created: Date.now() });
+  all[gid].push({ id: "u" + Date.now().toString(36), name, parent: folderId(), cover: "img/folder-neon.svg", meta: "", created: Date.now() });
   localStorage.setItem("ft-user-folders", JSON.stringify(all));
   closeFolderAsk();
   mountFolderBrowser();
@@ -2895,16 +3016,11 @@ const openGalleryAsk = () => {
 const closeGalleryAsk = () => {
   if (galleryAsk) galleryAsk.hidden = true;
 };
-document.getElementById("add-gallery")?.addEventListener("click", () => openGalleryAsk());
-document.getElementById("gallery-ask-cancel")?.addEventListener("click", () => closeGalleryAsk());
-document.getElementById("gallery-ask-form")?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const name = galleryAskInput?.value.trim() || "";
-  if (!name) return;
+const createUserGallery = (name) => {
   const today = keepDay(new Date());
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30);
   const stamp = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  const id = `g${Date.now().toString(36)}`;
+  const id = `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
   const list = loadUserGalleries();
   list.push({
     id,
@@ -2916,10 +3032,75 @@ document.getElementById("gallery-ask-form")?.addEventListener("submit", (event) 
     cover: "img/folder-neon.svg"
   });
   localStorage.setItem("ft-user-galleries", JSON.stringify(list));
-  location.href = `cabinet.html?id=${encodeURIComponent(id)}`;
+  return id;
+};
+const newGalleryMenu = document.getElementById("new-gallery-menu");
+const addGalleryBtn = document.getElementById("add-gallery");
+const closeNewGalleryMenu = () => {
+  if (newGalleryMenu) newGalleryMenu.hidden = true;
+  if (addGalleryBtn) addGalleryBtn.setAttribute("aria-expanded", "false");
+};
+addGalleryBtn?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!newGalleryMenu) return;
+  const open = newGalleryMenu.hidden;
+  newGalleryMenu.hidden = !open;
+  addGalleryBtn.setAttribute("aria-expanded", open ? "true" : "false");
+});
+document.getElementById("gallery-create")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  closeNewGalleryMenu();
+  openGalleryAsk();
+});
+document.getElementById("gallery-upload")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  closeNewGalleryMenu();
+  const input = document.getElementById("new-gallery-tree");
+  if (!input) return;
+  input.value = "";
+  if (typeof input.showPicker === "function") {
+    try { input.showPicker(); return; } catch (error) {}
+  }
+  input.click();
+});
+document.getElementById("new-gallery-tree")?.addEventListener("change", (event) => {
+  const files = [...(event.target.files || [])];
+  event.target.value = "";
+  if (!files.length) return;
+  const rel = files.find((file) => file.webkitRelativePath)?.webkitRelativePath || "";
+  const root = String(rel).split(/[/\\]/).filter(Boolean)[0] || "Галерея";
+  const gid = createUserGallery(root);
+  const button = document.getElementById("add-gallery");
+  const oldLabel = button?.textContent || "";
+  if (button) button.textContent = "Загрузка…";
+  ingestUploads(files, [], [], { gallery: gid, folder: "", stripRoot: true, home: true }).finally(() => {
+    if (button) button.textContent = oldLabel || "Новая галерея";
+  });
+});
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".new-gallery")) return;
+  closeNewGalleryMenu();
+});
+document.getElementById("gallery-ask-cancel")?.addEventListener("click", () => closeGalleryAsk());
+document.getElementById("gallery-ask-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = galleryAskInput?.value.trim() || "";
+  if (!name) return;
+  createUserGallery(name);
+  closeGalleryAsk();
+  paintUserGalleryCards();
 });
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
+  const settingsModal = document.getElementById("card-settings");
+  if (settingsModal && !settingsModal.hidden) {
+    event.preventDefault();
+    settingsModal.hidden = true;
+    return;
+  }
   const panel = document.getElementById("secret-panel");
   if (panel && !panel.hidden) {
     event.preventDefault();
@@ -4114,9 +4295,12 @@ if (pageFile() === "cabinet.html") {
   const trash = document.getElementById("trash-view");
   const isOffers = view === "offers";
   const isTrash = view === "trash";
+  const insideGallery = Boolean(params.get("id")) && !isOffers && !isTrash;
+  const head = document.getElementById("cabinet-head");
   if (offers) offers.hidden = !isOffers;
   if (gallery) gallery.hidden = isOffers || isTrash;
-  if (metrics) metrics.hidden = isOffers || isTrash;
+  if (metrics) metrics.hidden = isOffers || isTrash || insideGallery;
+  if (head) head.hidden = insideGallery;
   if (banner) banner.hidden = isOffers || isTrash || Boolean(params.get("id"));
   if (trash) trash.hidden = !isTrash;
   document.querySelectorAll(".side a.item").forEach((link) => {

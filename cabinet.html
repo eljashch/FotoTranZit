@@ -24,22 +24,15 @@
       <a class="item push" href="index.html">Выйти</a>
     </aside>
     <main class="app-main">
-      <section class="panel who cabinet-head">
+      <section class="panel who cabinet-head" id="cabinet-head">
         <div class="cabinet-id">
-          <div class="portrait-frame cabinet-portrait" data-portrait hidden>
+          <div class="portrait-frame logo-frame" data-logo-frame hidden>
             <div class="portrait-clip">
-              <img class="portrait" data-use="photo" alt="">
+              <img class="portrait" data-use="logo" alt="">
             </div>
           </div>
-          <div>
-            <div class="name-line">
-              <div class="portrait-frame logo-frame" data-logo-frame hidden>
-                <div class="portrait-clip">
-                  <img class="portrait" data-use="logo" alt="">
-                </div>
-              </div>
-              <h1 id="cabinet-name"></h1>
-            </div>
+          <div class="cabinet-copy">
+            <h1 id="cabinet-name"></h1>
             <p class="kicker" id="cabinet-place" hidden></p>
             <p class="hint" id="cabinet-about" hidden></p>
           </div>
@@ -49,7 +42,7 @@
           <div class="plan-gauge" data-gauge="storage" data-plan="trial" data-title="Всего"></div>
         </div>
       </section>
-      <section class="metrics">
+      <section class="metrics" id="cabinet-metrics">
         <article class="panel metric"><b>3</b><span>галереи</span></article>
         <article class="panel metric"><b>486</b><span>файлов</span></article>
         <article class="panel metric"><b>128</b><span>скачиваний</span></article>
@@ -91,49 +84,56 @@
           <h2 id="gallery-heading">Галереи</h2>
           <div class="row-actions" id="root-actions">
             <button class="btn btn-line btn-danger" id="delete-all-galleries" type="button">Удалить все</button>
-            <button class="btn btn-dark" id="add-gallery" type="button">Новая галерея</button>
+            <div class="new-gallery">
+              <button class="btn btn-dark" id="add-gallery" type="button" aria-expanded="false" aria-haspopup="true">Новая галерея</button>
+              <div class="new-gallery-menu" id="new-gallery-menu" hidden>
+                <button type="button" id="gallery-upload">Загрузить</button>
+                <button type="button" id="gallery-create">Создать</button>
+              </div>
+              <input id="new-gallery-tree" type="file" webkitdirectory directory multiple hidden>
+            </div>
           </div>
           <a class="btn btn-line" id="folder-back" href="cabinet.html" hidden>Назад</a>
         </div>
         <div class="gallery-cards" id="gallery-cards" style="margin-top:16px">
           <article class="gcard" data-gallery="wedding">
+            <h3>Свадьба Марии и Ильи</h3>
             <div class="cover-wrap">
               <a class="cover-open" href="cabinet.html?id=wedding"><img src="img/p1.jpg" alt=""></a>
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
+              <div class="cover-actions">
+                <a class="btn btn-line" href="cabinet.html?id=wedding">Открыть</a>
+                <a class="btn btn-line" href="gallery.html?id=wedding">Ссылка</a>
+                <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
+              </div>
             </div>
-            <h3>Свадьба Марии и Ильи</h3>
             <p><span data-keep="wedding">Удалится 12 ноября</span> · 186 файлов · скачали 46</p>
-            <div class="row-actions">
-              <a class="btn btn-line" href="cabinet.html?id=wedding">Открыть</a>
-              <a class="btn btn-line" href="gallery.html?id=wedding">Ссылка</a>
-              <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
-            </div>
           </article>
           <article class="gcard" data-gallery="kindergarten">
+            <h3>Садик «Ромашка», группа 5</h3>
             <div class="cover-wrap">
               <a class="cover-open" href="cabinet.html?id=kindergarten"><img src="img/p5.jpg" alt=""></a>
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
+              <div class="cover-actions">
+                <a class="btn btn-line" href="cabinet.html?id=kindergarten">Открыть</a>
+                <a class="btn btn-line" href="gallery.html?id=kindergarten">Ссылка</a>
+                <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
+              </div>
             </div>
-            <h3>Садик «Ромашка», группа 5</h3>
             <p>Раздельная выдача · <span data-keep="kindergarten" data-keep-prefix="удалится">удалится 2 ноября</span> · 240 файлов</p>
-            <div class="row-actions">
-              <a class="btn btn-line" href="cabinet.html?id=kindergarten">Открыть</a>
-              <a class="btn btn-line" href="gallery.html?id=kindergarten">Ссылка</a>
-              <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
-            </div>
           </article>
           <article class="gcard" data-gallery="portrait">
+            <h3>Портрет в студии</h3>
             <div class="cover-wrap">
               <a class="cover-open" href="cabinet.html?id=portrait"><img src="img/cover.jpg" alt=""></a>
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
+              <div class="cover-actions">
+                <a class="btn btn-line" href="cabinet.html?id=portrait">Открыть</a>
+                <a class="btn btn-line" href="gallery.html?id=portrait">Ссылка</a>
+                <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
+              </div>
             </div>
-            <h3>Портрет в студии</h3>
             <p><span data-keep="portrait">Удалится 18 ноября</span> · 60 файлов · скачали 12</p>
-            <div class="row-actions">
-              <a class="btn btn-line" href="cabinet.html?id=portrait">Открыть</a>
-              <a class="btn btn-line" href="gallery.html?id=portrait">Ссылка</a>
-              <button class="btn btn-line btn-danger" type="button" data-del-gallery>Удалить</button>
-            </div>
           </article>
         </div>
         <div class="row-actions" id="explorer-tools" hidden>
@@ -262,7 +262,7 @@
       </div>
       <div class="overlay" id="card-settings" hidden>
         <form class="modal">
-          <h2 id="card-settings-title">Настройки</h2>
+          <input id="card-name" class="card-name" type="text" maxlength="120" autocomplete="off" aria-label="Название" placeholder="Название">
           <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную галерею.</p>
           <label id="card-pass-label">Пароль папки<input id="card-folder-pass" type="text" autocomplete="off"></label>
           <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
