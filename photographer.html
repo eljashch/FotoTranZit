@@ -14,54 +14,30 @@
   <header class="site-header"><div class="wrap header-row"><a class="logo" href="index.html"><span class="mark" aria-hidden="true"></span>ФотоТранзит</a><a class="btn btn-line" id="to-cabinet" href="profile.html">В кабинет</a></div></header>
   <main class="legal">
     <div class="person-head">
-      <div class="person-marks" hidden>
-        <div class="portrait-frame" data-portrait hidden>
-          <div class="portrait-clip">
-            <img class="portrait" data-use="photo" data-empty="1" alt="">
-          </div>
-        </div>
-        <div class="portrait-frame logo-frame" data-logo-frame hidden>
-          <div class="portrait-clip">
-            <img class="portrait" data-use="logo" alt="">
-          </div>
+      <div class="portrait-frame" data-portrait hidden>
+        <div class="portrait-clip">
+          <img class="portrait" data-use="photo" data-empty="1" alt="">
         </div>
       </div>
-      <div class="person-copy">
+      <div>
         <p class="kicker" id="ph-role"></p>
-        <h1 id="ph-name">Фотограф</h1>
+        <div class="name-line">
+          <div class="portrait-frame logo-frame" data-logo-frame hidden>
+            <div class="portrait-clip">
+              <img class="portrait" data-use="logo" alt="">
+            </div>
+          </div>
+          <h1 id="ph-name">Фотограф</h1>
+        </div>
         <p id="ph-about"></p>
-        <div class="contacts" id="ph-contacts"></div>
       </div>
     </div>
-    <section class="page-works" id="page-works">
-      <div class="who">
-        <h2>Съёмки</h2>
-        <div class="add-slot">
-          <button class="btn btn-dark" id="page-add" type="button" aria-expanded="false">Добавить</button>
-          <div class="add-menu" id="page-add-menu" hidden>
-            <button type="button" id="page-add-gallery">Галерея</button>
-            <button type="button" id="page-add-photos">Фотографии</button>
-          </div>
-          <input id="page-photo-input" class="file-ghost" type="file" accept="image/*" multiple>
-        </div>
-      </div>
-      <div id="page-board"></div>
-    </section>
+    <div class="contacts" id="ph-contacts"></div>
     <h2>Отзывы</h2>
     <article class="review"><strong>Илья</strong><div class="stars">★★★★★</div><p>Удобно отмечать кадры в альбом прямо с телефона.</p></article>
     <article class="review"><strong>Ольга</strong><div class="stars">★★★★☆</div><p>Красиво и без лишних папок на диске.</p></article>
     <article class="review"><strong>Марина</strong><div class="stars">★★★★★</div><p>Родители в саду получили каждый свою ссылку.</p></article>
   </main>
-  <div class="overlay" id="page-ask" hidden>
-    <form class="modal">
-      <h2 id="page-ask-title">Удалить?</h2>
-      <p class="hint" id="page-ask-text"></p>
-      <div class="row-actions">
-        <button class="btn btn-dark" type="button" id="page-ask-yes">Удалить</button>
-        <button class="btn btn-line" type="button" id="page-ask-no">Отмена</button>
-      </div>
-    </form>
-  </div>
   <script src="site.js"></script>
 </body>
 </html>

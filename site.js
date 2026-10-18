@@ -91,9 +91,7 @@ document.querySelectorAll("[data-copy]").forEach((button) => {
 
 const openOverlay = (id) => {
   const node = document.getElementById(id);
-  if (!node) return;
-  if (id === "review-modal") resetReviewStars();
-  node.hidden = false;
+  if (node) node.hidden = false;
 };
 document.querySelectorAll("[data-close]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -226,7 +224,6 @@ const galleryId = () => {
   return "wedding";
 };
 const folderId = () => params.get("folder") || "";
-const hidePickOn = () => pageFile() === "cabinet.html" && params.get("pick") === "hide";
 const pageFile = () => (location.pathname.split("/").pop() || "").toLowerCase();
 const loadSettings = () => {
   try { return JSON.parse(localStorage.getItem("ft-settings") || "{}"); } catch (error) { return {}; }
@@ -304,7 +301,19 @@ const liveSettings = (id = galleryId()) => {
     deleted: base.deleted
   };
 };
-const flashSaved = () => showNote("Сохранено");
+const flashSaved = () => {
+  let note = document.getElementById("saved-note");
+  if (!note) {
+    note = document.createElement("p");
+    note.id = "saved-note";
+    note.className = "saved-note";
+    note.textContent = "Сохранено";
+    document.body.appendChild(note);
+  }
+  note.hidden = false;
+  clearTimeout(flashSaved.timer);
+  flashSaved.timer = setTimeout(() => { note.hidden = true; }, 1600);
+};
 const revealSave = (id) => {
   const button = document.getElementById(id);
   if (button) button.hidden = false;
@@ -479,7 +488,8 @@ document.querySelectorAll(".heart").forEach((heart) => {
       openOverlay("name-modal");
       named = true;
     }
-    rememberLike(heart, heart.classList.toggle("on"));
+    heart.classList.toggle("on");
+    heart.textContent = heart.classList.contains("on") ? "♥" : "♡";
   });
 });
 
@@ -792,9 +802,6 @@ const applyBrand = () => {
   const zoom = document.getElementById("photo-zoom");
   if (zoomWrap) zoomWrap.hidden = !photo;
   if (zoom && document.activeElement !== zoom) zoom.value = String(liveCrop().z);
-  document.querySelectorAll(".person-marks").forEach((box) => {
-    box.hidden = !box.querySelector(".portrait-frame:not([hidden])");
-  });
 };
 const storeImage = (file, key, max) => {
   const reader = new FileReader();
@@ -1056,7 +1063,8 @@ document.addEventListener("click", (event) => {
   const heart = event.target.closest(".photo-tile .heart");
   if (!heart) return;
   event.preventDefault();
-  rememberLike(heart, heart.classList.toggle("on"));
+  heart.classList.toggle("on");
+  heart.textContent = heart.classList.contains("on") ? "♥" : "♡";
 });
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-tile-download]");
@@ -1291,11 +1299,7 @@ function fitCardGrids() {
   document.querySelectorAll("#gallery-cards, #folder-cards").forEach((board) => fitCardGrid(board));
 }
 fitCardGrids();
-window.addEventListener("resize", () => {
-  fitCardGrids();
-  const picker = document.getElementById("cover-picker");
-  if (picker && !picker.hidden) alignCoverPicker();
-});
+window.addEventListener("resize", () => fitCardGrids());
 function paintUserGalleryCards() {
   const board = document.getElementById("gallery-cards");
   if (!board || pageFile() !== "cabinet.html") return;
@@ -1335,11 +1339,10 @@ function paintUserGalleryCards() {
     open.className = "btn btn-line";
     open.href = `cabinet.html?id=${row.id}`;
     open.textContent = "Открыть";
-    const link = document.createElement("button");
-    link.type = "button";
+    const link = document.createElement("a");
     link.className = "btn btn-line";
+    link.href = `gallery.html?id=${row.id}`;
     link.textContent = "Ссылка";
-    link.dataset.copyClient = `gallery.html?id=${row.id}`;
     const remove = document.createElement("button");
     remove.className = "btn btn-line btn-danger";
     remove.type = "button";
@@ -1420,10 +1423,6 @@ const fillCardSettings = (id, folder = "") => {
   if (passLabel) passLabel.hidden = !folder;
   if (pass) pass.value = folder ? (folderAccessOf(id, folder).password || "") : "";
   document.querySelectorAll("[data-card-opt]").forEach((field) => {
-    if (field.dataset.cardOpt === "onpage" && folder) {
-      field.checked = Boolean(saved.onpage);
-      return;
-    }
     field.checked = Boolean(state[field.dataset.cardOpt]);
   });
   const files = document.getElementById("card-files");
@@ -1441,11 +1440,6 @@ const fillCardSettings = (id, folder = "") => {
   if (keepAuto) keepAuto.checked = !folder && Boolean(galleryState.autoDelete);
   pendingCoverSrc = "";
   paintCoverChoices(id, folder);
-  paintWmChosen(id, folder);
-  const secretField = document.getElementById("card-secret");
-  if (secretField) secretField.value = readSecret(id, folder || "");
-  const secretNote = document.getElementById("card-secret-note");
-  if (secretNote) secretNote.hidden = true;
 };
 document.addEventListener("click", (event) => {
   const button = event.target.closest("[data-open-settings]");
@@ -1457,19 +1451,6 @@ document.addEventListener("click", (event) => {
   fillCardSettings(card.dataset.gallery, card.dataset.folder || "");
   openOverlay("card-settings");
 });
-document.getElementById("cover-choose")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  openCoverPicker();
-});
-document.getElementById("cover-picker-close")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  closeCoverPicker();
-});
-document.getElementById("cover-picker")?.addEventListener("click", (event) => {
-  if (event.target !== event.currentTarget) return;
-  closeCoverPicker();
-});
 document.getElementById("cover-choices")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-cover-index]");
   if (!button) return;
@@ -1478,9 +1459,6 @@ document.getElementById("cover-choices")?.addEventListener("click", (event) => {
   if (!src) return;
   pendingCoverSrc = src;
   [...button.parentElement.children].forEach((node) => node.classList.toggle("on", node === button));
-  const gid = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) : settingsCard;
-  paintCoverChoices(gid, settingsFolder || "");
-  closeCoverPicker();
 });
 document.querySelector("#card-settings form")?.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -1499,22 +1477,10 @@ document.getElementById("card-folder-pass")?.addEventListener("input", (event) =
   const field = document.querySelector(`#split-list [data-folder="${CSS.escape(settingsFolder)}"] .split-pass`);
   if (field) field.value = event.target.value;
 });
-document.getElementById("card-secret")?.addEventListener("input", () => {
-  revealSave("save-card");
-  const secretNote = document.getElementById("card-secret-note");
-  if (secretNote) secretNote.hidden = true;
-});
 document.getElementById("card-files")?.addEventListener("click", (event) => {
   event.preventDefault();
   const gid = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) : settingsCard;
-  const folder = settingsFolder || "";
-  const modal = document.getElementById("card-settings");
-  if (modal) modal.hidden = true;
-  const next = new URL("cabinet.html", location.href);
-  next.searchParams.set("id", gid);
-  if (folder) next.searchParams.set("folder", folder);
-  next.searchParams.set("pick", "hide");
-  location.href = next.href;
+  openSecretPanel(gid, settingsFolder || "");
 });
 document.querySelector("#card-settings [data-close='card-settings']")?.addEventListener("click", () => {
   document.getElementById("save-card")?.click();
@@ -1601,29 +1567,10 @@ document.getElementById("save-card")?.addEventListener("click", () => {
     if (settingsFolder) {
       const gid = settingsCard.split("::")[0];
       const all = loadSettings();
-      const prev = all[settingsCard] || {};
-      const fromGallery = { ...settings(gid) };
-      delete fromGallery.onpage;
-      const next = { ...fromGallery, ...prev, ...pending[settingsCard] };
-      if (!Object.prototype.hasOwnProperty.call(prev, "onpage") && !Object.prototype.hasOwnProperty.call(pending[settingsCard] || {}, "onpage")) delete next.onpage;
-      all[settingsCard] = next;
+      all[settingsCard] = { ...settings(gid), ...(all[settingsCard] || {}), ...pending[settingsCard] };
       localStorage.setItem("ft-settings", JSON.stringify(all));
     } else {
       saveSettings(pending[settingsCard], settingsCard);
-    }
-  }
-  const secretField = document.getElementById("card-secret");
-  if (secretField) {
-    const nextCode = secretField.value.trim();
-    const prevCode = readSecret(gid, settingsFolder || "");
-    const hiddenCount = (settings(gid).hidden || []).length;
-    const secretNote = document.getElementById("card-secret-note");
-    if (!nextCode && hiddenCount > 0) {
-      secretField.value = prevCode;
-      if (secretNote) secretNote.hidden = false;
-    } else if (nextCode !== prevCode) {
-      if (secretNote) secretNote.hidden = true;
-      writeSecret(gid, settingsFolder || "", nextCode);
     }
   }
   delete pending[settingsCard];
@@ -1634,7 +1581,6 @@ document.getElementById("save-card")?.addEventListener("click", () => {
   refreshVisibleNames();
   paintUserGalleryCards();
   paintBuiltInCovers();
-  if (pageFile() === "cabinet.html" && params.get("id")) mountFolderBrowser();
   flashSaved();
 });
 
@@ -2044,8 +1990,7 @@ const makeFolderCard = (gid, node, client) => {
   settingsBtn.dataset.openSettings = "";
   settingsBtn.setAttribute("aria-label", "Настройки");
   settingsBtn.textContent = "Настройки";
-  wrap.append(cover, settingsBtn);
-  if (!client && splitEnabled(gid, folderId())) wrap.append(pickBox());
+  wrap.append(cover, settingsBtn, pickBox());
   if (!client) {
     const actions = document.createElement("div");
     actions.className = "cover-actions";
@@ -2053,11 +1998,10 @@ const makeFolderCard = (gid, node, client) => {
     open.className = "btn btn-line";
     open.href = folderOpenHref(gid, node, client);
     open.textContent = "Открыть";
-    const link = document.createElement("button");
-    link.type = "button";
+    const link = document.createElement("a");
     link.className = "btn btn-line";
+    link.href = folderLinkHref(gid, node);
     link.textContent = "Ссылка";
-    link.dataset.copyClient = folderLinkHref(gid, node);
     const remove = document.createElement("button");
     remove.className = "btn btn-line btn-danger";
     remove.type = "button";
@@ -2135,12 +2079,7 @@ const buildPhotoTile = (file) => {
   more.setAttribute("aria-expanded", "false");
   more.setAttribute("aria-label", "Действия с кадром");
   more.textContent = "Ещё";
-  if (isLiked(galleryId(), file.id)) {
-    heart.classList.add("on");
-    heart.textContent = "♥";
-  }
-  frame.append(heart, more, tileMarks(galleryId(), file.id));
-  if (splitEnabled(galleryId(), folderId()) || hidePickOn()) frame.append(pickBox());
+  frame.append(heart, more, pickBox());
   const name = document.createElement("p");
   name.className = "tile-name";
   name.textContent = file.name;
@@ -2187,7 +2126,7 @@ const fillFolderManage = (gid, fid) => {
     field.checked = Boolean(state[field.dataset.folderOpt]);
   });
   const copy = document.getElementById("copy-client");
-  if (copy) copy.setAttribute("data-copy", publicPageUrl(`gallery.html?${folderQuery(gid, fid)}`));
+  if (copy) copy.setAttribute("data-copy", new URL(`gallery.html?${folderQuery(gid, fid)}`, location.href).href);
   const photos = document.getElementById("photo-tiles");
   if (photos && !photos.childElementCount) {
     FILE_CATALOG.forEach((file) => {
@@ -2219,7 +2158,6 @@ const paintClient = (gid, fid) => {
   document.body.classList.add("client-view");
   const shell = document.getElementById("client-shell");
   if (shell) shell.hidden = false;
-  paintClientHero(gid);
   const root = issuedRoot();
   const found = fid ? locateFolder(gid, fid) : null;
   if (root && (!fid || (found && !found.path.some((node) => node.id === root)))) {
@@ -2230,17 +2168,12 @@ const paintClient = (gid, fid) => {
   if (tabs) {
     tabs.replaceChildren();
     const items = [];
-    if (fid && found) {
-      const parent = found.ancestors[found.ancestors.length - 1];
-      const parentId = parent ? parent.id : "";
-      const rootIdx = root ? found.path.findIndex((node) => node.id === root) : 0;
-      (rootIdx >= 0 ? found.path.slice(rootIdx, -1) : []).forEach((node) => {
-        items.push({ name: node.name, href: clientHref(gid, node.id), current: false });
-      });
-      childFolders(gid, parentId).filter((node) => !folderAccessOf(gid, node.id).hidden).forEach((node) => {
-        items.push({ name: node.name, href: clientHref(gid, node.id), current: node.id === fid });
-      });
-    }
+    if (!root) items.push({ name: galleryMeta(gid).title, href: clientHref(gid, ""), current: !fid });
+    const path = found?.path || [];
+    const start = root ? path.findIndex((node) => node.id === root) : 0;
+    (start >= 0 ? path.slice(start) : path).forEach((node, index, list) => {
+      items.push({ name: node.name, href: clientHref(gid, node.id), current: index === list.length - 1 });
+    });
     items.forEach((item) => {
       const link = document.createElement("a");
       link.href = item.href;
@@ -2248,12 +2181,11 @@ const paintClient = (gid, fid) => {
       if (item.current) link.setAttribute("aria-current", "page");
       tabs.appendChild(link);
     });
-    tabs.hidden = !items.length;
   }
   const back = document.getElementById("client-back");
   if (back) {
-    const canBack = Boolean(fid) && (!root || (found && fid !== root && found.path.some((node) => node.id === root)));
-    back.hidden = !canBack;
+    const atRoot = (fid || "") === root;
+    back.hidden = atRoot;
     back.href = parentFolderHref(gid, fid, true);
   }
   const until = document.getElementById("client-until");
@@ -2271,12 +2203,8 @@ const paintClient = (gid, fid) => {
   const lockTitle = document.getElementById("client-lock-title");
   if (lockTitle) lockTitle.textContent = issuedName || (fid ? (folderTitle(gid, fid) || "Папка") : (galleryMeta(gid).title));
   if (!knownPass) {
-    const lockedFolders = document.getElementById("client-folders");
-    const lockedGrid = document.getElementById("client-grid");
-    lockedFolders?.replaceChildren();
-    lockedGrid?.replaceChildren();
-    if (lockedFolders) lockedFolders.hidden = true;
-    if (lockedGrid) lockedGrid.hidden = true;
+    document.getElementById("client-folders")?.replaceChildren();
+    document.getElementById("client-grid")?.replaceChildren();
     document.title = `${lockTitle?.textContent || "Папка"} — ФотоТранзит`;
     return;
   }
@@ -2288,17 +2216,13 @@ const paintClient = (gid, fid) => {
       link.className = "client-folder";
       link.href = clientHref(gid, node.id);
       const img = document.createElement("img");
-      img.src = shownCover(gid, node);
+      img.src = folderCover(gid, node.id, node.cover || galleryMeta(gid).cover);
       img.alt = "";
-      const frame = document.createElement("span");
-      frame.className = "client-cover";
-      frame.appendChild(img);
       const name = document.createElement("strong");
       name.textContent = node.name;
-      link.append(name, frame);
+      link.append(name, img);
       folders.appendChild(link);
     });
-    folders.hidden = !folders.childElementCount;
   }
   const grid = document.getElementById("client-grid");
   if (grid) {
@@ -2314,35 +2238,27 @@ const paintClient = (gid, fid) => {
       shot.dataset.file = file.id;
       shot.dataset.in = gid;
       shot.dataset.name = file.name;
-      const frame = document.createElement("div");
-      frame.className = "client-cover";
       if (file.doc || !file.src) {
         const doc = document.createElement("div");
         doc.className = "client-doc";
         doc.textContent = file.name;
-        frame.appendChild(doc);
+        shot.appendChild(doc);
       } else {
         const img = document.createElement("img");
         img.src = file.src;
         img.alt = file.name;
-        frame.appendChild(img);
+        shot.appendChild(img);
       }
       const heart = document.createElement("button");
       heart.type = "button";
       heart.className = "heart";
-      heart.dataset.file = file.id;
-      if (isLiked(gid, file.id)) {
-        heart.classList.add("on");
-        heart.textContent = "♥";
-      } else heart.textContent = "♡";
+      heart.textContent = "♡";
       heart.setAttribute("aria-label", "Отметить");
-      frame.append(heart, tileMarks(gid, file.id));
       const caption = document.createElement("p");
       caption.textContent = file.name;
-      shot.append(frame, caption);
+      shot.append(heart, caption);
       grid.appendChild(shot);
     });
-    grid.hidden = !grid.childElementCount;
   }
   document.title = `${fid ? (folderTitle(gid, fid) || galleryMeta(gid).title) : galleryMeta(gid).title} — ФотоТранзит`;
 };
@@ -2400,44 +2316,41 @@ const mountFolderBrowser = () => {
   const emptyTiles = document.getElementById("tiles-empty");
   const inside = inCabinet && drilled && !galleryGone && !removedHere;
   const mode = viewMode();
+  const listMode = inside && mode === "list";
   const split = inside && splitEnabled(gid, fid);
-  const effective = split ? "list" : mode;
-  const listMode = inside && effective === "list";
-  const hidePick = hidePickOn();
-  const showGallery = inside && !split && (hidePick || !listMode);
-  const showIssue = split;
   if (tools) tools.hidden = !inside;
   const viewSwitch = document.getElementById("view-switch");
   if (viewSwitch) viewSwitch.hidden = !inside;
-  document.querySelectorAll("[data-view-mode]").forEach((button) => button.classList.toggle("on", button.dataset.viewMode === effective));
+  document.querySelectorAll("[data-view-mode]").forEach((button) => button.classList.toggle("on", button.dataset.viewMode === mode));
   document.querySelectorAll("[data-display-choice]").forEach((field) => { field.value = mode; });
   if (photos) {
-    photos.hidden = !showGallery;
+    const showTiles = inside && !listMode && !split;
+    photos.hidden = !showTiles;
     photos.replaceChildren();
-    if (showGallery) {
+    if (showTiles) {
       filesInFolder(gid, fid).forEach((item) => photos.appendChild(buildPhotoTile(item)));
       paintFiles();
     }
   }
-  if (emptyTiles) emptyTiles.hidden = !showGallery || filesInFolder(gid, fid).length > 0;
+  if (emptyTiles) emptyTiles.hidden = !inside || listMode || split || filesInFolder(gid, fid).length > 0;
 
   const splitWrap = document.getElementById("split-switch-wrap");
   const splitToggle = document.getElementById("split-toggle");
   const splitPanel = document.getElementById("split-panel");
   if (splitWrap) splitWrap.hidden = !inside;
   if (splitToggle) splitToggle.checked = split;
-  if (splitPanel) splitPanel.hidden = !showIssue;
-  if (showIssue) paintSplitList(gid, fid);
+  if (splitPanel) splitPanel.hidden = !split;
+  if (split) paintSplitList(gid, fid);
   const listHost = document.getElementById("content-list");
   if (listHost) {
-    const showList = listMode && !split && !hidePick;
+    const showList = listMode && !split;
     listHost.hidden = !showList;
     if (showList) paintContentList(gid, fid, true);
     else listHost.replaceChildren();
   }
 
   if (board) {
-    const showCards = !galleryGone && kids.length > 0 && drilled && showGallery;
+    const showCards = !galleryGone && kids.length > 0 && drilled && !split && !listMode;
     board.hidden = !showCards;
     board.replaceChildren();
     if (showCards) {
@@ -2460,11 +2373,8 @@ const mountFolderBrowser = () => {
       node.hidden = !ftNameHit(name, typed);
     });
   }
-  const hideNote = document.getElementById("hide-pick-note");
-  if (hideNote) hideNote.hidden = !hidePickOn();
   requestAnimationFrame(() => fitCardGrids());
   refreshSelectBar();
-  applyMarkFilter();
 };
 
 document.addEventListener("click", (event) => {
@@ -2595,456 +2505,37 @@ const paintBuiltInCovers = () => {
   });
 };
 paintBuiltInCovers();
-function coverPhotoList(gid, folder) {
+function paintCoverChoices(gid, folder) {
+  const host = document.getElementById("cover-choices");
+  const label = document.getElementById("cover-pick-label");
+  if (!host) return;
   const seen = new Set();
-  const list = [];
+  coverChoiceSrcs = [];
   imageFilesUnder(gid, folder || "").forEach((file) => {
     const src = ownSrc(file);
     if (!src || seen.has(src)) return;
     seen.add(src);
-    list.push({ src, name: file.name || "Фото" });
+    coverChoiceSrcs.push(src);
   });
-  return list;
-}
-function coverManualSrc(gid, folder) {
-  const pendingSrc = pendingCoverSrc || "";
-  const saved = coverMap()[`${gid}::${folder || ""}`] || "";
-  return pendingSrc || saved;
-}
-function currentCoverSrc(gid, folder) {
-  const photos = coverPhotoList(gid, folder);
-  const manual = coverManualSrc(gid, folder);
-  if (manual && photos.some((item) => item.src === manual)) return manual;
-  if (photos.length) return photos[0].src;
-  return NEON_COVER;
-}
-function paintCoverChoices(gid, folder) {
-  const label = document.getElementById("cover-pick-label");
-  const preview = document.getElementById("cover-preview");
-  const src = currentCoverSrc(gid, folder);
-  const neon = src === NEON_COVER;
-  if (label) label.textContent = neon ? "Обложка — заглушка, пока нет фото" : "Обложка";
-  if (!preview) return;
-  preview.dataset.fallback = "";
-  preview.alt = neon ? "Заглушка" : "Обложка";
-  preview.src = src;
-  preview.onerror = () => {
-    if (preview.dataset.fallback === "1") return;
-    preview.dataset.fallback = "1";
-    preview.src = NEON_COVER;
-  };
-}
-function alignCoverPicker() {
-  const picker = document.getElementById("cover-picker");
-  const main = document.querySelector(".app-main");
-  if (!picker) return;
-  if (!main) {
-    picker.style.left = "0px";
-    picker.style.width = "100%";
+  const current = folder ? folderCover(gid, folder) : galleryCardCover(gid);
+  host.replaceChildren();
+  if (!coverChoiceSrcs.length) {
+    if (label) label.textContent = "Обложка — заглушка, пока нет фото";
     return;
   }
-  const rect = main.getBoundingClientRect();
-  picker.style.left = `${Math.max(0, rect.left)}px`;
-  picker.style.width = `${Math.max(0, rect.width)}px`;
-}
-function closeCoverPicker() {
-  const picker = document.getElementById("cover-picker");
-  if (picker) picker.hidden = true;
-}
-function paintCoverPicker(gid, folder) {
-  const host = document.getElementById("cover-choices");
-  const empty = document.getElementById("cover-picker-empty");
-  if (!host) return;
-  const photos = coverPhotoList(gid, folder);
-  coverChoiceSrcs = photos.map((item) => item.src);
-  const manual = coverManualSrc(gid, folder);
-  host.replaceChildren();
-  if (empty) empty.hidden = photos.length > 0;
-  photos.forEach((item, index) => {
+  if (label) label.textContent = "Обложка";
+  coverChoiceSrcs.forEach((src, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.coverIndex = String(index);
-    button.title = item.name;
-    button.classList.toggle("on", item.src === manual);
+    button.classList.toggle("on", src === current);
     const img = document.createElement("img");
-    img.src = item.src;
-    img.alt = item.name;
+    img.src = src;
+    img.alt = "";
     button.appendChild(img);
     host.appendChild(button);
   });
 }
-function openCoverPicker() {
-  const gid = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) : settingsCard;
-  const folder = settingsFolder || "";
-  paintCoverPicker(gid, folder);
-  const picker = document.getElementById("cover-picker");
-  if (!picker) return;
-  picker.hidden = false;
-  alignCoverPicker();
-}
-const WM_BLANK = { kind: "text", text: "", color: "#ffffff", image: "", position: "mc", cx: 50, cy: 50, across: 1, percent: 22, opacity: 40, angle: 0, margin: 8 };
-function wmCenter(position, percent, margin) {
-  const xEdge = margin + percent / 2;
-  const yEdge = margin + percent / 2;
-  const spots = {
-    tl: [xEdge, yEdge], tc: [50, yEdge], tr: [100 - xEdge, yEdge],
-    ml: [xEdge, 50], mc: [50, 50], mr: [100 - xEdge, 50],
-    bl: [xEdge, 100 - yEdge], bc: [50, 100 - yEdge], br: [100 - xEdge, 100 - yEdge]
-  };
-  return spots[position] || [50, 50];
-}
-function normalizeWm(mark) {
-  const next = { ...WM_BLANK, ...(mark || {}) };
-  next.across = Math.min(8, Math.max(1, Math.round(Number(next.across) || 1)));
-  next.percent = Math.min(100, Math.max(10, Number(next.percent) || 22));
-  next.opacity = Math.min(100, Math.max(10, Number(next.opacity) || 40));
-  next.angle = Math.min(180, Math.max(-180, Number(next.angle) || 0));
-  next.margin = Math.min(30, Math.max(0, Number(next.margin) ?? 8));
-  if (next.cx == null || next.cy == null || Number.isNaN(Number(next.cx)) || Number.isNaN(Number(next.cy))) {
-    const spot = wmCenter(next.position, next.percent, next.margin);
-    next.cx = spot[0];
-    next.cy = spot[1];
-  } else {
-    next.cx = Math.min(100, Math.max(0, Number(next.cx)));
-    next.cy = Math.min(100, Math.max(0, Number(next.cy)));
-  }
-  delete next.tile;
-  return next;
-}
-const wmMap = () => {
-  try { return JSON.parse(localStorage.getItem("ft-wm") || "{}"); } catch (error) { return {}; }
-};
-const wmKey = (gid, folder) => `${gid}::${folder || ""}`;
-const wmOwn = (gid, folder) => wmMap()[wmKey(gid, folder)] || null;
-const wmEffective = (gid, folder) => {
-  const useful = (mark) => Boolean(mark) && (mark.kind === "image" ? Boolean(mark.image) : Boolean(String(mark.text || "").trim()));
-  const own = wmOwn(gid, folder);
-  if (useful(own)) return own;
-  if (folder) {
-    const galleryMark = wmOwn(gid, "");
-    if (useful(galleryMark)) return galleryMark;
-  }
-  try {
-    const shared = JSON.parse(localStorage.getItem("ft-wm-common") || "null");
-    if (useful(shared)) return shared;
-  } catch (error) {}
-  return null;
-};
-let wmDraft = { ...WM_BLANK };
-function wmScopeNow() {
-  const gid = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) : settingsCard;
-  return { gid, folder: settingsFolder || "" };
-}
-function paintWmChosen(gid, folder) {
-  const host = document.getElementById("wm-chosen");
-  if (!host) return;
-  const mark = wmEffective(gid, folder);
-  host.replaceChildren();
-  host.classList.toggle("is-empty", !mark || (mark.kind !== "image" && !String(mark.text || "").trim()));
-  if (!mark || (mark.kind !== "image" && !String(mark.text || "").trim())) {
-    host.textContent = "не задан";
-    return;
-  }
-  if (mark.kind === "image" && mark.image) {
-    const img = document.createElement("img");
-    img.src = mark.image;
-    img.alt = "Свой знак";
-    host.appendChild(img);
-    return;
-  }
-  host.textContent = String(mark.text || "").trim();
-}
-function readWmDraft() {
-  const kindImage = document.getElementById("wm-kind-image")?.classList.contains("on");
-  const snapped = document.querySelector("#wm-grid button.on")?.dataset.wmPos || "";
-  return normalizeWm({
-    ...wmDraft,
-    kind: kindImage ? "image" : "text",
-    text: document.getElementById("wm-text")?.value || "",
-    color: document.getElementById("wm-color")?.value || "#ffffff",
-    position: snapped || wmDraft.position || "free",
-    across: document.getElementById("wm-across")?.value,
-    percent: document.getElementById("wm-percent")?.value,
-    opacity: document.getElementById("wm-opacity")?.value,
-    angle: document.getElementById("wm-angle")?.value,
-    margin: document.getElementById("wm-margin")?.value,
-    cx: wmDraft.cx,
-    cy: wmDraft.cy
-  });
-}
-function wmRowCenters(mark) {
-  const count = mark.across;
-  if (count <= 1) return [{ cx: mark.cx, cy: mark.cy }];
-  const gap = Math.max(1.5, mark.percent * 0.12);
-  const rowWidth = count * mark.percent + (count - 1) * gap;
-  let left = mark.cx - rowWidth / 2;
-  const minLeft = mark.margin;
-  const maxLeft = 100 - mark.margin - rowWidth;
-  if (maxLeft >= minLeft) left = Math.min(maxLeft, Math.max(minLeft, left));
-  return Array.from({ length: count }, (_, index) => ({
-    cx: left + mark.percent / 2 + index * (mark.percent + gap),
-    cy: mark.cy
-  }));
-}
-function paintWmStage() {
-  const layer = document.getElementById("wm-layer");
-  if (!layer) return;
-  const mark = readWmDraft();
-  wmDraft = mark;
-  ["across", "percent", "opacity", "angle", "margin"].forEach((key) => {
-    const node = document.getElementById(`wm-${key}-out`);
-    if (node) node.textContent = String(mark[key]);
-  });
-  layer.replaceChildren();
-  const empty = mark.kind === "image" ? !mark.image : !String(mark.text || "").trim();
-  if (empty) return;
-  const spotStyle = (cx, cy) => ({
-    position: "absolute",
-    width: `${mark.percent}%`,
-    left: `${cx}%`,
-    top: `${cy}%`,
-    translate: "-50%, -50%"
-  });
-  const make = (style) => {
-    const spot = document.createElement("span");
-    spot.className = "wm-spot";
-    Object.entries(style).forEach(([key, value]) => {
-      if (key === "translate") return;
-      spot.style[key] = value;
-    });
-    if (style.translate) spot.style.transform = `translate(${style.translate})`;
-    const rot = document.createElement("span");
-    rot.className = "wm-rot";
-    rot.style.opacity = String(mark.opacity / 100);
-    rot.style.transform = `rotate(${mark.angle}deg)`;
-    if (mark.kind === "image" && mark.image) {
-      const img = document.createElement("img");
-      img.src = mark.image;
-      img.alt = "";
-      rot.appendChild(img);
-    } else {
-      rot.textContent = mark.text;
-      rot.style.color = mark.color || "#fff";
-      rot.style.fontWeight = "700";
-      rot.style.fontSize = "16px";
-      rot.style.letterSpacing = "0.04em";
-      rot.style.whiteSpace = "nowrap";
-    }
-    spot.appendChild(rot);
-    layer.appendChild(spot);
-  };
-  wmRowCenters(mark).forEach((spot) => make(spotStyle(spot.cx, spot.cy)));
-}
-function fillWmForm(mark) {
-  const next = normalizeWm(mark);
-  wmDraft = next;
-  const textBtn = document.getElementById("wm-kind-text");
-  const imageBtn = document.getElementById("wm-kind-image");
-  const image = next.kind === "image";
-  textBtn?.classList.toggle("on", !image);
-  imageBtn?.classList.toggle("on", image);
-  const textLabel = document.getElementById("wm-text-label");
-  const colorLabel = document.getElementById("wm-color-label");
-  const fileLabel = document.getElementById("wm-file-label");
-  if (textLabel) textLabel.hidden = image;
-  if (colorLabel) colorLabel.hidden = image;
-  if (fileLabel) fileLabel.hidden = false;
-  const text = document.getElementById("wm-text");
-  if (text) text.value = next.text || "";
-  const color = document.getElementById("wm-color");
-  if (color) color.value = next.color || "#ffffff";
-  const across = document.getElementById("wm-across");
-  if (across) across.value = String(next.across || 1);
-  const percent = document.getElementById("wm-percent");
-  if (percent) percent.value = String(next.percent || 22);
-  const opacity = document.getElementById("wm-opacity");
-  if (opacity) opacity.value = String(next.opacity || 40);
-  const angle = document.getElementById("wm-angle");
-  if (angle) angle.value = String(next.angle || 0);
-  const margin = document.getElementById("wm-margin");
-  if (margin) margin.value = String(next.margin ?? 8);
-  document.querySelectorAll("#wm-grid button").forEach((button) => button.classList.toggle("on", next.position !== "free" && button.dataset.wmPos === next.position));
-  const fileName = document.getElementById("wm-file-name");
-  if (fileName) {
-    fileName.hidden = !(image && next.image);
-    fileName.textContent = image && next.image ? "Картинка загружена" : "";
-  }
-  paintWmStage();
-}
-const commonWm = () => {
-  try { return JSON.parse(localStorage.getItem("ft-wm-common") || "null"); } catch (error) { return null; }
-};
-const wmUseless = (mark) => !mark || (mark.kind === "image" ? !mark.image : !String(mark.text || "").trim());
-function pageWmScope() {
-  const gid = params.get("gid") || "";
-  return { gid, folder: params.get("folder") || "", common: !gid };
-}
-function wmPlaces() {
-  const keys = [];
-  const ids = [...new Set([...Object.keys(GALLERY_META), ...loadUserGalleries().map((row) => row.id)])];
-  const collect = (nodes, out) => (nodes || []).forEach((node) => {
-    out.push(node.id);
-    collect(node.children || [], out);
-  });
-  ids.forEach((gid) => {
-    keys.push(wmKey(gid, ""));
-    const folders = [];
-    collect(folderNodes(gid), folders);
-    folders.forEach((fid) => keys.push(wmKey(gid, fid)));
-  });
-  return keys;
-}
-function wmStatus(text) {
-  const node = document.getElementById("wm-status");
-  if (node) node.textContent = text;
-}
-function paintWmPage() {
-  if (!document.getElementById("wm-form")) return;
-  const scope = pageWmScope();
-  const applyRow = document.getElementById("wm-apply-row");
-  const clearBtn = document.getElementById("wm-clear");
-  if (applyRow) applyRow.hidden = !scope.common;
-  if (clearBtn) clearBtn.hidden = scope.common;
-  const title = document.getElementById("wm-title");
-  if (title) title.textContent = scope.common ? "Водяной знак" : (scope.folder ? "Водяной знак папки" : "Водяной знак галереи");
-  const back = document.getElementById("wm-back");
-  if (back) {
-    if (scope.common) back.href = "cabinet.html";
-    else {
-      const query = new URLSearchParams();
-      query.set("id", scope.gid);
-      if (scope.folder) query.set("folder", scope.folder);
-      back.href = `cabinet.html?${query.toString()}`;
-    }
-  }
-  if (scope.common) {
-    fillWmForm(commonWm() || WM_BLANK);
-    return;
-  }
-  const own = wmOwn(scope.gid, scope.folder);
-  const inherited = !own && scope.folder ? wmOwn(scope.gid, "") : null;
-  fillWmForm(own || inherited || commonWm() || WM_BLANK);
-}
-function saveWmDraft(clear) {
-  const scope = pageWmScope();
-  const mark = clear ? null : readWmDraft();
-  if (scope.common) {
-    if (clear || wmUseless(mark)) localStorage.removeItem("ft-wm-common");
-    else localStorage.setItem("ft-wm-common", JSON.stringify(mark));
-    wmStatus("Сохранено");
-    return;
-  }
-  const all = wmMap();
-  const key = wmKey(scope.gid, scope.folder);
-  if (clear || wmUseless(mark)) delete all[key];
-  else all[key] = mark;
-  localStorage.setItem("ft-wm", JSON.stringify(all));
-  wmStatus(clear ? "Свой знак убран" : "Сохранено");
-}
-function applyWm(onlyMissing) {
-  const mark = readWmDraft();
-  if (wmUseless(mark)) {
-    wmStatus("Сначала напишите слова или загрузите картинку.");
-    return;
-  }
-  localStorage.setItem("ft-wm-common", JSON.stringify(mark));
-  const all = wmMap();
-  let count = 0;
-  wmPlaces().forEach((key) => {
-    if (onlyMissing && all[key]) return;
-    all[key] = mark;
-    count += 1;
-  });
-  localStorage.setItem("ft-wm", JSON.stringify(all));
-  wmStatus(onlyMissing ? `Записано туда, где своего знака не было: ${count}.` : `Записано во все галереи и папки: ${count}.`);
-}
-document.getElementById("wm-setup")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  const { gid, folder } = wmScopeNow();
-  const next = new URL("cabinet.html", location.href);
-  next.searchParams.set("view", "watermark");
-  if (gid) next.searchParams.set("gid", gid);
-  if (folder) next.searchParams.set("folder", folder);
-  location.href = next.href;
-});
-document.getElementById("wm-clear")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  saveWmDraft(true);
-});
-document.getElementById("wm-apply-all")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  applyWm(false);
-});
-document.getElementById("wm-apply-rest")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  applyWm(true);
-});
-document.getElementById("wm-form")?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  saveWmDraft(false);
-});
-document.getElementById("wm-kind-text")?.addEventListener("click", () => {
-  wmDraft = { ...readWmDraft(), kind: "text" };
-  fillWmForm(wmDraft);
-});
-document.getElementById("wm-kind-image")?.addEventListener("click", () => {
-  wmDraft = { ...readWmDraft(), kind: "image" };
-  fillWmForm(wmDraft);
-});
-document.getElementById("wm-grid")?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-wm-pos]");
-  if (!button) return;
-  const percent = Number(document.getElementById("wm-percent")?.value) || 22;
-  const margin = Number(document.getElementById("wm-margin")?.value) || 0;
-  const spot = wmCenter(button.dataset.wmPos, percent, margin);
-  document.querySelectorAll("#wm-grid button").forEach((node) => node.classList.toggle("on", node === button));
-  wmDraft = { ...readWmDraft(), position: button.dataset.wmPos, cx: spot[0], cy: spot[1] };
-  paintWmStage();
-});
-["wm-text", "wm-color", "wm-across", "wm-percent", "wm-opacity", "wm-angle", "wm-margin"].forEach((id) => {
-  document.getElementById(id)?.addEventListener("input", () => paintWmStage());
-});
-const wmStage = document.getElementById("wm-stage");
-let wmDragId = null;
-const wmPointer = (event) => {
-  const rect = wmStage.getBoundingClientRect();
-  const cx = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * 100;
-  const cy = ((event.clientY - rect.top) / Math.max(rect.height, 1)) * 100;
-  return {
-    cx: Math.min(96, Math.max(4, cx)),
-    cy: Math.min(96, Math.max(4, cy))
-  };
-};
-wmStage?.addEventListener("pointerdown", (event) => {
-  if (!event.target.closest(".wm-spot")) return;
-  event.preventDefault();
-  wmDragId = event.pointerId;
-  wmStage.setPointerCapture(event.pointerId);
-});
-wmStage?.addEventListener("pointermove", (event) => {
-  if (wmDragId !== event.pointerId) return;
-  const point = wmPointer(event);
-  document.querySelectorAll("#wm-grid button").forEach((node) => node.classList.remove("on"));
-  wmDraft = { ...readWmDraft(), position: "free", cx: point.cx, cy: point.cy };
-  paintWmStage();
-});
-wmStage?.addEventListener("pointerup", (event) => {
-  if (wmDragId !== event.pointerId) return;
-  wmDragId = null;
-});
-wmStage?.addEventListener("pointercancel", () => { wmDragId = null; });
-document.getElementById("wm-file")?.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  event.target.value = "";
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    wmDraft = { ...readWmDraft(), kind: "image", image: String(reader.result || "") };
-    fillWmForm(wmDraft);
-  };
-  reader.readAsDataURL(file);
-});
 const splitMap = () => {
   try { return JSON.parse(localStorage.getItem("ft-split") || "{}"); } catch (error) { return {}; }
 };
@@ -3377,9 +2868,6 @@ const paintSplitList = (gid, fid) => {
       splitGenButton(),
       mailCapsule(gid, file.id, "file")
     );
-    const marks = tileMarks(gid, file.id);
-    marks.classList.add("inline-marks");
-    row.querySelector(".row-text")?.appendChild(marks);
     host.appendChild(row);
   });
 };
@@ -3545,7 +3033,6 @@ const ingestUploads = async (fileList, extraFails = [], dirPaths = [], options =
 
 const viewMode = () => (localStorage.getItem("ft-display") === "list" ? "list" : "tiles");
 const setViewMode = (mode) => {
-  if (pageFile() === "cabinet.html" && params.get("id") && splitEnabled(galleryId(), folderId())) return;
   localStorage.setItem("ft-display", mode === "list" ? "list" : "tiles");
   mountFolderBrowser();
 };
@@ -3616,6 +3103,7 @@ const paintContentList = (gid, fid, withFolders) => {
       img.src = folderCover(gid, node.id, node.cover || galleryMeta(gid).cover);
       img.alt = "";
       row.append(
+        pickBox(),
         rowLead(img, node.name, folderSizeLabel(gid, node.id), rowBurger([
           { label: "Выше", data: { move: "up", kind: "folder" } },
           { label: "Ниже", data: { move: "down", kind: "folder" } },
@@ -3642,6 +3130,7 @@ const paintContentList = (gid, fid, withFolders) => {
     const thumb = fileThumb(file);
     const isCover = Boolean(parentCover) && thumb.tagName === "IMG" && parentCover === thumb.getAttribute("src");
     row.append(
+      pickBox(),
       rowLead(thumb, file.name, formatSize(fileBytes(file)), rowBurger([
         { label: "Выше", data: { move: "up", kind: "file" } },
         { label: "Ниже", data: { move: "down", kind: "file" } },
@@ -3651,9 +3140,6 @@ const paintContentList = (gid, fid, withFolders) => {
         secretEntry(gid, fid)
       ]))
     );
-    const marks = tileMarks(gid, file.id);
-    marks.classList.add("inline-marks");
-    row.querySelector(".row-text")?.appendChild(marks);
     host.appendChild(row);
   });
   if (!host.children.length) {
@@ -3676,17 +3162,10 @@ const itemTitle = (node) => node.querySelector("h3")?.textContent || node.queryS
 function refreshSelectBar() {
   const bar = document.getElementById("select-bar");
   if (!bar) return;
-  const hidePick = hidePickOn();
-  const splitOn = pageFile() === "cabinet.html" && Boolean(params.get("id")) && splitEnabled(galleryId(), folderId());
-  const nodes = (splitOn || hidePick) ? selectedNodes() : [];
-  if (!splitOn && !hidePick) document.querySelectorAll(".pick-box").forEach((input) => { input.checked = false; });
-  bar.hidden = hidePick ? false : nodes.length === 0;
-  const privacy = document.getElementById("select-privacy");
-  const remove = document.getElementById("select-delete");
-  if (privacy) privacy.hidden = hidePick;
-  if (remove) remove.hidden = hidePick;
+  const nodes = selectedNodes();
+  bar.hidden = nodes.length === 0;
   const hideBtn = document.getElementById("select-hide");
-  if (hideBtn) hideBtn.textContent = !hidePick && nodes.length && nodes.every(itemIsHidden) ? "Показать" : "Скрыть";
+  if (hideBtn) hideBtn.textContent = nodes.length && nodes.every(itemIsHidden) ? "Показать" : "Скрыть";
 }
 let privacyTargets = [];
 const closePrivacyAsk = () => {
@@ -3701,21 +3180,6 @@ document.addEventListener("change", (event) => {
 document.getElementById("select-hide")?.addEventListener("click", () => {
   const nodes = selectedNodes();
   if (!nodes.length) return;
-  if (hidePickOn()) {
-    const gid = galleryId();
-    const hidden = new Set(settings(gid).hidden || []);
-    let count = 0;
-    nodes.forEach((node) => {
-      if (!node.dataset.file) return;
-      hidden.add(node.dataset.file);
-      count += 1;
-    });
-    if (!count) return;
-    saveSettings({ hidden: [...hidden] }, gid);
-    mountFolderBrowser();
-    openSecretPanel(gid, folderId() || "");
-    return;
-  }
   const show = nodes.every(itemIsHidden);
   const gid = galleryId();
   const hidden = new Set(settings(gid).hidden || []);
@@ -3842,14 +3306,9 @@ function writeSecret(gid, fid, code) {
     const all = loadSettings();
     all[key] = { ...settings(gid), ...(all[key] || {}), secret: value };
     localStorage.setItem("ft-settings", JSON.stringify(all));
-  } else saveSettings({ secret: value }, gid);
-  const card = document.getElementById("card-secret");
-  if (card) {
-    const openGid = settingsFolder ? (settingsCard.split("::")[0] || "") : settingsCard;
-    if (openGid === gid && (settingsFolder || "") === (fid || "")) card.value = value;
+    return;
   }
-  const folderField = document.getElementById("folder-secret");
-  if (folderField && galleryId() === gid && (folderId() || "") === (fid || "")) folderField.value = value;
+  saveSettings({ secret: value }, gid);
 }
 let secretEdit = { gid: "", fid: "" };
 function openSecretPanel(gid, fid) {
@@ -4045,12 +3504,6 @@ document.addEventListener("keydown", (event) => {
     closePrivacyAsk();
     return;
   }
-  const coverPicker = document.getElementById("cover-picker");
-  if (coverPicker && !coverPicker.hidden) {
-    event.preventDefault();
-    closeCoverPicker();
-    return;
-  }
   const settingsModal = document.getElementById("card-settings");
   if (settingsModal && !settingsModal.hidden) {
     event.preventDefault();
@@ -4157,7 +3610,6 @@ const paintComments = () => {
     block.append(author, body, time, actions);
     list.appendChild(block);
   });
-  refreshVisibleMarks();
 };
 document.getElementById("comment-list")?.addEventListener("click", (event) => {
   const editBtn = event.target.closest("[data-comment-edit]");
@@ -4295,7 +3747,7 @@ document.querySelectorAll("#add-any").forEach((button) => {
   });
 });
 document.addEventListener("click", (event) => {
-  if (event.target.closest(".add-menu, #add-any, #page-add")) return;
+  if (event.target.closest(".add-menu, #add-any")) return;
   document.querySelectorAll(".add-menu").forEach((menu) => { menu.hidden = true; });
 });
 const readEntryFile = (entry) => new Promise((resolve, reject) => entry.file(resolve, reject));
@@ -4858,7 +4310,8 @@ document.addEventListener("click", (event) => {
   const heart = event.target.closest(".client-shot .heart");
   if (heart) {
     event.stopPropagation();
-    rememberLike(heart, heart.classList.toggle("on"));
+    heart.classList.toggle("on");
+    heart.textContent = heart.classList.contains("on") ? "♥" : "♡";
     return;
   }
   const shot = event.target.closest(".client-shot");
@@ -5233,26 +4686,23 @@ const paintOffers = () => {
   if (offers) {
     offers.replaceChildren();
     const card = document.createElement("article");
-    card.className = "offer-row";
-    const copy = document.createElement("div");
-    copy.className = "offer-copy";
+    card.className = "list-row";
     const title = document.createElement("h3");
     title.textContent = "Пример: скидка на следующий пакет";
     const meta = document.createElement("p");
     meta.className = "hint";
     meta.textContent = "Пример. Действует до 31 декабря 2026. Код FOTO10 — скидка 10%.";
-    copy.append(title, meta);
     const use = document.createElement("a");
     use.className = "btn btn-dark";
     use.href = "billing.html";
     use.textContent = "Воспользоваться";
-    card.append(copy, use);
+    card.append(title, meta, use);
     offers.appendChild(card);
   }
   if (coupons) {
     coupons.replaceChildren();
     const row = document.createElement("article");
-    row.className = "coupon-row";
+    row.className = "list-row";
     const title = document.createElement("h3");
     title.textContent = "DISK10";
     const meta = document.createElement("p");
@@ -5268,7 +4718,9 @@ const paintOffers = () => {
       code = `FT${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       localStorage.setItem("ft-ref-code", code);
     }
-    linkNode.textContent = publicPageUrl(`register.html?ref=${encodeURIComponent(code)}`);
+    const link = new URL("register.html", location.href);
+    link.searchParams.set("ref", code);
+    linkNode.textContent = link.href;
   }
 };
 document.getElementById("ref-copy")?.addEventListener("click", async () => {
@@ -5287,36 +4739,23 @@ if (pageFile() === "cabinet.html") {
   const metrics = document.querySelector(".metrics");
   const banner = document.getElementById("offer-banner");
   const trash = document.getElementById("trash-view");
-  const watermark = document.getElementById("watermark-view");
-  const consent = document.getElementById("consent-view");
   const isOffers = view === "offers";
   const isTrash = view === "trash";
-  const isWatermark = view === "watermark";
-  const isConsent = view === "consent";
-  const special = isOffers || isTrash || isWatermark || isConsent;
-  const insideGallery = Boolean(params.get("id")) && !special;
+  const insideGallery = Boolean(params.get("id")) && !isOffers && !isTrash;
   const head = document.getElementById("cabinet-head");
   if (offers) offers.hidden = !isOffers;
-  if (gallery) gallery.hidden = special;
-  if (metrics) metrics.hidden = special || insideGallery;
-  if (head) head.hidden = insideGallery || isWatermark;
-  if (banner) banner.hidden = special || Boolean(params.get("id"));
+  if (gallery) gallery.hidden = isOffers || isTrash;
+  if (metrics) metrics.hidden = isOffers || isTrash || insideGallery;
+  if (head) head.hidden = insideGallery;
+  if (banner) banner.hidden = isOffers || isTrash || Boolean(params.get("id"));
   if (trash) trash.hidden = !isTrash;
-  if (watermark) watermark.hidden = !isWatermark;
-  if (consent) consent.hidden = !isConsent;
   document.querySelectorAll(".side a.item").forEach((link) => {
     const href = link.getAttribute("href") || "";
-    const on = isOffers ? href.includes("view=offers")
-      : isTrash ? href.includes("view=trash")
-      : isWatermark ? href.includes("view=watermark")
-      : isConsent ? href.includes("view=consent")
-      : href === "cabinet.html";
+    const on = isOffers ? href.includes("view=offers") : isTrash ? href.includes("view=trash") : href === "cabinet.html";
     link.classList.toggle("on", on);
   });
   if (isOffers) paintOffers();
   if (isTrash) paintTrash();
-  document.body.classList.toggle("wm-fit", isWatermark);
-  if (isWatermark) paintWmPage();
 }
 document.getElementById("empty-trash")?.addEventListener("click", () => {
   saveTrash([]);
@@ -5330,948 +4769,3 @@ if (billingLead) {
   billingLead.textContent = `${head}, до ${ftRuDate(trial.end)}. Занято 6,4 из 20 ГБ. Пакет ещё действует: новый можно оплатить сейчас, он начнётся 21 октября 2026, когда текущий закончится.`;
 }
 paintKeepDates();
-
-
-const CONSENT_LEAD = "Разрешаю фотографу публиковать мои фотографии в интернете";
-const consentPub = () => {
-  try {
-    const raw = JSON.parse(localStorage.getItem("ft-consent-pub") || "null");
-    return raw && typeof raw === "object" ? raw : {};
-  } catch (error) { return {}; }
-};
-const saveConsentPub = (patch) => {
-  localStorage.setItem("ft-consent-pub", JSON.stringify({ ...consentPub(), ...patch }));
-};
-function consentFieldsFromForm() {
-  return {
-    name: document.getElementById("consent-name")?.value.trim() || "",
-    studio: document.getElementById("consent-studio")?.value.trim() || "",
-    city: document.getElementById("consent-city")?.value.trim() || "",
-    email: document.getElementById("consent-email")?.value.trim() || "",
-    phone: document.getElementById("consent-phone")?.value.trim() || ""
-  };
-}
-function consentText(value) {
-  return String(value == null ? "" : value).trim();
-}
-function consentPlain(fields) {
-  const data = fields || {};
-  const line = (label, value) => `${label}: ${consentText(value)}`;
-  return [
-    "СОГЛАСИЕ НА ПУБЛИКАЦИЮ ФОТОГРАФИЙ",
-    "",
-    line("Имя", data.name),
-    line("Студия", data.studio),
-    line("Город", data.city),
-    line("Почта", data.email),
-    line("Телефон", data.phone),
-    "",
-    "Я разрешаю этому фотографу публиковать фотографии, на которых я есть, в интернете.",
-    "Публикация возможна на сайте фотографа, в социальных сетях и в портфолио.",
-    "Я могу разрешить все кадры, запретить публикацию или отметить только часть.",
-    "Имя и контакты из формы нужны только чтобы зафиксировать это согласие."
-  ].join("\n");
-}
-function consentTemplate(fields) {
-  return consentPlain(fields);
-}
-function renderConsentSheet(host, fields) {
-  if (!host) return;
-  const data = fields || {};
-  host.replaceChildren();
-  host.classList.add("consent-sheet");
-  host.hidden = false;
-  const row = (label, value) => {
-    const line = document.createElement("p");
-    const name = document.createElement("b");
-    name.textContent = `${label} `;
-    line.appendChild(name);
-    const shown = consentText(value);
-    if (shown) line.append(document.createTextNode(shown));
-    else {
-      const blank = document.createElement("span");
-      blank.className = "consent-blank";
-      blank.textContent = "\u00a0";
-      line.appendChild(blank);
-    }
-    return line;
-  };
-  const kicker = document.createElement("p");
-  kicker.className = "kicker";
-  kicker.textContent = "ФотоТранзит";
-  const title = document.createElement("h3");
-  title.textContent = "Согласие на публикацию фотографий";
-  const who = document.createElement("section");
-  const whoTitle = document.createElement("h4");
-  whoTitle.textContent = "Фотограф";
-  who.append(whoTitle, row("Имя", data.name), row("Студия", data.studio), row("Город", data.city), row("Почта", data.email), row("Телефон", data.phone));
-  host.append(kicker, title, who);
-  [
-    ["Разрешение", "Я разрешаю этому фотографу публиковать фотографии, на которых я есть, в интернете."],
-    ["Где", "Публикация возможна на сайте фотографа, в социальных сетях и в портфолио."],
-    ["Выбор кадров", "Я могу разрешить все кадры, запретить публикацию или отметить только часть. Отказ не мешает смотреть и скачивать съёмку."],
-    ["Данные", "Имя и контакты, которые я укажу в форме, нужны только чтобы зафиксировать это согласие. Для другой цели они не используются."]
-  ].forEach(([heading, text]) => {
-    const section = document.createElement("section");
-    const head = document.createElement("h4");
-    head.textContent = heading;
-    const paragraph = document.createElement("p");
-    paragraph.textContent = text;
-    section.append(head, paragraph);
-    host.appendChild(section);
-  });
-  const foot = document.createElement("p");
-  foot.className = "consent-foot";
-  foot.textContent = "Шаблон ФотоТранзит. Ответ сохраняется у фотографа.";
-  host.appendChild(foot);
-}
-function consentMode() {
-  return document.getElementById("consent-mode-file")?.classList.contains("on") ? "file" : "template";
-}
-function paintConsentMode() {
-  const file = consentMode() === "file";
-  document.getElementById("consent-mode-template")?.classList.toggle("on", !file);
-  document.getElementById("consent-mode-file")?.classList.toggle("on", file);
-  const fields = document.getElementById("consent-fields");
-  const fileLabel = document.getElementById("consent-file-label");
-  if (fields) fields.hidden = file;
-  if (fileLabel) fileLabel.hidden = !file;
-}
-function paintConsentPage() {
-  const stored = consentPub();
-  const popup = document.getElementById("consent-popup");
-  if (popup) popup.value = stored.text || CONSENT_LEAD;
-  const fields = stored.fields || {};
-  const map = { name: "consent-name", studio: "consent-studio", city: "consent-city", email: "consent-email", phone: "consent-phone" };
-  Object.entries(map).forEach(([key, id]) => {
-    const field = document.getElementById(id);
-    if (field) field.value = fields[key] || "";
-  });
-  const fileBtn = document.getElementById("consent-mode-file");
-  const templateBtn = document.getElementById("consent-mode-template");
-  if (stored.mode === "file") {
-    fileBtn?.classList.add("on");
-    templateBtn?.classList.remove("on");
-  } else {
-    templateBtn?.classList.add("on");
-    fileBtn?.classList.remove("on");
-  }
-  paintConsentMode();
-  const fileName = document.getElementById("consent-file-name");
-  if (fileName) {
-    fileName.hidden = !stored.fileName;
-    fileName.textContent = stored.fileName ? `Загружен: ${stored.fileName}` : "";
-  }
-}
-function showConsentFile(stored) {
-  const view = document.getElementById("consent-file-view");
-  const editor = document.getElementById("consent-editor");
-  if (!view) return;
-  view.replaceChildren();
-  if (stored.fileKind === "text") {
-    view.hidden = true;
-    if (editor) editor.hidden = false;
-    const body = document.getElementById("consent-body");
-    if (body) body.value = stored.body || stored.fileText || "";
-    return;
-  }
-  if (editor) editor.hidden = true;
-  view.hidden = false;
-  if (stored.fileKind === "image") {
-    const img = document.createElement("img");
-    img.src = stored.fileData;
-    img.alt = stored.fileName || "Документ";
-    view.appendChild(img);
-    return;
-  }
-  const frame = document.createElement("iframe");
-  frame.src = stored.fileData;
-  frame.title = stored.fileName || "Документ";
-  view.appendChild(frame);
-}
-document.getElementById("consent-mode-template")?.addEventListener("click", () => {
-  document.getElementById("consent-mode-file")?.classList.remove("on");
-  document.getElementById("consent-mode-template")?.classList.add("on");
-  paintConsentMode();
-});
-document.getElementById("consent-mode-file")?.addEventListener("click", () => {
-  document.getElementById("consent-mode-template")?.classList.remove("on");
-  document.getElementById("consent-mode-file")?.classList.add("on");
-  paintConsentMode();
-});
-document.getElementById("consent-file")?.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  event.target.value = "";
-  if (!file) return;
-  const reader = new FileReader();
-  const textFile = file.type.startsWith("text") || /\.txt$/i.test(file.name);
-  reader.onload = () => {
-    const data = String(reader.result || "");
-    const kind = textFile ? "text" : (file.type.startsWith("image") ? "image" : "pdf");
-    saveConsentPub({
-      mode: "file",
-      fileName: file.name,
-      fileData: textFile ? "" : data,
-      fileText: textFile ? data : "",
-      fileKind: kind,
-      body: textFile ? data : (consentPub().body || "")
-    });
-    const fileName = document.getElementById("consent-file-name");
-    if (fileName) {
-      fileName.hidden = false;
-      fileName.textContent = `Загружен: ${file.name}`;
-    }
-    const status = document.getElementById("consent-status");
-    if (status) status.textContent = "Файл принят. Откройте его и сохраните.";
-  };
-  if (textFile) reader.readAsText(file);
-  else reader.readAsDataURL(file);
-});
-document.getElementById("consent-open")?.addEventListener("click", () => {
-  const stored = consentPub();
-  const mode = consentMode();
-  const editor = document.getElementById("consent-editor");
-  const sheet = document.getElementById("consent-sheet");
-  const view = document.getElementById("consent-file-view");
-  if (editor) editor.hidden = true;
-  if (mode === "file" && stored.fileKind && stored.fileKind !== "text" && stored.fileData) {
-    if (sheet) sheet.hidden = true;
-    showConsentFile(stored);
-    return;
-  }
-  if (view) view.hidden = true;
-  renderConsentSheet(sheet, consentFieldsFromForm());
-});
-document.getElementById("consent-save")?.addEventListener("click", () => {
-  const fields = consentFieldsFromForm();
-  const mode = consentMode();
-  const body = document.getElementById("consent-body")?.value || "";
-  const stored = consentPub();
-  saveConsentPub({
-    text: document.getElementById("consent-popup")?.value.trim() || CONSENT_LEAD,
-    mode,
-    fields,
-    body: mode === "template" ? consentPlain(fields) : (body || stored.body || "")
-  });
-  const status = document.getElementById("consent-status");
-  if (status) status.textContent = "Сохранено";
-});
-
-function consentEnabled(gid, folder) {
-  const galleryOn = Boolean(settings(gid).consent);
-  if (!folder) return galleryOn;
-  const saved = loadSettings()[folderStoreKey(gid, folder)] || {};
-  if (Object.prototype.hasOwnProperty.call(saved, "consent")) return Boolean(saved.consent);
-  return galleryOn;
-}
-function consentAllowed(gid) {
-  try { return JSON.parse(localStorage.getItem("ft-consent-allow") || "{}")[gid] === "allow"; }
-  catch (error) { return false; }
-}
-function consentFileIds(gid) {
-  const catalog = FILE_CATALOG.filter((file) => (file.in || "").split(/\s+/).includes(gid) && !file.doc).map((file) => file.id);
-  const extra = readList("ft-user-files").filter((file) => file.gallery === gid && !file.doc).map((file) => file.id);
-  return [...catalog, ...extra];
-}
-function writeConsentMarks(gid, decide) {
-  let all = {};
-  try { all = JSON.parse(localStorage.getItem("ft-consent-marks") || "{}"); } catch (error) { all = {}; }
-  consentFileIds(gid).forEach((id) => { all[id] = decide(id); });
-  localStorage.setItem("ft-consent-marks", JSON.stringify(all));
-}
-let consentDownload = null;
-function finishConsent(runDownload) {
-  const modal = document.getElementById("consent-modal");
-  if (modal) modal.hidden = true;
-  const run = consentDownload;
-  consentDownload = null;
-  if (runDownload && run) run();
-}
-function openClientConsent() {
-  const stored = consentPub();
-  const lead = document.getElementById("consent-lead");
-  if (lead) lead.textContent = stored.text || CONSENT_LEAD;
-  const doc = document.getElementById("consent-doc");
-  if (doc) {
-    doc.hidden = true;
-    doc.replaceChildren();
-  }
-  const partial = document.getElementById("consent-partial");
-  if (partial) partial.hidden = true;
-  openOverlay("consent-modal");
-}
-function paintConsentFrames() {
-  const host = document.getElementById("consent-frames");
-  if (!host) return;
-  host.replaceChildren();
-  consentFileIds(galleryId()).forEach((id) => {
-    const file = FILE_CATALOG.find((item) => item.id === id) || readList("ft-user-files").find((item) => item.id === id);
-    const label = document.createElement("label");
-    label.className = "check";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.value = id;
-    label.append(input, document.createTextNode(" " + (file?.name || id)));
-    host.appendChild(label);
-  });
-}
-window.ftGateDownload = (run) => {
-  const gid = galleryId();
-  const folder = folderId();
-  const visit = sessionStorage.getItem("ft-consent-visit-" + gid) === "1";
-  if (!consentEnabled(gid, folder) || consentAllowed(gid) || visit) {
-    run();
-    return;
-  }
-  consentDownload = run;
-  openClientConsent();
-};
-window.ftPaintConsent = () => {};
-document.getElementById("consent-doc-open")?.addEventListener("click", () => {
-  const stored = consentPub();
-  const host = document.getElementById("consent-doc");
-  if (!host) return;
-  host.hidden = false;
-  host.replaceChildren();
-  if (stored.mode === "file" && stored.fileData && stored.fileKind !== "text") {
-    if (stored.fileKind === "image") {
-      const img = document.createElement("img");
-      img.src = stored.fileData;
-      img.alt = stored.fileName || "Документ";
-      host.appendChild(img);
-    } else {
-      const frame = document.createElement("iframe");
-      frame.src = stored.fileData;
-      frame.title = stored.fileName || "Документ";
-      host.appendChild(frame);
-    }
-    return;
-  }
-  renderConsentSheet(host, stored.fields || {});
-});
-document.querySelectorAll("[data-consent]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const gid = galleryId();
-    if (button.dataset.consent === "allow") {
-      writeConsentMarks(gid, () => "ok");
-      const allow = {};
-      try { Object.assign(allow, JSON.parse(localStorage.getItem("ft-consent-allow") || "{}")); } catch (error) {}
-      allow[gid] = "allow";
-      localStorage.setItem("ft-consent-allow", JSON.stringify(allow));
-      finishConsent(true);
-      return;
-    }
-    writeConsentMarks(gid, () => "no");
-    sessionStorage.setItem("ft-consent-visit-" + gid, "1");
-    finishConsent(true);
-  });
-});
-document.getElementById("consent-partial-open")?.addEventListener("click", () => {
-  const partial = document.getElementById("consent-partial");
-  if (partial) partial.hidden = false;
-  paintConsentFrames();
-});
-document.getElementById("consent-partial-save")?.addEventListener("click", () => {
-  const gid = galleryId();
-  const mode = document.querySelector("[name='partial-mode']:checked")?.value || "allow";
-  const picked = new Set([...document.querySelectorAll("#consent-frames input:checked")].map((input) => input.value));
-  writeConsentMarks(gid, (id) => {
-    const marked = picked.has(id);
-    if (mode === "deny") return marked ? "no" : "ok";
-    return marked ? "ok" : "no";
-  });
-  sessionStorage.setItem("ft-consent-visit-" + gid, "1");
-  finishConsent(true);
-});
-if (pageFile() === "cabinet.html" && params.get("view") === "consent") paintConsentPage();
-
-function showNote(text) {
-  let note = document.getElementById("saved-note");
-  if (!note) {
-    note = document.createElement("p");
-    note.id = "saved-note";
-    note.className = "saved-note";
-    document.body.appendChild(note);
-  }
-  note.textContent = text;
-  note.hidden = false;
-  clearTimeout(showNote.timer);
-  showNote.timer = setTimeout(() => { note.hidden = true; }, 1600);
-}
-function publicPageUrl(relative) {
-  const base = (location.protocol === "http:" || location.protocol === "https:") ? location.href : "http://127.0.0.1:8765/";
-  return new URL(relative, base).href;
-}
-function shownCover(gid, node) {
-  const picked = folderCover(gid, node.id);
-  if (picked && picked !== NEON_COVER) return picked;
-  const fallback = node.cover || "";
-  if (fallback && !String(fallback).endsWith("folder-neon.svg")) return fallback;
-  return NEON_COVER;
-}
-function heroCover(gid) {
-  const picked = galleryCardCover(gid);
-  if (picked && picked !== NEON_COVER) return picked;
-  const assigned = galleryMeta(gid).cover || "";
-  if (assigned && !String(assigned).endsWith("folder-neon.svg")) return assigned;
-  return NEON_COVER;
-}
-function paintClientHero(gid) {
-  const meta = galleryMeta(gid);
-  const heroImg = document.getElementById("client-hero-img");
-  if (heroImg) {
-    heroImg.src = heroCover(gid);
-    heroImg.alt = "";
-  }
-  const heroDate = document.getElementById("client-hero-date");
-  if (heroDate) heroDate.textContent = meta.date || "";
-  const heroTitle = document.getElementById("client-hero-title");
-  if (heroTitle) heroTitle.textContent = meta.title || "";
-  const who = document.getElementById("client-hero-who");
-  if (who) {
-    who.replaceChildren();
-    const profile = loadProfile() || {};
-    const name = personName();
-    if (name) {
-      const span = document.createElement("span");
-      span.textContent = name;
-      who.appendChild(span);
-    }
-    if (profile.city) {
-      const span = document.createElement("span");
-      span.textContent = profile.city;
-      who.appendChild(span);
-    }
-    const site = String(profile.site || "").trim();
-    if (site) {
-      const link = document.createElement("a");
-      link.href = contactHref(site, "site");
-      link.textContent = site;
-      link.target = "_blank";
-      link.rel = "noopener";
-      who.appendChild(link);
-    }
-  }
-  const untilText = keepDateIsCustom(gid)
-    ? `Хранится до ${keepRu(galleryExpiry(gid), true)}`
-    : `Хранится до ${meta.until || keepRu(galleryExpiry(gid), true)}`;
-  const heroUntil = document.getElementById("client-hero-until");
-  if (heroUntil) heroUntil.textContent = untilText;
-}
-function likeMap() {
-  try {
-    const value = JSON.parse(localStorage.getItem("ft-likes") || "{}");
-    return value && typeof value === "object" ? value : {};
-  } catch (error) { return {}; }
-}
-function isLiked(gid, fileId) {
-  return Boolean(likeMap()[`${gid}/${fileId}`]);
-}
-function setLiked(gid, fileId, on) {
-  const map = likeMap();
-  const key = `${gid}/${fileId}`;
-  if (on) map[key] = 1;
-  else delete map[key];
-  localStorage.setItem("ft-likes", JSON.stringify(map));
-}
-function fileHasComment(gid, fileId) {
-  const store = loadCommentStore();
-  return Object.entries(store).some(([key, value]) => key.startsWith(`${gid}/`) && key.endsWith(`/${fileId}`) && asThread(value).length > 0);
-}
-function tileMarks(gid, fileId) {
-  const box = document.createElement("span");
-  box.className = "tile-marks";
-  if (fileHasComment(gid, fileId)) {
-    const icon = document.createElement("span");
-    icon.className = "mark-comment";
-    icon.setAttribute("aria-label", "Есть комментарий");
-    icon.textContent = "💬";
-    box.appendChild(icon);
-  }
-  if (isLiked(gid, fileId)) {
-    const icon = document.createElement("span");
-    icon.className = "mark-like";
-    icon.setAttribute("aria-label", "Есть лайк");
-    icon.textContent = "♥";
-    box.appendChild(icon);
-  }
-  return box;
-}
-function refreshVisibleMarks() {
-  document.querySelectorAll(".photo-tile, .client-shot, .shot, .split-row, .list-row").forEach((tile) => {
-    const id = tile.dataset.file;
-    if (!id || tile.dataset.folder) return;
-    const gid = tile.dataset.gallery || tile.dataset.in || galleryId();
-    const next = tileMarks(gid, id);
-    const inline = tile.classList.contains("split-row") || tile.classList.contains("list-row");
-    if (inline) next.classList.add("inline-marks");
-    const old = tile.querySelector(".tile-marks");
-    if (old) old.replaceWith(next);
-    else if (inline) tile.querySelector(".row-text")?.appendChild(next);
-    else (tile.querySelector(".frame, .client-cover") || tile).appendChild(next);
-  });
-}
-function rememberLike(heart, on) {
-  const host = heart.closest("[data-file]");
-  const gid = host?.dataset.gallery || host?.dataset.in || galleryId();
-  const fileId = host?.dataset.file || heart.dataset.file || "";
-  if (fileId) setLiked(gid, fileId, on);
-  heart.textContent = on ? "♥" : "♡";
-  refreshVisibleMarks();
-  applyMarkFilter();
-}
-let markFilter = "all";
-function applyMarkFilter() {
-  document.querySelectorAll("[data-mark-filter]").forEach((button) => button.classList.toggle("on", button.dataset.markFilter === markFilter));
-  const gid = galleryId();
-  const typed = (document.getElementById("split-query")?.value || "").trim().toLowerCase();
-  document.querySelectorAll("#photo-tiles .photo-tile, #content-list [data-file], #split-list [data-file]").forEach((node) => {
-    if (!node.dataset.file || node.dataset.folder) return;
-    const id = node.dataset.file;
-    let markOk = true;
-    if (markFilter === "comments") markOk = fileHasComment(gid, id);
-    if (markFilter === "likes") markOk = isLiked(gid, id);
-    const name = node.querySelector("h3, .tile-name")?.textContent || "";
-    const nameOk = !typed || ftNameHit(name, typed);
-    node.hidden = !markOk || !nameOk;
-  });
-}
-async function downloadLikes() {
-  const gid = galleryId();
-  const fid = folderId();
-  const files = filesInFolder(gid, fid).filter((file) => isLiked(gid, file.id) && file.src);
-  if (!files.length) {
-    showNote("Лайков в этой папке нет.");
-    return;
-  }
-  if (files.length === 1) {
-    saveLink(files[0].src, files[0].name || "photo.jpg");
-    showNote("Файл скачивается.");
-    return;
-  }
-  const packed = [];
-  for (const file of files) {
-    try {
-      const response = await fetch(file.src);
-      packed.push({ name: file.name || "photo.jpg", data: new Uint8Array(await response.arrayBuffer()) });
-    } catch (error) {}
-  }
-  if (!packed.length) {
-    showNote("Не удалось собрать файлы.");
-    return;
-  }
-  if (packed.length === 1) {
-    const blob = new Blob([packed[0].data]);
-    downloadBlob(blob, packed[0].name);
-    showNote("Файл скачивается.");
-    return;
-  }
-  const blob = zipStore(packed);
-  blob.type;
-  const zip = new Blob([blob], { type: "application/zip" });
-  downloadBlob(zip, "лайки.zip");
-  showNote("Архив скачивается.");
-}
-function setStarValue(host, value) {
-  const next = Math.max(0, Math.min(5, Number(value) || 0));
-  host.dataset.value = String(next);
-  host.querySelectorAll("button").forEach((button) => {
-    const star = Number(button.dataset.star);
-    button.classList.toggle("is-on", star <= next && next > 0);
-    button.classList.remove("is-preview");
-  });
-}
-function resetReviewStars() {
-  document.querySelectorAll("#review-modal .star-pick").forEach((host) => setStarValue(host, 0));
-}
-function reviewConsentFields() {
-  const stored = (consentPub().fields) || {};
-  const profile = loadProfile() || {};
-  const pick = (left, right) => String(left || "").trim() || String(right || "").trim();
-  return {
-    name: pick(stored.name, personName()),
-    studio: pick(stored.studio, profile.role),
-    city: pick(stored.city, profile.city),
-    email: pick(stored.email, profile.email),
-    phone: pick(stored.phone, profile.phone)
-  };
-}
-function openPersonalConsent() {
-  let overlay = document.getElementById("pdata-view");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "pdata-view";
-    overlay.className = "overlay";
-    overlay.innerHTML = `<div class="modal pdata-modal"><div id="pdata-sheet"></div><div class="row-actions"><button class="btn btn-line" type="button" id="pdata-close">Закрыть</button></div></div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector("#pdata-close").addEventListener("click", () => { overlay.hidden = true; });
-  }
-  overlay.hidden = false;
-  renderConsentSheet(overlay.querySelector("#pdata-sheet"), reviewConsentFields());
-}
-function starText(count) {
-  const n = Number(count) || 0;
-  if (!n) return "";
-  return "★".repeat(n) + "☆".repeat(Math.max(0, 5 - n));
-}
-function pageBook() {
-  try {
-    const raw = JSON.parse(localStorage.getItem("ft-page-book") || "{}");
-    return {
-      galleries: Array.isArray(raw.galleries) ? raw.galleries : [],
-      loose: Array.isArray(raw.loose) ? raw.loose : []
-    };
-  } catch (error) { return { galleries: [], loose: [] }; }
-}
-function savePageBook(book) {
-  localStorage.setItem("ft-page-book", JSON.stringify(book));
-}
-function shrinkShot(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const image = new Image();
-      image.onload = () => {
-        const max = 1400;
-        const scale = Math.min(1, max / Math.max(image.width || 1, image.height || 1));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round((image.width || 1) * scale));
-        canvas.height = Math.max(1, Math.round((image.height || 1) * scale));
-        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      image.onerror = () => resolve("");
-      image.src = String(reader.result || "");
-    };
-    reader.onerror = () => resolve("");
-    reader.readAsDataURL(file);
-  });
-}
-let pageFocus = "";
-let pageAskJob = null;
-function publishedCards() {
-  const items = [];
-  const ids = [...Object.keys(GALLERY_META), ...loadUserGalleries().map((row) => row.id)];
-  const seen = new Set();
-  ids.forEach((gid) => {
-    if (seen.has(gid) || goneGalleries().includes(gid)) return;
-    seen.add(gid);
-    if (settings(gid).onpage) {
-      items.push({ kind: "live", title: galleryMeta(gid).title || "Галерея", cover: heroCover(gid), href: `gallery.html?id=${encodeURIComponent(gid)}` });
-    }
-    const walk = (nodes) => {
-      nodes.forEach((node) => {
-        const saved = loadSettings()[folderStoreKey(gid, node.id)] || {};
-        if (saved.onpage && !isFolderGone(gid, node.id)) {
-          items.push({
-            kind: "live",
-            title: node.name || "Папка",
-            cover: shownCover(gid, node),
-            href: `gallery.html?id=${encodeURIComponent(gid)}&folder=${encodeURIComponent(node.id)}`
-          });
-        }
-        walk(node.children || []);
-      });
-    };
-    walk(folderNodes(gid));
-  });
-  return items;
-}
-function pageCover(gallery) {
-  const first = (gallery.files || []).find((file) => file.src);
-  return first ? first.src : NEON_COVER;
-}
-function paintPage() {
-  const board = document.getElementById("page-board");
-  if (!board) return;
-  board.replaceChildren();
-  if (pageFocus) {
-    const book = pageBook();
-    const gallery = book.galleries.find((item) => item.id === pageFocus);
-    if (!gallery) { pageFocus = ""; paintPage(); return; }
-    const bar = document.createElement("div");
-    bar.className = "who page-inside-bar";
-    const name = document.createElement("input");
-    name.type = "text";
-    name.className = "page-name";
-    name.placeholder = "Название";
-    name.value = gallery.title || "";
-    name.setAttribute("aria-label", "Название");
-    name.addEventListener("input", () => {
-      const fresh = pageBook();
-      const row = fresh.galleries.find((item) => item.id === pageFocus);
-      if (!row) return;
-      row.title = name.value;
-      savePageBook(fresh);
-    });
-    const actions = document.createElement("div");
-    actions.className = "row-actions";
-    const add = document.createElement("button");
-    add.type = "button";
-    add.className = "btn btn-line";
-    add.textContent = "Добавить";
-    add.addEventListener("click", () => {
-      const input = document.getElementById("page-photo-input");
-      if (!input) return;
-      input.dataset.mode = "gallery";
-      input.hidden = false;
-      if (typeof input.showPicker === "function") {
-        try { input.showPicker(); return; } catch (error) {}
-      }
-      input.click();
-    });
-    const back = document.createElement("button");
-    back.type = "button";
-    back.className = "btn btn-line";
-    back.textContent = "Назад";
-    back.addEventListener("click", () => { pageFocus = ""; paintPage(); });
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "btn btn-line";
-    remove.textContent = "Удалить галерею";
-    remove.addEventListener("click", () => askPage("Удалить эту галерею со страницы? Файлы кабинета не затрагиваются.", () => {
-      const fresh = pageBook();
-      fresh.galleries = fresh.galleries.filter((item) => item.id !== gallery.id);
-      savePageBook(fresh);
-      pageFocus = "";
-      paintPage();
-    }));
-    actions.append(add, remove, back);
-    bar.append(name, actions);
-    const shots = document.createElement("div");
-    shots.className = "page-shots";
-    (gallery.files || []).forEach((file) => shots.appendChild(pageShot(file, gallery.id)));
-    if (!(gallery.files || []).length) {
-      const empty = document.createElement("p");
-      empty.className = "hint";
-      empty.textContent = "Пока пусто. Добавьте фотографии.";
-      shots.appendChild(empty);
-    }
-    board.append(bar, shots);
-    return;
-  }
-  const grid = document.createElement("div");
-  grid.className = "page-board-grid";
-  publishedCards().forEach((item) => grid.appendChild(pageLiveCard(item)));
-  pageBook().galleries.forEach((gallery) => grid.appendChild(pageMadeCard(gallery)));
-  board.appendChild(grid);
-  const loose = pageBook().loose;
-  if (loose.length) {
-    const shots = document.createElement("div");
-    shots.className = "page-shots";
-    loose.forEach((file) => shots.appendChild(pageShot(file, "")));
-    board.appendChild(shots);
-  }
-}
-function pageLiveCard(item) {
-  const link = document.createElement("a");
-  link.className = "page-card";
-  link.href = item.href;
-  const title = document.createElement("strong");
-  title.textContent = item.title || "";
-  const cover = document.createElement("span");
-  cover.className = "page-cover";
-  const img = document.createElement("img");
-  img.src = item.cover || NEON_COVER;
-  img.alt = "";
-  cover.appendChild(img);
-  link.append(title, cover);
-  return link;
-}
-function pageMadeCard(gallery) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "page-card";
-  const title = document.createElement("strong");
-  title.textContent = gallery.title || "";
-  if (!gallery.title) title.className = "is-empty";
-  const cover = document.createElement("span");
-  cover.className = "page-cover";
-  const img = document.createElement("img");
-  img.src = pageCover(gallery);
-  img.alt = "";
-  cover.appendChild(img);
-  button.append(title, cover);
-  button.addEventListener("click", () => { pageFocus = gallery.id; paintPage(); });
-  return button;
-}
-function pageShot(file, galleryId) {
-  const card = document.createElement("article");
-  card.className = "page-shot";
-  const img = document.createElement("img");
-  img.src = file.src;
-  img.alt = file.name || "";
-  const caption = document.createElement("p");
-  caption.textContent = file.name || "";
-  const remove = document.createElement("button");
-  remove.type = "button";
-  remove.className = "btn btn-line";
-  remove.textContent = "Удалить";
-  remove.addEventListener("click", () => askPage("Удалить этот кадр со страницы?", () => {
-    const book = pageBook();
-    if (galleryId) {
-      const gallery = book.galleries.find((item) => item.id === galleryId);
-      if (gallery) gallery.files = (gallery.files || []).filter((item) => item.id !== file.id);
-    } else book.loose = book.loose.filter((item) => item.id !== file.id);
-    savePageBook(book);
-    paintPage();
-  }));
-  card.append(img, caption, remove);
-  return card;
-}
-function askPage(text, job) {
-  pageAskJob = job;
-  const node = document.getElementById("page-ask-text");
-  if (node) node.textContent = text;
-  openOverlay("page-ask");
-}
-async function takePagePhotos(files, mode) {
-  const shots = [];
-  for (const file of files) {
-    if (!file.type.startsWith("image/")) continue;
-    const src = await shrinkShot(file);
-    if (!src) continue;
-    shots.push({ id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, name: file.name, src });
-  }
-  if (!shots.length) return;
-  const book = pageBook();
-  if (mode === "gallery" && pageFocus) {
-    const gallery = book.galleries.find((item) => item.id === pageFocus);
-    if (gallery) gallery.files = (gallery.files || []).concat(shots);
-  } else book.loose = book.loose.concat(shots);
-  savePageBook(book);
-  paintPage();
-}
-document.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-copy-client]");
-  if (!button) return;
-  event.preventDefault();
-  event.stopPropagation();
-  const url = publicPageUrl(button.getAttribute("data-copy-client") || "");
-  try { await navigator.clipboard.writeText(url); }
-  catch (error) {
-    const area = document.createElement("textarea");
-    area.value = url;
-    document.body.appendChild(area);
-    area.select();
-    try { document.execCommand("copy"); } catch (err) {}
-    area.remove();
-  }
-  showNote("Ссылка скопирована");
-});
-document.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-mark-filter]");
-  if (!button) return;
-  markFilter = button.dataset.markFilter || "all";
-  applyMarkFilter();
-});
-document.getElementById("download-likes")?.addEventListener("click", () => { downloadLikes(); });
-document.querySelectorAll(".star-pick").forEach((host) => {
-  host.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-star]");
-    if (!button) return;
-    const star = Number(button.dataset.star);
-    const current = Number(host.dataset.value || 0);
-    setStarValue(host, current === star ? star - 1 : star);
-  });
-  host.addEventListener("mouseover", (event) => {
-    const button = event.target.closest("[data-star]");
-    if (!button) return;
-    const star = Number(button.dataset.star);
-    host.querySelectorAll("[data-star]").forEach((item) => item.classList.toggle("is-preview", Number(item.dataset.star) <= star));
-  });
-  host.addEventListener("mouseleave", () => {
-    host.querySelectorAll("[data-star]").forEach((item) => item.classList.remove("is-preview"));
-  });
-});
-document.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-pdata]");
-  if (!button) return;
-  event.preventDefault();
-  event.stopPropagation();
-  openPersonalConsent();
-});
-document.querySelectorAll("#review-form").forEach((form) => {
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const stars = starText(form.querySelector(".star-pick")?.dataset.value || 0);
-    const author = form.querySelector("#review-author")?.value.trim() || "";
-    const text = form.querySelector("#review-text")?.value.trim() || "";
-    const list = readList("ft-client-reviews");
-    list.push({ author, stars, text, at: Date.now(), gallery: galleryId() });
-    writeList("ft-client-reviews", list);
-    const modal = document.getElementById("review-modal");
-    if (modal) modal.hidden = true;
-    showNote("Отзыв сохранён");
-  });
-});
-document.getElementById("page-add")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  const menu = document.getElementById("page-add-menu");
-  if (!menu) return;
-  menu.hidden = !menu.hidden;
-  event.currentTarget.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
-});
-document.getElementById("page-add-gallery")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  const menu = document.getElementById("page-add-menu");
-  if (menu) menu.hidden = true;
-  const book = pageBook();
-  const id = `pg${Date.now().toString(36)}`;
-  book.galleries.push({ id, title: "", files: [] });
-  savePageBook(book);
-  pageFocus = id;
-  paintPage();
-});
-document.getElementById("page-add-photos")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  const menu = document.getElementById("page-add-menu");
-  if (menu) menu.hidden = true;
-  const input = document.getElementById("page-photo-input");
-  if (!input) return;
-  input.dataset.mode = "loose";
-  input.hidden = false;
-  if (typeof input.showPicker === "function") {
-    try { input.showPicker(); return; } catch (error) {}
-  }
-  input.click();
-});
-document.getElementById("page-photo-input")?.addEventListener("change", (event) => {
-  const files = [...(event.target.files || [])];
-  const mode = event.target.dataset.mode || "loose";
-  event.target.value = "";
-  takePagePhotos(files, mode);
-});
-document.getElementById("page-ask-no")?.addEventListener("click", () => {
-  pageAskJob = null;
-  const overlay = document.getElementById("page-ask");
-  if (overlay) overlay.hidden = true;
-});
-document.getElementById("page-ask-yes")?.addEventListener("click", () => {
-  const job = pageAskJob;
-  pageAskJob = null;
-  const overlay = document.getElementById("page-ask");
-  if (overlay) overlay.hidden = true;
-  if (job) job();
-});
-if (document.getElementById("page-board")) paintPage();
-const reviewHost = document.getElementById("print-sheet");
-if (reviewHost && pageFile() === "reviews.html") {
-  readList("ft-client-reviews").forEach((row) => {
-    const article = document.createElement("article");
-    article.className = "review glow-card";
-    article.dataset.published = "0";
-    const strong = document.createElement("strong");
-    strong.textContent = row.author || "Без имени";
-    const stars = document.createElement("div");
-    stars.className = "stars";
-    stars.textContent = row.stars || "";
-    const text = document.createElement("p");
-    text.textContent = row.text || "";
-    article.append(strong, stars, text);
-    reviewHost.appendChild(article);
-  });
-}
