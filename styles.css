@@ -1499,16 +1499,34 @@ textarea { min-height: 90px; resize: vertical; }
   background: transparent;
 }
 .person-head {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 22px;
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  margin-bottom: 8px;
+  gap: 22px;
+  margin-bottom: 22px;
 }
-.person-head .portrait-frame { width: 180px; height: 180px; }
-.person-head .logo-frame { width: 72px; height: 72px; }
-.person-head:has(.portrait-frame[hidden]) { grid-template-columns: 1fr; }
+.person-marks { display: flex; align-items: center; gap: 14px; flex: 0 0 auto; }
+.person-marks[hidden] { display: none !important; }
+.person-copy { min-width: 0; flex: 1 1 auto; }
+.person-copy .kicker { margin: 0 0 4px; }
+.person-copy #ph-about { margin: 6px 0 0; }
+.person-copy .contacts { margin-top: 10px; }
+.person-marks > [data-portrait] { width: 168px; height: 168px; flex: 0 0 168px; }
+.person-marks > .logo-frame {
+  width: 96px;
+  height: 96px;
+  flex: 0 0 96px;
+  background: #fff !important;
+  overflow: hidden;
+  position: relative;
+}
+.person-marks > .logo-frame .portrait-clip { background: #fff !important; }
+.person-marks > .logo-frame .portrait {
+  object-fit: contain;
+  background: transparent !important;
+}
 .person-head h1 { margin-top: 4px; }
+.list-row[data-folder] h3, .split-row[data-folder] h3, .gcard[data-folder] h3 { cursor: pointer; }
 .back-bar, .secret-ask {
   display: flex;
   align-items: center;
@@ -1903,7 +1921,26 @@ label.btn input[type="file"] {
   gap: 16px 28px;
 }
 .panel.cabinet-head .cabinet-id { flex: 1 1 240px; }
-.panel.cabinet-head .gauge-pair { margin-left: auto; flex: 0 0 auto; }
+.panel.cabinet-head .gauge-pair {
+  display: grid;
+  grid-template-columns: 168px 168px;
+  width: 346px;
+  min-width: 346px;
+  max-width: none;
+  flex: 0 0 346px;
+  margin-left: auto;
+}
+.panel.cabinet-head .gauge-pair .plan-gauge,
+.panel.cabinet-head .gauge-pair .gauge {
+  width: 168px;
+  min-width: 168px;
+  max-width: 168px;
+}
+.panel.cabinet-head .gauge-pair .gauge svg {
+  width: 148px;
+  height: 126px;
+  max-width: none;
+}
 .panel.cabinet-head #cabinet-name {
   font-family: var(--sans);
   font-size: 1.5em !important;
@@ -1942,5 +1979,14 @@ label.btn input[type="file"] {
 @media (max-width: 700px) {
   .panel.cabinet-head { align-items: stretch; }
   .panel.cabinet-head .cabinet-id { width: 100%; }
-  .panel.cabinet-head .gauge-pair { margin-left: 0; width: 100%; }
+  .panel.cabinet-head .gauge-pair {
+    margin-left: 0;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+  .panel.cabinet-head .gauge-pair .plan-gauge,
+  .panel.cabinet-head .gauge-pair .gauge { width: 100%; min-width: 0; max-width: none; }
+  .panel.cabinet-head .gauge-pair .gauge svg { width: 120px; height: 102px; }
 }

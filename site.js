@@ -626,8 +626,8 @@ const currentLogo = () => {
   if (logoCleared) return "";
   if (Object.prototype.hasOwnProperty.call(brandPending, "ft-logo")) return brandPending["ft-logo"] || "";
   const profile = savedProfile();
-  if (profile && Object.prototype.hasOwnProperty.call(profile, "logo")) return profile.logo || "";
-  return localStorage.getItem("ft-logo") || "";
+  const fromProfile = profile && typeof profile.logo === "string" ? profile.logo.trim() : "";
+  return fromProfile || localStorage.getItem("ft-logo") || "";
 };
 const currentPhoto = () => {
   if (Object.prototype.hasOwnProperty.call(brandPending, "ft-photo")) return brandPending["ft-photo"] || "";
@@ -681,14 +681,14 @@ const deliverLogo = (logo, done) => {
   probe.onerror = () => { logoReady.set(logo, logo); done(logo); };
   probe.src = logo;
 };
-const placePortrait = (frame, img, crop) => {
+const placePortrait = (frame, img, crop, fit = "cover") => {
   const box = (img && img.closest(".portrait-clip")) || frame;
   const size = box.clientWidth || frame.clientWidth || 0;
   if (!size) return cropOf(crop) || defaultCrop();
   const nw = img.naturalWidth || size;
   const nh = img.naturalHeight || size;
   const z = Math.min(2.5, Math.max(1, Number(crop.z) || 1));
-  const cover = Math.max(size / nw, size / nh);
+  const cover = (fit === "contain" ? Math.min(size / nw, size / nh) : Math.max(size / nw, size / nh));
   const scale = cover * z;
   const slack = size * 0.28;
   const maxX = Math.max(slack, (nw * scale - size) / 2);
@@ -721,7 +721,7 @@ const layoutLogos = () => {
   document.querySelectorAll("[data-logo-frame]").forEach((frame) => {
     const img = frame.querySelector("[data-use='logo']");
     if (!img || img.hidden || !img.naturalWidth) return;
-    const next = placePortrait(frame, img, crop);
+    const next = placePortrait(frame, img, crop, "contain");
     if (frame.dataset.crop === "edit") placed = next;
   });
   if (logoCropPending && placed) logoCropPending = placed;
@@ -753,10 +753,6 @@ const applyBrand = () => {
     frame.hidden = !show;
     frame.classList.toggle("is-empty", !photo);
     bindPortrait(img, photo);
-  });
-  requestAnimationFrame(() => {
-    layoutPortraits();
-    layoutLogos();
   });
   document.querySelectorAll("[data-logo-frame]").forEach((frame) => {
     const img = frame.querySelector("[data-use='logo']");
@@ -802,6 +798,13 @@ const applyBrand = () => {
   const zoom = document.getElementById("photo-zoom");
   if (zoomWrap) zoomWrap.hidden = !photo;
   if (zoom && document.activeElement !== zoom) zoom.value = String(liveCrop().z);
+  document.querySelectorAll(".person-marks").forEach((box) => {
+    box.hidden = ![...box.querySelectorAll("[data-portrait], [data-logo-frame]")].some((frame) => !frame.hidden);
+  });
+  requestAnimationFrame(() => {
+    layoutPortraits();
+    layoutLogos();
+  });
 };
 const storeImage = (file, key, max) => {
   const reader = new FileReader();
@@ -2323,8 +2326,9 @@ const mountFolderBrowser = () => {
   if (viewSwitch) viewSwitch.hidden = !inside;
   document.querySelectorAll("[data-view-mode]").forEach((button) => button.classList.toggle("on", button.dataset.viewMode === mode));
   document.querySelectorAll("[data-display-choice]").forEach((field) => { field.value = mode; });
+  const showTiles = inside && !listMode;
+  const showSplitList = split && listMode;
   if (photos) {
-    const showTiles = inside && !listMode && !split;
     photos.hidden = !showTiles;
     photos.replaceChildren();
     if (showTiles) {
@@ -2332,15 +2336,19 @@ const mountFolderBrowser = () => {
       paintFiles();
     }
   }
-  if (emptyTiles) emptyTiles.hidden = !inside || listMode || split || filesInFolder(gid, fid).length > 0;
+  if (emptyTiles) emptyTiles.hidden = !showTiles || filesInFolder(gid, fid).length > 0;
 
   const splitWrap = document.getElementById("split-switch-wrap");
   const splitToggle = document.getElementById("split-toggle");
   const splitPanel = document.getElementById("split-panel");
   if (splitWrap) splitWrap.hidden = !inside;
   if (splitToggle) splitToggle.checked = split;
-  if (splitPanel) splitPanel.hidden = !split;
-  if (split) paintSplitList(gid, fid);
+  if (splitPanel) splitPanel.hidden = !showSplitList;
+  if (showSplitList) paintSplitList(gid, fid);
+  else {
+    const splitHost = document.getElementById("split-list");
+    if (splitHost) splitHost.replaceChildren();
+  }
   const listHost = document.getElementById("content-list");
   if (listHost) {
     const showList = listMode && !split;
@@ -2350,7 +2358,7 @@ const mountFolderBrowser = () => {
   }
 
   if (board) {
-    const showCards = !galleryGone && kids.length > 0 && drilled && !split && !listMode;
+    const showCards = !galleryGone && kids.length > 0 && drilled && !listMode;
     board.hidden = !showCards;
     board.replaceChildren();
     if (showCards) {
@@ -2676,6 +2684,14 @@ const placeRowMenu = (burger, menu) => {
   anchoredButton = burger;
 };
 document.addEventListener("click", (event) => {
+  const openLink = event.target.closest(".row-drop a[href]");
+  if (openLink) {
+    event.preventDefault();
+    const href = openLink.getAttribute("href");
+    closeRowMenus();
+    if (href) location.href = href;
+    return;
+  }
   const burger = event.target.closest(".row-burger");
   if (burger) {
     event.preventDefault();
@@ -2685,8 +2701,18 @@ document.addEventListener("click", (event) => {
     if (willOpen && menu) placeRowMenu(burger, menu);
     return;
   }
-  if (event.target.closest(".row-drop button, .row-drop a")) closeRowMenus();
-  else if (!event.target.closest(".row-drop")) closeRowMenus();
+  if (event.target.closest(".row-drop")) {
+    closeRowMenus();
+    return;
+  }
+  closeRowMenus();
+  if (event.target.closest("a, button, input, select, textarea, label, .pick")) return;
+  const opener = event.target.closest("#split-list [data-folder] h3, #split-list [data-folder] .row-text, #content-list [data-folder] h3, #content-list [data-folder] .row-text, #folder-cards [data-folder] h3");
+  if (!opener || pageFile() !== "cabinet.html") return;
+  const row = opener.closest("[data-folder]");
+  const folder = row?.dataset.folder;
+  if (!folder || row.dataset.file) return;
+  location.href = `cabinet.html?${folderQuery(row.dataset.gallery || galleryId(), folder)}`;
 });
 const menuHost = (node) => {
   const row = node.closest(".list-row, .split-row");
@@ -3823,6 +3849,7 @@ document.getElementById("split-toggle")?.addEventListener("change", (event) => {
   const all = splitMap();
   all[splitKey(galleryId(), folderId())] = event.target.checked;
   localStorage.setItem("ft-split", JSON.stringify(all));
+  if (event.target.checked) localStorage.setItem("ft-display", "list");
   mountFolderBrowser();
 });
 document.querySelectorAll("[data-view-mode]").forEach((button) => {
@@ -4577,7 +4604,7 @@ const ftSpeedometer = (ratio) => {
   const value = clamped > 0.004
     ? `<path d="${arc}" fill="none" stroke="url(#${id})" stroke-width="12" stroke-linecap="round" stroke-dasharray="${filled.toFixed(2)} ${length.toFixed(2)}" filter="url(#${id}f)"/>`
     : "";
-  return `<svg viewBox="20 24 164 140" aria-hidden="true">
+  return `<svg viewBox="20 24 164 140" width="164" height="140" aria-hidden="true">
     <defs>
       <linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}">
         <stop offset="0%" stop-color="#3ee6a0"/>
