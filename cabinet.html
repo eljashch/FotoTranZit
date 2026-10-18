@@ -137,23 +137,36 @@
           </article>
         </div>
         <div class="row-actions" id="explorer-tools" hidden>
-          <div class="view-switch" id="view-switch" hidden>
-            <button class="btn btn-line" type="button" data-view-mode="list">Список</button>
-            <button class="btn btn-line" type="button" data-view-mode="tiles">Галерея</button>
+          <div class="mini-bar view-switch" id="view-switch" hidden role="group" aria-label="Вид">
+            <button class="icon-btn" type="button" data-view-mode="list" aria-label="Список">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+            <button class="icon-btn" type="button" data-view-mode="tiles" aria-label="Сетка">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="5.2" height="5.2" rx="1"/><rect x="9.3" y="1.5" width="5.2" height="5.2" rx="1"/><rect x="1.5" y="9.3" width="5.2" height="5.2" rx="1"/><rect x="9.3" y="9.3" width="5.2" height="5.2" rx="1"/></svg>
+            </button>
           </div>
-          <button class="btn btn-line" id="add-any" type="button">Добавить</button>
-          <div class="add-menu" hidden>
-            <label class="btn btn-line">Файлы и документы
-              <input id="add-files" type="file" multiple>
-            </label>
-            <label class="btn btn-line">Папка с подпапками
-              <input id="add-tree" type="file" webkitdirectory directory multiple>
-            </label>
+          <div class="add-slot">
+            <div class="mini-bar add-bar">
+              <button type="button" id="add-any">Добавить</button>
+              <button type="button" id="add-folder">Новая папка</button>
+            </div>
+            <div class="add-menu" hidden>
+              <label class="btn btn-line">Файлы и документы
+                <input id="add-files" type="file" multiple>
+              </label>
+              <label class="btn btn-line">Папка с подпапками
+                <input id="add-tree" type="file" webkitdirectory directory multiple>
+              </label>
+            </div>
           </div>
-          <button class="btn btn-line" id="add-folder" type="button">Новая папка</button>
           <label class="split-toggle" id="split-switch-wrap"><span>Раздельная выдача</span><input id="split-toggle" type="checkbox"></label>
           <div class="upload-line" id="upload-line" hidden><i></i></div>
           <ul class="upload-fails" id="upload-fails" hidden></ul>
+        </div>
+        <div class="select-bar" id="select-bar" hidden>
+          <button type="button" id="select-hide">Скрыть</button>
+          <button type="button" id="select-privacy">Приватность</button>
+          <button type="button" id="select-delete" class="is-danger">Удалить</button>
         </div>
         <section id="split-panel" hidden>
           <details class="split-filters" open>
@@ -264,6 +277,10 @@
         <form class="modal">
           <input id="card-name" class="card-name" type="text" maxlength="120" autocomplete="off" aria-label="Название" placeholder="Название">
           <p class="hint" id="card-settings-hint">Эти переключатели действуют только на выбранную галерею.</p>
+          <div id="cover-pick">
+            <p class="hint" id="cover-pick-label">Обложка</p>
+            <div id="cover-choices" class="cover-choices"></div>
+          </div>
           <label id="card-pass-label">Пароль папки<input id="card-folder-pass" type="text" autocomplete="off"></label>
           <label class="switch"><span>Скачивание оригиналов</span><input data-card-opt="originals" type="checkbox"></label>
           <label class="switch"><span>Уменьшенная версия</span><input data-card-opt="small" type="checkbox"></label>
@@ -332,6 +349,18 @@
           <div class="row-actions">
             <button class="btn btn-dark" type="submit">Создать</button>
             <button class="btn btn-line" type="button" id="gallery-ask-cancel">Отмена</button>
+          </div>
+        </form>
+      </div>
+      <div class="folder-ask" id="privacy-ask" hidden>
+        <form class="folder-ask-card" id="privacy-ask-form">
+          <h2>Приватность</h2>
+          <p class="hint" id="privacy-ask-note"></p>
+          <label class="switch"><span>Приватно</span><input id="privacy-private" type="checkbox"></label>
+          <label>Пароль<input id="privacy-pass" type="text" autocomplete="off" placeholder="пароль"></label>
+          <div class="row-actions">
+            <button class="btn btn-dark" type="submit">Готово</button>
+            <button class="btn btn-line" type="button" id="privacy-cancel">Отмена</button>
           </div>
         </form>
       </div>
