@@ -98,7 +98,7 @@
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
             </div>
             <h3>Свадьба Марии и Ильи</h3>
-            <p>Удалится 12 ноября · 186 файлов · скачали 46</p>
+            <p><span data-keep="wedding">Удалится 12 ноября</span> · 186 файлов · скачали 46</p>
             <div class="row-actions">
               <a class="btn btn-line" href="cabinet.html?id=wedding">Открыть</a>
               <a class="btn btn-line" href="gallery.html?id=wedding">Ссылка</a>
@@ -111,7 +111,7 @@
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
             </div>
             <h3>Садик «Ромашка», группа 5</h3>
-            <p>Раздельная выдача · удалится 2 ноября · 240 файлов</p>
+            <p>Раздельная выдача · <span data-keep="kindergarten" data-keep-prefix="удалится">удалится 2 ноября</span> · 240 файлов</p>
             <div class="row-actions">
               <a class="btn btn-line" href="cabinet.html?id=kindergarten">Открыть</a>
               <a class="btn btn-line" href="gallery.html?id=kindergarten">Ссылка</a>
@@ -124,7 +124,7 @@
               <button class="card-set" type="button" data-open-settings aria-label="Настройки">Настройки</button>
             </div>
             <h3>Портрет в студии</h3>
-            <p>Удалится 18 ноября · 60 файлов · скачали 12</p>
+            <p><span data-keep="portrait">Удалится 18 ноября</span> · 60 файлов · скачали 12</p>
             <div class="row-actions">
               <a class="btn btn-line" href="cabinet.html?id=portrait">Открыть</a>
               <a class="btn btn-line" href="gallery.html?id=portrait">Ссылка</a>
@@ -137,9 +137,13 @@
             <button class="btn btn-line" type="button" data-view-mode="list">Список</button>
             <button class="btn btn-line" type="button" data-view-mode="tiles">Галерея</button>
           </div>
-          <button class="btn btn-line" id="add-any" type="button" title="Щелчок — файлы. Двойной щелчок — папка с подпапками.">Добавить</button>
-          <input id="add-files" type="file" multiple hidden>
-          <input id="add-tree" type="file" webkitdirectory directory multiple hidden>
+          <label class="btn btn-line">Файлы
+            <input id="add-files" type="file" multiple>
+          </label>
+          <label class="btn btn-line">Папка
+            <input id="add-tree" type="file" webkitdirectory directory multiple>
+          </label>
+          <button class="btn btn-line" id="add-folder" type="button">Новая папка</button>
           <label class="split-toggle" id="split-switch-wrap"><span>Раздельная выдача</span><input id="split-toggle" type="checkbox"></label>
           <div class="upload-line" id="upload-line" hidden><i></i></div>
           <ul class="upload-fails" id="upload-fails" hidden></ul>
@@ -266,6 +270,13 @@
             </select>
           </label>
           <p class="hint">Список или галерея — только ваш экран. Клиент всегда видит плитки.</p>
+          <div id="keep-box">
+            <label>Срок хранения, дней
+              <input id="keep-days" type="number" min="1" max="3650" step="1" inputmode="numeric" placeholder="Свой срок" autocomplete="off">
+            </label>
+            <label class="switch"><span>Удалять автоматически</span><input id="keep-auto" type="checkbox"></label>
+            <p class="hint keep-warn" id="keep-warn">Если заканчивается тариф, максимальный срок хранения с момента создания — 30 дней.</p>
+          </div>
           <div class="row-actions">
             <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
             <button class="btn btn-dark" id="save-card" type="button" hidden>Сохранить</button>
@@ -310,7 +321,7 @@
       <div class="folder-ask" id="folder-ask" hidden>
         <form class="folder-ask-card" id="folder-ask-form">
           <h2>Новая папка</h2>
-          <input id="folder-ask-name" type="text" placeholder="Название папки" autocomplete="off" aria-label="Название папки" maxlength="120">
+          <input id="folder-ask-name" type="text" value="" placeholder="Название папки" autocomplete="off" aria-label="Название папки" maxlength="120">
           <div class="row-actions">
             <button class="btn btn-dark" type="submit">Создать</button>
             <button class="btn btn-line" type="button" id="folder-ask-cancel">Отмена</button>

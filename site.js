@@ -110,9 +110,9 @@ const readJson = (key, fallback) => {
 };
 const writeList = (key, list) => localStorage.setItem(key, JSON.stringify(list));
 const GALLERY_META = {
-  wedding: { title: "Свадьба Марии и Ильи", date: "12 сентября", cover: "img/p1.jpg", until: "12 ноября 2026" },
-  kindergarten: { title: "Садик «Ромашка», группа 5", date: "2 ноября", cover: "img/p5.jpg", until: "2 ноября 2026" },
-  portrait: { title: "Портрет в студии", date: "18 ноября", cover: "img/cover.jpg", until: "18 ноября 2026" }
+  wedding: { title: "Свадьба Марии и Ильи", date: "12 сентября", cover: "img/p1.jpg", until: "12 ноября 2026", created: "2026-09-12", untilDate: "2026-11-12" },
+  kindergarten: { title: "Садик «Ромашка», группа 5", date: "2 ноября", cover: "img/p5.jpg", until: "2 ноября 2026", created: "2026-10-03", untilDate: "2026-11-02" },
+  portrait: { title: "Портрет в студии", date: "18 ноября", cover: "img/cover.jpg", until: "18 ноября 2026", created: "2026-10-19", untilDate: "2026-11-18" }
 };
 const GALLERY_DEFAULTS = {
   wedding: { secret: "свадьба", hidden: ["p5", "p6"], deleted: [], originals: false, small: true, open: true, watermark: true, guard: true },
@@ -210,6 +210,53 @@ const saveSettings = (patch, id = galleryId()) => {
   const all = loadSettings();
   all[id] = { ...settings(id), ...patch };
   localStorage.setItem("ft-settings", JSON.stringify(all));
+};
+const KEEP_MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const keepDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const keepRu = (date, withYear) => {
+  const text = `${date.getDate()} ${KEEP_MONTHS[date.getMonth()]}`;
+  return withYear ? `${text} ${date.getFullYear()}` : text;
+};
+const parseISODate = (value) => {
+  const parts = String(value || "").split("-").map(Number);
+  if (parts.length < 3 || parts.some((part) => !part)) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+const tariffStillActive = () => {
+  const today = keepDay(new Date());
+  const trialEnd = new Date(2026, 9, 21);
+  if (today < keepDay(trialEnd)) return true;
+  try {
+    const queued = JSON.parse(localStorage.getItem("ft-next") || "null");
+    const days = queued && (queued.name === "Старт" || queued.name === "Профи" || queued.name === "Студия") ? 30 : 0;
+    if (!days) return false;
+    const end = new Date(trialEnd.getFullYear(), trialEnd.getMonth(), trialEnd.getDate() + days);
+    return today < keepDay(end);
+  } catch (error) { return false; }
+};
+const galleryCreated = (id) => parseISODate(GALLERY_META[id]?.created) || keepDay(new Date());
+const galleryDefaultEnd = (id) => parseISODate(GALLERY_META[id]?.untilDate) || galleryCreated(id);
+const galleryExpiry = (id) => {
+  const saved = settings(id);
+  const created = galleryCreated(id);
+  const chosen = Number(saved.keepDays);
+  let end = chosen > 0
+    ? new Date(created.getFullYear(), created.getMonth(), created.getDate() + chosen)
+    : galleryDefaultEnd(id);
+  if (!tariffStillActive()) {
+    const cap = new Date(created.getFullYear(), created.getMonth(), created.getDate() + 30);
+    if (cap < end) end = cap;
+  }
+  return keepDay(end);
+};
+const keepDateIsCustom = (id) => Number(settings(id).keepDays) > 0 || !tariffStillActive();
+const paintKeepDates = () => {
+  document.querySelectorAll("[data-keep]").forEach((node) => {
+    const id = node.dataset.keep === "current" ? galleryId() : node.dataset.keep;
+    if (!GALLERY_META[id] || !keepDateIsCustom(id)) return;
+    const prefix = node.dataset.keepPrefix || "Удалится";
+    node.textContent = `${prefix} ${keepRu(galleryExpiry(id), false)}`;
+  });
 };
 const pending = {};
 const liveSettings = (id = galleryId()) => {
@@ -1072,6 +1119,21 @@ const restoreFolder = (item) => {
   dropTrash((row) => row.kind === "folder" && row.id === fid && (row.gallery || "") === (gid || ""));
   return note;
 };
+const restoreGallery = (item) => {
+  const id = item.id || item.gallery;
+  if (!id) return;
+  writeList("ft-gone", goneGalleries().filter((row) => row !== id));
+  dropTrash((row) => (row.kind || "gallery") === "gallery" && row.id === id);
+};
+const sweepExpiredGalleries = () => {
+  Object.keys(GALLERY_META).forEach((id) => {
+    if (!settings(id).autoDelete || goneGalleries().includes(id)) return;
+    if (keepDay(new Date()) < galleryExpiry(id)) return;
+    const card = document.querySelector(`#gallery-cards > [data-gallery="${id}"]`);
+    moveGalleryToTrash(id, card);
+    card?.remove();
+  });
+};
 let deleteJob = null;
 const closeDeleteAsk = () => {
   const modal = document.getElementById("delete-ask");
@@ -1116,6 +1178,7 @@ document.getElementById("delete-gallery")?.addEventListener("click", () => {
   });
 });
 
+sweepExpiredGalleries();
 document.querySelectorAll("[data-gallery]").forEach((card) => {
   if (goneGalleries().includes(card.dataset.gallery)) card.remove();
 });
@@ -1194,6 +1257,12 @@ const fillCardSettings = (id, folder = "") => {
     if (folder) next.set("folder", folder);
     files.href = `project.html?${next.toString()}`;
   }
+  const keepBox = document.getElementById("keep-box");
+  if (keepBox) keepBox.hidden = Boolean(folder) || pageFile() === "gallery.html";
+  const keepDays = document.getElementById("keep-days");
+  const keepAuto = document.getElementById("keep-auto");
+  if (keepDays) keepDays.value = !folder && Number(galleryState.keepDays) > 0 ? String(galleryState.keepDays) : "";
+  if (keepAuto) keepAuto.checked = !folder && Boolean(galleryState.autoDelete);
 };
 document.addEventListener("click", (event) => {
   const button = event.target.closest("[data-open-settings]");
@@ -1227,6 +1296,18 @@ document.querySelectorAll("[data-card-opt]").forEach((field) => {
     revealSave("save-card");
   });
 });
+document.getElementById("keep-days")?.addEventListener("input", (event) => {
+  if (settingsFolder) return;
+  const raw = event.target.value.trim();
+  const days = Math.round(Number(raw));
+  pending[settingsCard] = { ...(pending[settingsCard] || {}), keepDays: raw && days > 0 ? days : "" };
+  revealSave("save-card");
+});
+document.getElementById("keep-auto")?.addEventListener("change", (event) => {
+  if (settingsFolder) return;
+  pending[settingsCard] = { ...(pending[settingsCard] || {}), autoDelete: event.target.checked };
+  revealSave("save-card");
+});
 document.getElementById("save-card")?.addEventListener("click", () => {
   if (pending[settingsCard]) {
     if (settingsFolder) {
@@ -1240,6 +1321,8 @@ document.getElementById("save-card")?.addEventListener("click", () => {
   }
   delete pending[settingsCard];
   document.getElementById("save-card").hidden = true;
+  paintKeepDates();
+  sweepExpiredGalleries();
   paintFiles();
   flashSaved();
 });
@@ -1798,7 +1881,11 @@ const paintClient = (gid, fid) => {
     back.href = parentFolderHref(gid, fid, true);
   }
   const until = document.getElementById("client-until");
-  if (until) until.textContent = `Хранится до ${GALLERY_META[gid].until}`;
+  if (until) {
+    until.textContent = keepDateIsCustom(gid)
+      ? `Хранится до ${keepRu(galleryExpiry(gid), true)}`
+      : `Хранится до ${GALLERY_META[gid].until}`;
+  }
   const locked = fid ? (folderAccessOf(gid, fid).password || "") : "";
   const gate = document.getElementById("client-lock");
   const knownPass = !locked || sessionStorage.getItem(`ft-foldpass-${gid}/${fid}`) === locked;
@@ -2603,37 +2690,6 @@ window.visualViewport?.addEventListener("scroll", () => {
   placeOverlayBox(document.getElementById("secret-panel"));
 });
 document.getElementById("add-folder")?.addEventListener("click", () => openFolderAsk());
-const bindAddButton = (buttonId, fileId, treeId) => {
-  const button = document.getElementById(buttonId);
-  const files = document.getElementById(fileId);
-  const tree = document.getElementById(treeId);
-  if (!button || !files || !tree || button.dataset.addBound) return;
-  button.dataset.addBound = "1";
-  const menu = document.createElement("div");
-  menu.className = "add-menu";
-  menu.hidden = true;
-  const choice = (label, input) => {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "btn btn-line";
-    item.textContent = label;
-    item.addEventListener("click", (event) => {
-      event.stopPropagation();
-      menu.hidden = true;
-      input.click();
-    });
-    menu.appendChild(item);
-  };
-  choice("Файлы", files);
-  choice("Папка", tree);
-  button.insertAdjacentElement("afterend", menu);
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    menu.hidden = !menu.hidden;
-  });
-};
-bindAddButton("add-any", "add-files", "add-tree");
-bindAddButton("add-any", "pick-files", "pick-folder");
 document.getElementById("folder-ask-form")?.addEventListener("submit", (event) => {
   event.preventDefault();
   const name = folderAskInput?.value.trim() || "";
@@ -2829,16 +2885,18 @@ document.addEventListener("click", (event) => {
   event.preventDefault();
   openSecretPanel(button.dataset.secretGallery || galleryId(), button.dataset.secretFolder || "");
 });
+let uploadQueue = Promise.resolve();
+const enqueueUploads = (files) => {
+  const list = [...files || []];
+  if (!list.length) return;
+  uploadQueue = uploadQueue.then(() => ingestUploads(list)).catch(() => {});
+};
 const takeUploads = (event) => {
-  const picked = event.target.files;
-  ingestUploads(picked);
+  enqueueUploads(event.target.files);
   event.target.value = "";
 };
 ["add-files", "add-tree", "pick-files", "pick-folder"].forEach((id) => {
   document.getElementById(id)?.addEventListener("change", takeUploads);
-});
-document.addEventListener("click", () => {
-  document.querySelectorAll(".add-menu").forEach((menu) => { menu.hidden = true; });
 });
 const readEntryFile = (entry) => new Promise((resolve, reject) => entry.file(resolve, reject));
 const readEntryBatch = (reader) => new Promise((resolve, reject) => reader.readEntries(resolve, reject));
@@ -2872,7 +2930,7 @@ const filesFromDrop = async (transfer) => {
 const takeDrop = async (event) => {
   event.preventDefault();
   const files = await filesFromDrop(event.dataTransfer);
-  ingestUploads(files);
+  enqueueUploads(files);
 };
 const dropZone = document.getElementById("drop-zone");
 if (dropZone) {
@@ -3684,19 +3742,30 @@ const paintTrash = () => {
     meta.className = "hint";
     meta.textContent = `${kind}. Срок с создания не продлевается.`;
     row.append(title, meta);
-    if (item.kind === "folder") {
+    if (item.kind === "folder" || item.kind === "gallery") {
       const restore = document.createElement("button");
       restore.type = "button";
       restore.className = "btn btn-line";
       restore.textContent = "Восстановить";
-      restore.dataset.restoreFolder = item.id || "";
-      restore.dataset.restoreGallery = item.gallery || "";
+      if (item.kind === "folder") {
+        restore.dataset.restoreFolder = item.id || "";
+        restore.dataset.restoreGallery = item.gallery || "";
+      } else restore.dataset.restoreGalleryItem = item.id || item.gallery || "";
       row.appendChild(restore);
     }
     host.appendChild(row);
   });
 };
 document.getElementById("trash-list")?.addEventListener("click", (event) => {
+  const galleryButton = event.target.closest("[data-restore-gallery-item]");
+  if (galleryButton) {
+    const id = galleryButton.dataset.restoreGalleryItem || "";
+    const item = loadTrash().find((row) => (row.kind || "gallery") === "gallery" && row.id === id);
+    if (!item) return;
+    restoreGallery(item);
+    paintTrash();
+    return;
+  }
   const button = event.target.closest("[data-restore-folder]");
   if (!button) return;
   const gid = button.dataset.restoreGallery || "";
@@ -3796,3 +3865,4 @@ if (billingLead) {
   const head = phrase.charAt(0).toUpperCase() + phrase.slice(1);
   billingLead.textContent = `${head}, до ${ftRuDate(trial.end)}. Занято 6,4 из 20 ГБ. Пакет ещё действует: новый можно оплатить сейчас, он начнётся 21 октября 2026, когда текущий закончится.`;
 }
+paintKeepDates();

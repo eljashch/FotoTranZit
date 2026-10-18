@@ -414,7 +414,7 @@ h1 em {
 }
 form { display: grid; gap: 12px; }
 label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
-input[type="text"], input[type="email"], input[type="password"] {
+input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
   width: 100%;
   border: 1px solid var(--line);
   background: rgba(4, 12, 22, 0.45);
@@ -736,6 +736,9 @@ input[type="text"], input[type="email"], input[type="password"] {
 .view-switch { display: contents; }
 .add-menu { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .add-menu[hidden] { display: none !important; }
+#keep-box[hidden] { display: none !important; }
+.keep-warn { color: #ffe1a8; }
+input[type="number"] { height: 40px; min-height: 40px; padding: 0 14px; border-radius: 12px; }
 .view-switch .on { color: #fff; background: linear-gradient(180deg, #3ec8ff, #2f6dff); border-color: transparent; }
 .split-toggle { max-width: 100%; }
 .list-row, .split-row {
@@ -1608,7 +1611,18 @@ body.client-view .g-top { display: none !important; }
 }
 .client-shot .heart.on { color: #e23b64; }
 .client-shot p { margin: 0; padding: 8px 10px 10px; color: #3a4454; font-size: 14px; }
-label.btn input[type="file"] { display: none; }
+label.btn { position: relative; }
+label.btn input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 @media (min-width: 1280px) {
   .client-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
   .client-folders { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
