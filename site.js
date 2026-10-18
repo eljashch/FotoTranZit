@@ -187,9 +187,31 @@ const filesInFolder = (gid, fid) => {
   const extra = readList("ft-user-files").filter((file) => file.gallery === gid && (file.folder || "") === place && !deleted.has(file.id));
   return [...base, ...extra];
 };
+const loadUserGalleries = () => {
+  try {
+    const list = JSON.parse(localStorage.getItem("ft-user-galleries") || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch (error) { return []; }
+};
+const galleryBook = GALLERY_META;
+const galleryMeta = (id) => {
+  const custom = loadUserGalleries().find((row) => row.id === id);
+  if (custom) {
+    return {
+      title: custom.title || "",
+      date: custom.date || "",
+      cover: custom.cover || "img/folder-neon.svg",
+      until: custom.until || "",
+      created: custom.created || "",
+      untilDate: custom.untilDate || ""
+    };
+  }
+  return galleryBook[id] || { title: "", date: "", cover: "img/p3.jpg", until: "", created: "", untilDate: "" };
+};
 const galleryId = () => {
   const id = new URLSearchParams(location.search).get("id");
-  return GALLERY_DEFAULTS[id] ? id : "wedding";
+  if (id && (GALLERY_DEFAULTS[id] || loadUserGalleries().some((row) => row.id === id))) return id;
+  return "wedding";
 };
 const folderId = () => params.get("folder") || "";
 const pageFile = () => (location.pathname.split("/").pop() || "").toLowerCase();
@@ -198,7 +220,7 @@ const loadSettings = () => {
 };
 const settings = (id = galleryId()) => {
   const saved = loadSettings()[id] || {};
-  const base = GALLERY_DEFAULTS[id] || GALLERY_DEFAULTS.wedding;
+  const base = GALLERY_DEFAULTS[id] || { secret: "", hidden: [], deleted: [], originals: false, small: true, open: true, watermark: false, guard: false };
   return {
     ...base,
     ...saved,
@@ -234,8 +256,8 @@ const tariffStillActive = () => {
     return today < keepDay(end);
   } catch (error) { return false; }
 };
-const galleryCreated = (id) => parseISODate(GALLERY_META[id]?.created) || keepDay(new Date());
-const galleryDefaultEnd = (id) => parseISODate(GALLERY_META[id]?.untilDate) || galleryCreated(id);
+const galleryCreated = (id) => parseISODate(galleryMeta(id)?.created) || keepDay(new Date());
+const galleryDefaultEnd = (id) => parseISODate(galleryMeta(id)?.untilDate) || galleryCreated(id);
 const galleryExpiry = (id) => {
   const saved = settings(id);
   const created = galleryCreated(id);
@@ -253,7 +275,7 @@ const keepDateIsCustom = (id) => Number(settings(id).keepDays) > 0 || !tariffSti
 const paintKeepDates = () => {
   document.querySelectorAll("[data-keep]").forEach((node) => {
     const id = node.dataset.keep === "current" ? galleryId() : node.dataset.keep;
-    if (!GALLERY_META[id] || !keepDateIsCustom(id)) return;
+    if (!galleryMeta(id) || !keepDateIsCustom(id)) return;
     const prefix = node.dataset.keepPrefix || "Удалится";
     node.textContent = `${prefix} ${keepRu(galleryExpiry(id), false)}`;
   });
@@ -562,45 +584,96 @@ let logoCleared = false;
 let cropPending = null;
 let logoCropPending = null;
 const defaultCrop = () => ({ x: 0, y: 0, z: 1 });
+const savedProfile = () => {
+  try { return JSON.parse(localStorage.getItem("ft-profile") || "null"); } catch (error) { return null; }
+};
+const cropOf = (raw) => {
+  if (!raw || typeof raw !== "object") return null;
+  return {
+    x: Number(raw.x) || 0,
+    y: Number(raw.y) || 0,
+    z: Math.min(2.5, Math.max(1, Number(raw.z) || 1))
+  };
+};
 const storedCrop = () => {
-  try {
-    const raw = JSON.parse(localStorage.getItem("ft-photo-crop") || "null");
-    if (raw && typeof raw === "object") {
-      return {
-        x: Number(raw.x) || 0,
-        y: Number(raw.y) || 0,
-        z: Math.min(2.5, Math.max(1, Number(raw.z) || 1))
-      };
-    }
-  } catch (error) { /* keep the default crop */ }
-  return defaultCrop();
+  const profile = savedProfile();
+  const fromProfile = cropOf(profile && profile.photoCrop);
+  if (fromProfile) return fromProfile;
+  try { return cropOf(JSON.parse(localStorage.getItem("ft-photo-crop") || "null")) || defaultCrop(); }
+  catch (error) { return defaultCrop(); }
 };
 const liveCrop = () => cropPending || storedCrop();
 const storedLogoCrop = () => {
-  try {
-    const raw = JSON.parse(localStorage.getItem("ft-logo-crop") || "null");
-    if (raw && typeof raw === "object") {
-      return {
-        x: Number(raw.x) || 0,
-        y: Number(raw.y) || 0,
-        z: Math.min(2.5, Math.max(1, Number(raw.z) || 1))
-      };
-    }
-  } catch (error) { /* keep the default crop */ }
-  return defaultCrop();
+  const profile = savedProfile();
+  const fromProfile = cropOf(profile && profile.logoCrop);
+  if (fromProfile) return fromProfile;
+  try { return cropOf(JSON.parse(localStorage.getItem("ft-logo-crop") || "null")) || defaultCrop(); }
+  catch (error) { return defaultCrop(); }
 };
 const liveLogoCrop = () => logoCropPending || storedLogoCrop();
 const currentLogo = () => {
   if (logoCleared) return "";
   if (Object.prototype.hasOwnProperty.call(brandPending, "ft-logo")) return brandPending["ft-logo"] || "";
+  const profile = savedProfile();
+  if (profile && Object.prototype.hasOwnProperty.call(profile, "logo")) return profile.logo || "";
   return localStorage.getItem("ft-logo") || "";
 };
 const currentPhoto = () => {
   if (Object.prototype.hasOwnProperty.call(brandPending, "ft-photo")) return brandPending["ft-photo"] || "";
+  const profile = savedProfile();
+  if (profile && profile.photo) return profile.photo;
   return localStorage.getItem("ft-photo") || "";
 };
+const punchCanvasMatte = (canvas) => {
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (!ctx) return false;
+  let data;
+  try { data = ctx.getImageData(0, 0, canvas.width, canvas.height); }
+  catch (error) { return false; }
+  const px = data.data;
+  let clear = 0;
+  let samples = 0;
+  for (let i = 3; i < px.length; i += 64) {
+    samples += 1;
+    if (px[i] < 16) clear += 1;
+  }
+  if (samples && clear / samples > 0.03) return false;
+  let changed = false;
+  for (let i = 0; i < px.length; i += 4) {
+    const max = Math.max(px[i], px[i + 1], px[i + 2]);
+    const min = Math.min(px[i], px[i + 1], px[i + 2]);
+    if (max <= 32 && max - min <= 16) {
+      if (px[i + 3]) changed = true;
+      px[i + 3] = 0;
+    }
+  }
+  if (!changed) return false;
+  ctx.putImageData(data, 0, 0);
+  return true;
+};
+const logoReady = new Map();
+const deliverLogo = (logo, done) => {
+  if (!logo) { done(""); return; }
+  if (logoReady.has(logo)) { done(logoReady.get(logo)); return; }
+  const probe = new Image();
+  probe.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = probe.naturalWidth || probe.width || 1;
+    canvas.height = probe.naturalHeight || probe.height || 1;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(probe, 0, 0);
+    const next = punchCanvasMatte(canvas) ? canvas.toDataURL("image/png") : logo;
+    logoReady.set(logo, next);
+    done(next);
+  };
+  probe.onerror = () => { logoReady.set(logo, logo); done(logo); };
+  probe.src = logo;
+};
 const placePortrait = (frame, img, crop) => {
-  const size = frame.clientWidth || 168;
+  const box = (img && img.closest(".portrait-clip")) || frame;
+  const size = box.clientWidth || frame.clientWidth || 0;
+  if (!size) return cropOf(crop) || defaultCrop();
   const nw = img.naturalWidth || size;
   const nh = img.naturalHeight || size;
   const z = Math.min(2.5, Math.max(1, Number(crop.z) || 1));
@@ -611,6 +684,10 @@ const placePortrait = (frame, img, crop) => {
   const maxY = Math.max(slack, (nh * scale - size) / 2);
   const ox = Math.max(-maxX, Math.min(maxX, (Number(crop.x) || 0) * size));
   const oy = Math.max(-maxY, Math.min(maxY, (Number(crop.y) || 0) * size));
+  img.style.left = "50%";
+  img.style.top = "50%";
+  img.style.maxWidth = "none";
+  img.style.maxHeight = "none";
   img.style.width = `${nw}px`;
   img.style.height = `${nh}px`;
   img.style.transform = `translate(-50%, -50%) translate(${ox}px, ${oy}px) scale(${scale})`;
@@ -630,11 +707,11 @@ const layoutPortraits = () => {
 const layoutLogos = () => {
   const crop = liveLogoCrop();
   let placed = null;
-  document.querySelectorAll("[data-logo-frame]").forEach((frame) => {
+  document.querySelectorAll("[data-logo-frame][data-crop='edit']").forEach((frame) => {
     const img = frame.querySelector("[data-use='logo']");
     if (!img || img.hidden || !img.naturalWidth) return;
     const next = placePortrait(frame, img, crop);
-    if (frame.dataset.crop === "edit") placed = next;
+    placed = next;
   });
   if (logoCropPending && placed) logoCropPending = placed;
 };
@@ -666,7 +743,10 @@ const applyBrand = () => {
     frame.classList.toggle("is-empty", !photo);
     bindPortrait(img, photo);
   });
-  requestAnimationFrame(() => layoutPortraits());
+  requestAnimationFrame(() => {
+    layoutPortraits();
+    layoutLogos();
+  });
   document.querySelectorAll("[data-logo-frame]").forEach((frame) => {
     const img = frame.querySelector("[data-use='logo']");
     if (!img) return;
@@ -676,27 +756,34 @@ const applyBrand = () => {
       img.hidden = true;
       img.removeAttribute("src");
       delete img.dataset.bound;
-      return;
     }
-    img.hidden = false;
-    if (img.dataset.bound === logo && img.complete && img.naturalWidth) {
-      layoutLogos();
-      return;
-    }
-    img.dataset.bound = logo;
-    img.onload = () => layoutLogos();
-    img.src = logo;
   });
-  document.querySelectorAll("[data-use='logo']").forEach((img) => {
-    if (img.closest("[data-logo-frame]")) return;
-    if (logo) {
-      img.src = logo;
+  const paintLogoSrc = (src) => {
+    document.querySelectorAll("[data-use='logo']").forEach((img) => {
+      if (!src) {
+        img.hidden = true;
+        img.removeAttribute("src");
+        delete img.dataset.bound;
+        return;
+      }
       img.hidden = false;
-    } else {
-      img.hidden = true;
-      img.removeAttribute("src");
-    }
-  });
+      if (img.dataset.bound === logo && img.getAttribute("src") === src && img.complete && img.naturalWidth) {
+        if (img.closest("[data-logo-frame]")) layoutLogos();
+        return;
+      }
+      img.dataset.bound = logo;
+      const drawLogo = () => { if (img.closest("[data-logo-frame]")) layoutLogos(); };
+      img.onload = drawLogo;
+      if (img.getAttribute("src") !== src) img.src = src;
+      if (img.complete && img.naturalWidth) drawLogo();
+      else img.decode?.().then(drawLogo).catch(() => {});
+    });
+  };
+  if (!logo) paintLogoSrc("");
+  else {
+    paintLogoSrc(logo);
+    deliverLogo(logo, paintLogoSrc);
+  }
   document.querySelectorAll("[data-logo-slot]").forEach((slot) => { slot.hidden = !logo; });
   const deleteLogo = document.getElementById("delete-logo");
   if (deleteLogo) deleteLogo.hidden = !logo;
@@ -717,6 +804,7 @@ const storeImage = (file, key, max) => {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      if (key === "ft-logo") punchCanvasMatte(canvas);
       const keepAlpha = key === "ft-logo";
       brandPending[key] = keepAlpha ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.86);
       if (key === "ft-logo") {
@@ -802,10 +890,11 @@ document.addEventListener("click", (event) => {
   else cropPending = placed;
   revealSave("save-profile");
 });
-window.addEventListener("resize", () => layoutPortraits());
+window.addEventListener("resize", () => { layoutPortraits(); layoutLogos(); });
+window.addEventListener("load", () => { layoutPortraits(); layoutLogos(); });
 applyBrand();
 
-const meta = GALLERY_META[galleryId()];
+const meta = galleryMeta(galleryId());
 document.querySelectorAll("[data-gallery-title]").forEach((node) => { node.textContent = meta.title; });
 document.querySelectorAll("[data-gallery-date]").forEach((node) => { node.textContent = meta.date; });
 document.querySelectorAll("[data-gallery-cover]").forEach((img) => { img.src = meta.cover; });
@@ -1055,9 +1144,9 @@ const galleryTrashSnapshot = (id, card) => ({
   kind: "gallery",
   id,
   gallery: id,
-  title: card?.querySelector("h3")?.textContent?.trim() || GALLERY_META[id]?.title || id,
+  title: card?.querySelector("h3")?.textContent?.trim() || galleryMeta(id)?.title || id,
   meta: card?.querySelector("p")?.textContent?.trim() || "",
-  cover: card?.querySelector("img")?.getAttribute("src") || GALLERY_META[id]?.cover || ""
+  cover: card?.querySelector("img")?.getAttribute("src") || galleryMeta(id)?.cover || ""
 });
 const moveGalleryToTrash = (id, card) => {
   if (!id) return;
@@ -1200,6 +1289,60 @@ function fitCardGrids() {
 }
 fitCardGrids();
 window.addEventListener("resize", () => fitCardGrids());
+function paintUserGalleryCards() {
+  const board = document.getElementById("gallery-cards");
+  if (!board || pageFile() !== "cabinet.html") return;
+  board.querySelectorAll("[data-user-gallery]").forEach((node) => node.remove());
+  const gone = new Set(goneGalleries());
+  loadUserGalleries().forEach((row) => {
+    if (gone.has(row.id)) return;
+    const card = document.createElement("article");
+    card.className = "gcard";
+    card.dataset.gallery = row.id;
+    card.dataset.userGallery = "";
+    const wrap = document.createElement("div");
+    wrap.className = "cover-wrap";
+    const openCover = document.createElement("a");
+    openCover.className = "cover-open";
+    openCover.href = `cabinet.html?id=${row.id}`;
+    const img = document.createElement("img");
+    img.src = row.cover || "img/folder-neon.svg";
+    img.alt = "";
+    openCover.appendChild(img);
+    const settingsBtn = document.createElement("button");
+    settingsBtn.className = "card-set";
+    settingsBtn.type = "button";
+    settingsBtn.dataset.openSettings = "";
+    settingsBtn.setAttribute("aria-label", "Настройки");
+    settingsBtn.textContent = "Настройки";
+    wrap.append(openCover, settingsBtn);
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+    const open = document.createElement("a");
+    open.className = "btn btn-line";
+    open.href = `cabinet.html?id=${row.id}`;
+    open.textContent = "Открыть";
+    const link = document.createElement("a");
+    link.className = "btn btn-line";
+    link.href = `gallery.html?id=${row.id}`;
+    link.textContent = "Ссылка";
+    const remove = document.createElement("button");
+    remove.className = "btn btn-line btn-danger";
+    remove.type = "button";
+    remove.dataset.delGallery = "";
+    remove.textContent = "Удалить";
+    actions.append(open, link, remove);
+    const heading = document.createElement("h3");
+    heading.textContent = row.title || "";
+    const meta = document.createElement("p");
+    meta.textContent = row.until ? `Удалится ${row.until}` : "";
+    card.append(wrap, heading, meta, actions);
+    board.appendChild(card);
+  });
+  if (galleriesEmpty) galleriesEmpty.hidden = board.children.length > 0;
+  fitCardGrids();
+}
+paintUserGalleryCards();
 
 document.querySelectorAll("[data-del-gallery]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -1240,7 +1383,7 @@ const fillCardSettings = (id, folder = "") => {
     deleted: galleryState.deleted
   } : galleryState;
   const titleNode = document.getElementById("card-settings-title");
-  if (titleNode) titleNode.textContent = folder ? (folderTitle(id, folder) || GALLERY_META[id].title) : GALLERY_META[id].title;
+  if (titleNode) titleNode.textContent = folder ? (folderTitle(id, folder) || galleryMeta(id).title) : galleryMeta(id).title;
   const hint = document.getElementById("card-settings-hint");
   if (hint) hint.textContent = folder ? "Эти переключатели действуют только на выбранную папку." : "Эти переключатели действуют только на выбранную галерею.";
   const passLabel = document.getElementById("card-pass-label");
@@ -1380,16 +1523,11 @@ if (profileForm) {
     "pf-phone": seed.phone || "",
     "pf-email": saved ? (saved.email || "") : ((user && user.email) || ""),
     "pf-site": seed.site || "",
-    "pf-vk": seed.vk || "",
     "pf-max": seed.max || ""
   };
   Object.entries(fields).forEach(([id, value]) => {
     const node = document.getElementById(id);
     if (node) node.value = value;
-  });
-  ["phone", "email", "site", "vk", "max"].forEach((key) => {
-    const box = document.getElementById(`pf-show-${key}`);
-    if (box) box.checked = Boolean(seed.show && seed.show[key]);
   });
   const banner = document.getElementById("fill-card");
   if (banner && localStorage.getItem("ft-ask-card") === "1") banner.hidden = false;
@@ -1413,18 +1551,30 @@ if (profileForm) {
       phone: read("pf-phone"),
       email: read("pf-email"),
       site: read("pf-site"),
-      vk: read("pf-vk"),
       max: read("pf-max"),
-      socials: typeof window.ftReadSocials === "function" ? window.ftReadSocials() : ((loadProfile() && loadProfile().socials) || []),
-      show: {
-        phone: document.getElementById("pf-show-phone")?.checked || false,
-        email: document.getElementById("pf-show-email")?.checked || false,
-        site: document.getElementById("pf-show-site")?.checked || false,
-        vk: document.getElementById("pf-show-vk")?.checked || false,
-        max: document.getElementById("pf-show-max")?.checked || false
-      }
+      socials: []
     };
-    localStorage.setItem("ft-profile", JSON.stringify(profile));
+    const photoValue = Object.prototype.hasOwnProperty.call(brandPending, "ft-photo")
+      ? (brandPending["ft-photo"] || "")
+      : (localStorage.getItem("ft-photo") || "");
+    const logoValue = logoCleared
+      ? ""
+      : (Object.prototype.hasOwnProperty.call(brandPending, "ft-logo")
+        ? (brandPending["ft-logo"] || "")
+        : (localStorage.getItem("ft-logo") || ""));
+    profile.photo = photoValue;
+    profile.logo = logoValue;
+    profile.photoCrop = cropPending || storedCrop();
+    if (!logoCleared) profile.logoCrop = logoCropPending || storedLogoCrop();
+    try {
+      localStorage.setItem("ft-profile", JSON.stringify(profile));
+    } catch (error) {
+      delete profile.photo;
+      delete profile.logo;
+      delete profile.photoCrop;
+      delete profile.logoCrop;
+      localStorage.setItem("ft-profile", JSON.stringify(profile));
+    }
     if (Object.prototype.hasOwnProperty.call(brandPending, "ft-photo")) {
       if (brandPending["ft-photo"]) localStorage.setItem("ft-photo", brandPending["ft-photo"]);
       else localStorage.removeItem("ft-photo");
@@ -1500,6 +1650,24 @@ if (mailSent) {
   }
 }
 
+const contactHref = (value, kind) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (kind === "phone" || (kind === "max" && /^\+?\d[\d\s()-]{5,}$/.test(text))) return `tel:${text.replace(/[^\d+]/g, "")}`;
+  if (kind === "email") return `mailto:${text}`;
+  if (/^(https?:|mailto:|tel:)/i.test(text)) return text;
+  if (text.startsWith("//")) return `https:${text}`;
+  if (text.includes(".")) return `https://${text}`;
+  return text;
+};
+const profileContactLinks = (profile) => {
+  if (!profile) return [];
+  return [["site", profile.site], ["phone", profile.phone], ["max", profile.max], ["email", profile.email]].flatMap(([kind, value]) => {
+    const text = String(value || "").trim();
+    if (!text) return [];
+    return [{ href: contactHref(text, kind), text }];
+  });
+};
 const publicContacts = (target) => {
   if (!target) return;
   const profile = loadProfile();
@@ -1511,20 +1679,11 @@ const publicContacts = (target) => {
     target.appendChild(page);
     return;
   }
-  const add = (href, text) => {
-    if (!text) return;
+  profileContactLinks(profile).forEach((item) => {
     const link = document.createElement("a");
-    link.href = href;
-    link.textContent = text;
+    link.href = item.href;
+    link.textContent = item.text;
     target.appendChild(link);
-  };
-  if (profile.show?.phone && profile.phone) add(`tel:${profile.phone.replace(/\s/g, "")}`, profile.phone);
-  if (profile.show?.email && profile.email) add(`mailto:${profile.email}`, profile.email);
-  if (profile.show?.site && profile.site) add(profile.site, "Сайт");
-  if (profile.show?.vk && profile.vk) add(profile.vk, "ВКонтакте");
-  if (profile.show?.max && profile.max) add(profile.max, "MAX");
-  (profile.socials || []).forEach((item) => {
-    if (item && item.show !== false && item.url) add(item.url, item.label || item.kind);
   });
   target.appendChild(page);
 };
@@ -1535,7 +1694,7 @@ const cabinetName = document.getElementById("cabinet-name");
 if (cabinetName) {
   const profile = loadProfile();
   const saved = personName();
-  cabinetName.textContent = saved || "Анна Соколова";
+  cabinetName.textContent = saved;
   const place = document.getElementById("cabinet-place");
   const about = document.getElementById("cabinet-about");
   const placeText = [profile?.role, profile?.city].filter(Boolean).join(", ");
@@ -1561,20 +1720,11 @@ if (phName) {
   if (contacts) {
     contacts.replaceChildren();
     if (profile) {
-      const add = (href, text) => {
-        if (!text) return;
+      profileContactLinks(profile).forEach((item) => {
         const link = document.createElement("a");
-        link.href = href;
-        link.textContent = text;
+        link.href = item.href;
+        link.textContent = item.text;
         contacts.appendChild(link);
-      };
-      if (profile.show?.phone && profile.phone) add(`tel:${profile.phone.replace(/\s/g, "")}`, profile.phone);
-      if (profile.show?.email && profile.email) add(`mailto:${profile.email}`, profile.email);
-      if (profile.show?.site && profile.site) add(profile.site, "Сайт");
-      if (profile.show?.vk && profile.vk) add(profile.vk, "ВКонтакте");
-      if (profile.show?.max && profile.max) add(profile.max, "MAX");
-      (profile.socials || []).forEach((item) => {
-        if (item && item.show !== false && item.url) add(item.url, item.label || item.kind);
       });
     }
   }
@@ -1664,7 +1814,7 @@ const parentFolderHref = (gid, fid, client) => {
   return parent ? `cabinet.html?${folderQuery(gid, parent.id)}` : `cabinet.html?${folderQuery(gid, "")}`;
 };
 const folderCrumbs = (gid, fid, client) => {
-  const gallery = GALLERY_META[gid];
+  const gallery = galleryMeta(gid);
   const items = [{ name: "Галереи", href: "cabinet.html" }];
   items.push({
     name: gallery.title,
@@ -1709,7 +1859,7 @@ const makeFolderCard = (gid, node, client) => {
   cover.className = "cover-open";
   cover.href = folderOpenHref(gid, node, client);
   const img = document.createElement("img");
-  img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
+  img.src = folderCover(gid, node.id, node.cover || galleryMeta(gid).cover);
   img.alt = "";
   cover.appendChild(img);
   const settingsBtn = document.createElement("button");
@@ -1742,7 +1892,7 @@ const makeFolderCard = (gid, node, client) => {
   heading.textContent = node.name;
   const meta = document.createElement("p");
   meta.textContent = node.meta || "";
-  card.append(wrap, heading, meta);
+  card.append(heading, wrap, meta);
   return card;
 };
 
@@ -1860,7 +2010,7 @@ const paintClient = (gid, fid) => {
   if (tabs) {
     tabs.replaceChildren();
     const items = [];
-    if (!root) items.push({ name: GALLERY_META[gid].title, href: clientHref(gid, ""), current: !fid });
+    if (!root) items.push({ name: galleryMeta(gid).title, href: clientHref(gid, ""), current: !fid });
     const path = found?.path || [];
     const start = root ? path.findIndex((node) => node.id === root) : 0;
     (start >= 0 ? path.slice(start) : path).forEach((node, index, list) => {
@@ -1884,14 +2034,14 @@ const paintClient = (gid, fid) => {
   if (until) {
     until.textContent = keepDateIsCustom(gid)
       ? `Хранится до ${keepRu(galleryExpiry(gid), true)}`
-      : `Хранится до ${GALLERY_META[gid].until}`;
+      : `Хранится до ${galleryMeta(gid).until}`;
   }
   const locked = fid ? (folderAccessOf(gid, fid).password || "") : "";
   const gate = document.getElementById("client-lock");
   const knownPass = !locked || sessionStorage.getItem(`ft-foldpass-${gid}/${fid}`) === locked;
   if (gate) gate.hidden = knownPass;
   const lockTitle = document.getElementById("client-lock-title");
-  if (lockTitle) lockTitle.textContent = fid ? (folderTitle(gid, fid) || "Папка") : (GALLERY_META[gid].title);
+  if (lockTitle) lockTitle.textContent = fid ? (folderTitle(gid, fid) || "Папка") : (galleryMeta(gid).title);
   if (!knownPass) {
     document.getElementById("client-folders")?.replaceChildren();
     document.getElementById("client-grid")?.replaceChildren();
@@ -1906,11 +2056,11 @@ const paintClient = (gid, fid) => {
       link.className = "client-folder";
       link.href = clientHref(gid, node.id);
       const img = document.createElement("img");
-      img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
+      img.src = folderCover(gid, node.id, node.cover || galleryMeta(gid).cover);
       img.alt = "";
       const name = document.createElement("strong");
       name.textContent = node.name;
-      link.append(img, name);
+      link.append(name, img);
       folders.appendChild(link);
     });
   }
@@ -1945,7 +2095,7 @@ const paintClient = (gid, fid) => {
       grid.appendChild(shot);
     });
   }
-  document.title = `${fid ? (folderTitle(gid, fid) || GALLERY_META[gid].title) : GALLERY_META[gid].title} — ФотоТранзит`;
+  document.title = `${fid ? (folderTitle(gid, fid) || galleryMeta(gid).title) : galleryMeta(gid).title} — ФотоТранзит`;
 };
 const mountFolderBrowser = () => {
   const file = pageFile();
@@ -1988,7 +2138,7 @@ const mountFolderBrowser = () => {
     const heading = document.getElementById("gallery-heading");
     if (rootCards) rootCards.hidden = true;
     if (rootActions) rootActions.hidden = true;
-    if (heading) heading.textContent = galleryGone ? "Галерея удалена" : (fid ? (folderTitle(gid, fid) || GALLERY_META[gid].title) : GALLERY_META[gid].title);
+    if (heading) heading.textContent = galleryGone ? "Галерея удалена" : (fid ? (folderTitle(gid, fid) || galleryMeta(gid).title) : galleryMeta(gid).title);
     if (galleriesEmpty) galleriesEmpty.hidden = true;
     document.title = `${heading?.textContent || "Папки"} — ФотоТранзит`;
   }
@@ -2130,7 +2280,20 @@ document.getElementById("save-folder-manage")?.addEventListener("click", () => {
 const coverMap = () => {
   try { return JSON.parse(localStorage.getItem("ft-covers") || "{}"); } catch (error) { return {}; }
 };
-const folderCover = (gid, id, fallback) => coverMap()[`${gid}::${id || ""}`] || fallback || "";
+const NEON_COVER = "img/folder-neon.svg";
+const imageFilesUnder = (gid, fid) => {
+  const here = filesInFolder(gid, fid).filter((file) => file.src && !file.doc);
+  return here.concat(childFolders(gid, fid).flatMap((node) => imageFilesUnder(gid, node.id)));
+};
+const folderCover = (gid, id, fallback) => {
+  const manual = coverMap()[`${gid}::${id || ""}`] || "";
+  const photos = id ? imageFilesUnder(gid, id) : [];
+  if (manual && photos.some((file) => file.src === manual)) return manual;
+  const uploaded = photos.find((file) => String(file.id).startsWith("file"));
+  if (String(id || "").startsWith("u")) return (uploaded || photos[0] || {}).src || NEON_COVER;
+  if (uploaded) return uploaded.src;
+  return fallback || NEON_COVER;
+};
 const splitMap = () => {
   try { return JSON.parse(localStorage.getItem("ft-split") || "{}"); } catch (error) { return {}; }
 };
@@ -2351,7 +2514,7 @@ const paintSplitList = (gid, fid) => {
     row.dataset.gallery = gid;
     row.dataset.folder = node.id;
     const img = document.createElement("img");
-    img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
+    img.src = folderCover(gid, node.id, node.cover || galleryMeta(gid).cover);
     img.alt = "";
     const pass = document.createElement("input");
     pass.type = "text";
@@ -2402,7 +2565,7 @@ const ensureChildFolder = (gid, parent, name) => {
   const all = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
   all[gid] = all[gid] || [];
   const id = "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  all[gid].push({ id, name, parent: parent || "", cover: "img/p3.jpg", meta: "Новая папка", created: Date.now() });
+  all[gid].push({ id, name, parent: parent || "", cover: "img/folder-neon.svg", meta: "Новая папка", created: Date.now() });
   localStorage.setItem("ft-user-folders", JSON.stringify(all));
   return id;
 };
@@ -2433,9 +2596,13 @@ const showUploadedFiles = (gid, folder) => {
     list.appendChild(row);
   });
 };
-const ingestUploads = async (fileList) => {
+const ingestUploads = async (fileList, extraFails = [], dirPaths = []) => {
   const files = [...fileList || []];
-  if (!files.length) return;
+  const dirs = [...dirPaths || []];
+  const fails = [...extraFails || []];
+  if (!files.length && !dirs.length) {
+    if (!fails.length) return;
+  }
   const line = document.getElementById("upload-line");
   const failsBox = document.getElementById("upload-fails");
   if (line) line.hidden = false;
@@ -2443,16 +2610,24 @@ const ingestUploads = async (fileList) => {
   const started = Date.now();
   const gid = galleryId();
   const parent = folderId();
-  const fails = [];
   const stored = readList("ft-user-files");
+  const ensurePath = (rel) => {
+    const parts = String(rel || "").split(/[/\\]/).filter(Boolean);
+    let folder = parent;
+    for (const part of parts) folder = ensureChildFolder(gid, folder, part);
+    return folder;
+  };
+  dirs.forEach((rel) => {
+    try { ensurePath(rel); }
+    catch (error) { fails.push(String(rel).split(/[/\\]/).filter(Boolean).pop() || "папка"); }
+  });
   for (const file of files) {
     const filename = file.name || "файл";
     try {
       const rel = file.webkitRelativePath || file.ftPath || filename;
       const parts = String(rel).split(/[/\\]/).filter(Boolean);
       parts.pop();
-      let folder = parent;
-      for (const part of parts) folder = ensureChildFolder(gid, folder, part);
+      const folder = ensurePath(parts.join("/"));
       const src = await readPreview(file);
       stored.push({
         id: "file" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -2468,7 +2643,12 @@ const ingestUploads = async (fileList) => {
       fails.push(filename);
     }
   }
-  writeList("ft-user-files", stored);
+  try { writeList("ft-user-files", stored); }
+  catch (error) {
+    stored.forEach((row) => { if (String(row.src || "").startsWith("data:")) row.src = "img/p2.jpg"; });
+    try { writeList("ft-user-files", stored); }
+    catch (again) { fails.push("не хватило места"); }
+  }
   const wait = 700 - (Date.now() - started);
   if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
   if (line) line.hidden = true;
@@ -2553,7 +2733,7 @@ const paintContentList = (gid, fid, withFolders) => {
       row.dataset.gallery = gid;
       row.dataset.folder = node.id;
       const img = document.createElement("img");
-      img.src = folderCover(gid, node.id, node.cover || GALLERY_META[gid].cover);
+      img.src = folderCover(gid, node.id, node.cover || galleryMeta(gid).cover);
       img.alt = "";
       row.append(
         rowLead(img, node.name, folderSizeLabel(gid, node.id), rowBurger([
@@ -2697,18 +2877,58 @@ document.getElementById("folder-ask-form")?.addEventListener("submit", (event) =
   const gid = galleryId();
   const all = JSON.parse(localStorage.getItem("ft-user-folders") || "{}");
   all[gid] = all[gid] || [];
-  all[gid].push({ id: "u" + Date.now().toString(36), name, parent: folderId(), cover: "img/p3.jpg", meta: "Новая папка", created: Date.now() });
+  all[gid].push({ id: "u" + Date.now().toString(36), name, parent: folderId(), cover: "img/folder-neon.svg", meta: "Новая папка", created: Date.now() });
   localStorage.setItem("ft-user-folders", JSON.stringify(all));
   closeFolderAsk();
   mountFolderBrowser();
 });
 document.getElementById("folder-ask-cancel")?.addEventListener("click", () => closeFolderAsk());
+const galleryAsk = document.getElementById("gallery-ask");
+const galleryAskInput = document.getElementById("gallery-ask-name");
+const openGalleryAsk = () => {
+  if (!galleryAsk) return;
+  if (galleryAskInput) galleryAskInput.value = "";
+  galleryAsk.hidden = false;
+  placeOverlayBox(galleryAsk);
+  galleryAskInput?.focus();
+};
+const closeGalleryAsk = () => {
+  if (galleryAsk) galleryAsk.hidden = true;
+};
+document.getElementById("add-gallery")?.addEventListener("click", () => openGalleryAsk());
+document.getElementById("gallery-ask-cancel")?.addEventListener("click", () => closeGalleryAsk());
+document.getElementById("gallery-ask-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = galleryAskInput?.value.trim() || "";
+  if (!name) return;
+  const today = keepDay(new Date());
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30);
+  const stamp = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const id = `g${Date.now().toString(36)}`;
+  const list = loadUserGalleries();
+  list.push({
+    id,
+    title: name,
+    date: keepRu(today, false),
+    until: keepRu(end, true),
+    created: stamp(today),
+    untilDate: stamp(end),
+    cover: "img/folder-neon.svg"
+  });
+  localStorage.setItem("ft-user-galleries", JSON.stringify(list));
+  location.href = `cabinet.html?id=${encodeURIComponent(id)}`;
+});
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   const panel = document.getElementById("secret-panel");
   if (panel && !panel.hidden) {
     event.preventDefault();
     closeSecretPanel();
+    return;
+  }
+  if (galleryAsk && !galleryAsk.hidden) {
+    event.preventDefault();
+    closeGalleryAsk();
     return;
   }
   if (!folderAsk || folderAsk.hidden) return;
@@ -2886,65 +3106,118 @@ document.addEventListener("click", (event) => {
   openSecretPanel(button.dataset.secretGallery || galleryId(), button.dataset.secretFolder || "");
 });
 let uploadQueue = Promise.resolve();
-const enqueueUploads = (files) => {
+const enqueueUploads = (files, extraFails = [], dirs = []) => {
   const list = [...files || []];
-  if (!list.length) return;
-  uploadQueue = uploadQueue.then(() => ingestUploads(list)).catch(() => {});
+  const folders = [...dirs || []];
+  const broken = [...extraFails || []];
+  if (!list.length && !folders.length && !broken.length) return;
+  uploadQueue = uploadQueue.then(() => ingestUploads(list, broken, folders)).catch(() => {});
 };
 const takeUploads = (event) => {
-  enqueueUploads(event.target.files);
+  const picked = [...(event.target.files || [])];
   event.target.value = "";
+  document.querySelectorAll(".add-menu").forEach((menu) => { menu.hidden = true; });
+  enqueueUploads(picked);
 };
 ["add-files", "add-tree", "pick-files", "pick-folder"].forEach((id) => {
-  document.getElementById(id)?.addEventListener("change", takeUploads);
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.addEventListener("change", takeUploads);
+  const host = input.closest("label");
+  if (!host || host.dataset.armed) return;
+  host.dataset.armed = "1";
+  host.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    input.value = "";
+    if (typeof input.showPicker === "function") {
+      try { input.showPicker(); return; } catch (error) { /* the click below still opens the dialog */ }
+    }
+    input.click();
+  });
+});
+document.querySelectorAll("#add-any").forEach((button) => {
+  const menu = button.nextElementSibling;
+  if (!menu || !menu.classList.contains("add-menu")) return;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
+});
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".add-menu, #add-any")) return;
+  document.querySelectorAll(".add-menu").forEach((menu) => { menu.hidden = true; });
 });
 const readEntryFile = (entry) => new Promise((resolve, reject) => entry.file(resolve, reject));
 const readEntryBatch = (reader) => new Promise((resolve, reject) => reader.readEntries(resolve, reject));
 const filesFromDrop = async (transfer) => {
-  const items = [...transfer?.items || []];
-  if (!items.some((item) => item.webkitGetAsEntry)) return [...transfer?.files || []];
+  const items = [...(transfer?.items || [])];
+  const entries = [];
+  items.forEach((item) => {
+    try {
+      const entry = item.webkitGetAsEntry?.();
+      if (entry) entries.push(entry);
+    } catch (error) { /* this item cannot be read */ }
+  });
+  const plain = [...(transfer?.files || [])];
+  if (!entries.length) return { files: plain, failed: [], dirs: [] };
   const out = [];
+  const failed = [];
+  const dirs = [];
   const walk = async (entry, path) => {
     if (!entry) return;
     if (entry.isFile) {
-      const file = await readEntryFile(entry);
-      const rel = path ? `${path}/${file.name}` : file.name;
-      try { Object.defineProperty(file, "ftPath", { value: rel }); } catch (error) { file.ftPath = rel; }
-      out.push(file);
+      try {
+        const file = await readEntryFile(entry);
+        const rel = path ? `${path}/${file.name}` : file.name;
+        try { Object.defineProperty(file, "ftPath", { value: rel }); } catch (error) { file.ftPath = rel; }
+        out.push(file);
+      } catch (error) {
+        failed.push(entry.name || "файл");
+      }
       return;
     }
     if (!entry.isDirectory) return;
-    const reader = entry.createReader();
-    let batch = [];
-    do {
-      batch = await readEntryBatch(reader);
-      for (const child of batch) await walk(child, path ? `${path}/${entry.name}` : entry.name);
-    } while (batch.length);
+    const next = path ? `${path}/${entry.name}` : entry.name;
+    dirs.push(next);
+    try {
+      const reader = entry.createReader();
+      let batch = [];
+      do {
+        batch = await readEntryBatch(reader);
+        for (const child of batch) await walk(child, next);
+      } while (batch.length);
+    } catch (error) {
+      failed.push(entry.name || "папка");
+    }
   };
-  for (const item of items) {
-    const entry = item.webkitGetAsEntry?.();
-    if (entry) await walk(entry, "");
-  }
-  return out.length ? out : [...transfer?.files || []];
+  for (const entry of entries) await walk(entry, "");
+  return { files: out.length ? out : plain, failed, dirs };
 };
 const takeDrop = async (event) => {
   event.preventDefault();
-  const files = await filesFromDrop(event.dataTransfer);
-  enqueueUploads(files);
+  event.stopPropagation();
+  const packed = await filesFromDrop(event.dataTransfer);
+  enqueueUploads(packed.files, packed.failed, packed.dirs);
+};
+const allowFileDrag = (event) => {
+  if (!event.dataTransfer?.types?.includes("Files")) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
 };
 const dropZone = document.getElementById("drop-zone");
 if (dropZone) {
-  dropZone.addEventListener("dragover", (event) => { event.preventDefault(); });
+  dropZone.addEventListener("dragenter", allowFileDrag);
+  dropZone.addEventListener("dragover", allowFileDrag);
   dropZone.addEventListener("drop", takeDrop);
 }
-document.getElementById("gallery-panel")?.addEventListener("dragover", (event) => {
-  if (pageFile() !== "cabinet.html" || !event.dataTransfer?.types?.includes("Files")) return;
-  event.preventDefault();
-});
-document.getElementById("gallery-panel")?.addEventListener("drop", (event) => {
-  if (pageFile() !== "cabinet.html") return;
-  takeDrop(event);
-});
+const galleryPanel = document.getElementById("gallery-panel");
+if (galleryPanel && pageFile() === "cabinet.html") {
+  galleryPanel.addEventListener("dragenter", allowFileDrag);
+  galleryPanel.addEventListener("dragover", allowFileDrag);
+  galleryPanel.addEventListener("drop", takeDrop);
+}
 document.getElementById("split-toggle")?.addEventListener("change", (event) => {
   const all = splitMap();
   all[splitKey(galleryId(), folderId())] = event.target.checked;
@@ -3040,7 +3313,7 @@ const buildSampleXlsx = (title) => {
 const currentFolderTitle = () => {
   const gid = galleryId();
   const fid = folderId();
-  return (fid && folderTitle(gid, fid)) || GALLERY_META[gid]?.title || "Папка";
+  return (fid && folderTitle(gid, fid)) || galleryMeta(gid)?.title || "Папка";
 };
 const showSplitNote = (text, bad) => {
   const note = document.getElementById("split-note");
@@ -3240,7 +3513,7 @@ document.getElementById("split-excel")?.addEventListener("click", () => {
     const password = folderAccessOf(gid, node.id).password || "";
     lines.push([node.name, absFolderLink(gid, node), password].join(";"));
   });
-  const title = fid ? (folderTitle(gid, fid) || "папка") : (GALLERY_META[gid]?.title || "галерея");
+  const title = fid ? (folderTitle(gid, fid) || "папка") : (galleryMeta(gid)?.title || "галерея");
   saveText(`${title}.csv`, lines);
 });
 const shiftId = (ids, id, dir) => {

@@ -24,17 +24,21 @@
       <a class="item push" href="index.html">Выйти</a>
     </aside>
     <main class="app-main">
-      <section class="panel who">
+      <section class="panel who cabinet-head">
         <div class="cabinet-id">
           <div class="portrait-frame cabinet-portrait" data-portrait hidden>
-            <img class="portrait" data-use="photo" alt="" hidden>
+            <div class="portrait-clip">
+              <img class="portrait" data-use="photo" alt="">
+            </div>
           </div>
           <div>
             <div class="name-line">
               <div class="portrait-frame logo-frame" data-logo-frame hidden>
-                <img class="portrait" data-use="logo" alt="" hidden>
+                <div class="portrait-clip">
+                  <img class="portrait" data-use="logo" alt="">
+                </div>
               </div>
-              <h1 id="cabinet-name">Анна Соколова</h1>
+              <h1 id="cabinet-name"></h1>
             </div>
             <p class="kicker" id="cabinet-place" hidden></p>
             <p class="hint" id="cabinet-about" hidden></p>
@@ -87,7 +91,7 @@
           <h2 id="gallery-heading">Галереи</h2>
           <div class="row-actions" id="root-actions">
             <button class="btn btn-line btn-danger" id="delete-all-galleries" type="button">Удалить все</button>
-            <a class="btn btn-dark" href="project.html">Новая галерея</a>
+            <button class="btn btn-dark" id="add-gallery" type="button">Новая галерея</button>
           </div>
           <a class="btn btn-line" id="folder-back" href="cabinet.html" hidden>Назад</a>
         </div>
@@ -137,12 +141,15 @@
             <button class="btn btn-line" type="button" data-view-mode="list">Список</button>
             <button class="btn btn-line" type="button" data-view-mode="tiles">Галерея</button>
           </div>
-          <label class="btn btn-line">Файлы
-            <input id="add-files" type="file" multiple>
-          </label>
-          <label class="btn btn-line">Папка
-            <input id="add-tree" type="file" webkitdirectory directory multiple>
-          </label>
+          <button class="btn btn-line" id="add-any" type="button">Добавить</button>
+          <div class="add-menu" hidden>
+            <label class="btn btn-line">Файлы и документы
+              <input id="add-files" type="file" multiple>
+            </label>
+            <label class="btn btn-line">Папка с подпапками
+              <input id="add-tree" type="file" webkitdirectory directory multiple>
+            </label>
+          </div>
           <button class="btn btn-line" id="add-folder" type="button">Новая папка</button>
           <label class="split-toggle" id="split-switch-wrap"><span>Раздельная выдача</span><input id="split-toggle" type="checkbox"></label>
           <div class="upload-line" id="upload-line" hidden><i></i></div>
@@ -315,6 +322,16 @@
           <div class="row-actions">
             <button class="btn btn-dark" type="submit">Сохранить</button>
             <button class="btn btn-line" type="button" id="secret-panel-cancel">Отмена</button>
+          </div>
+        </form>
+      </div>
+      <div class="folder-ask" id="gallery-ask" hidden>
+        <form class="folder-ask-card" id="gallery-ask-form">
+          <h2>Новая галерея</h2>
+          <input id="gallery-ask-name" type="text" placeholder="Название галереи" autocomplete="off" aria-label="Название галереи" maxlength="120">
+          <div class="row-actions">
+            <button class="btn btn-dark" type="submit">Создать</button>
+            <button class="btn btn-line" type="button" id="gallery-ask-cancel">Отмена</button>
           </div>
         </form>
       </div>

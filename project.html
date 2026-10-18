@@ -49,12 +49,15 @@
       <section class="panel">
         <div class="drop" id="drop-zone">Перетащите файлы или папку с подпапками
           <div class="row-actions" style="justify-content:center;margin-top:12px">
-            <label class="btn btn-line">Файлы
-              <input id="pick-files" type="file" multiple>
-            </label>
-            <label class="btn btn-line">Папка
-              <input id="pick-folder" type="file" webkitdirectory directory multiple>
-            </label>
+            <button class="btn btn-line" id="add-any" type="button">Добавить</button>
+            <div class="add-menu" hidden>
+              <label class="btn btn-line">Файлы и документы
+                <input id="pick-files" type="file" multiple>
+              </label>
+              <label class="btn btn-line">Папка с подпапками
+                <input id="pick-folder" type="file" webkitdirectory directory multiple>
+              </label>
+            </div>
           </div>
           <div class="upload-line" id="upload-line" hidden><i></i></div>
           <ul class="upload-fails" id="upload-fails" hidden></ul>
