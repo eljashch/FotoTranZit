@@ -1630,6 +1630,8 @@ document.getElementById("save-card")?.addEventListener("click", () => {
   refreshVisibleNames();
   paintUserGalleryCards();
   paintBuiltInCovers();
+  if (pageFile() === "cabinet.html" && params.get("id")) mountFolderBrowser();
+  paintCoverChoices(gid, settingsFolder || "");
   flashSaved();
 });
 
@@ -1784,32 +1786,12 @@ if (profileForm) {
 
 const registerForm = document.getElementById("register-form");
 if (registerForm && !window.ftAuth) {
-  const fillDraft = (first, last, email) => {
-    document.getElementById("reg-first").value = first;
-    document.getElementById("reg-last").value = last;
-    document.getElementById("reg-email").value = email;
-    const note = document.getElementById("oauth-note");
-    if (note) note.hidden = false;
-  };
-  document.getElementById("via-vk")?.addEventListener("click", () => fillDraft("Иван", "Петров", "ivan@example.com"));
-  document.getElementById("via-google")?.addEventListener("click", () => fillDraft("Мария", "Иванова", "maria@example.com"));
-  registerForm.addEventListener("submit", () => {
-    const user = {
-      first: document.getElementById("reg-first").value.trim(),
-      last: document.getElementById("reg-last").value.trim(),
-      email: document.getElementById("reg-email").value.trim()
-    };
-    const ref = new URLSearchParams(location.search).get("ref");
-    if (ref) user.referredBy = ref;
-    localStorage.setItem("ft-user", JSON.stringify(user));
-    localStorage.setItem("ft-ask-card", "1");
-    if (ref) {
-      const book = readJson("ft-ref-book", { codes: {} });
-      const row = book.codes[ref] || { count: 0, bonus: 0, people: [] };
-      row.count += 1;
-      if (user.email && !row.people.includes(user.email)) row.people.push(user.email);
-      book.codes[ref] = row;
-      localStorage.setItem("ft-ref-book", JSON.stringify(book));
+  registerForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const note = document.getElementById("reg-error");
+    if (note) {
+      note.hidden = false;
+      note.textContent = "Скрипт входа не загрузился. Обновите страницу (Ctrl+F5).";
     }
   });
 }
@@ -2679,6 +2661,20 @@ const ownSrc = (file) => {
   if (String(file.id || "").startsWith("file") && CATALOG_SRC.has(src)) return "";
   return src;
 };
+const sameCoverSrc = (left, right) => {
+  const a = String(left || "");
+  const b = String(right || "");
+  if (!a || !b) return false;
+  if (a === b) return true;
+  try { return new URL(a, location.href).href === new URL(b, location.href).href; }
+  catch (error) { return false; }
+};
+const coverAllowed = (manual, photos) => {
+  const src = String(manual || "");
+  if (!src || src === NEON_COVER || src.endsWith("folder-neon.svg")) return false;
+  if (src.startsWith("data:") || src.startsWith("blob:")) return true;
+  return photos.some((file) => sameCoverSrc(ownSrc(file), src));
+};
 const scrubStandInPhotos = () => {
   const list = readList("ft-user-files");
   let changed = false;
@@ -2694,13 +2690,13 @@ const scrubStandInPhotos = () => {
 };
 scrubStandInPhotos();
 const imageFilesUnder = (gid, fid) => {
-  const here = filesInFolder(gid, fid).filter((file) => ownSrc(file));
-  return here.concat(childFolders(gid, fid).flatMap((node) => imageFilesUnder(gid, node.id)));
+  const here = filesInFolder(gid, fid || "").filter((file) => ownSrc(file));
+  return here.concat(childFolders(gid, fid || "").flatMap((node) => imageFilesUnder(gid, node.id)));
 };
 const folderCover = (gid, id) => {
-  const photos = id ? imageFilesUnder(gid, id) : [];
+  const photos = imageFilesUnder(gid, id || "");
   const manual = coverMap()[`${gid}::${id || ""}`] || "";
-  if (manual && photos.some((file) => ownSrc(file) === manual)) return manual;
+  if (coverAllowed(manual, photos)) return manual;
   if (photos.length) return ownSrc(photos[0]);
   return NEON_COVER;
 };
@@ -2708,7 +2704,7 @@ paintUserGalleryCards();
 function galleryCardCover(id) {
   const photos = imageFilesUnder(id, "");
   const manual = coverMap()[`${id}::`] || "";
-  if (manual && photos.some((file) => ownSrc(file) === manual)) return manual;
+  if (coverAllowed(manual, photos)) return manual;
   if (photos.length) return ownSrc(photos[0]);
   return NEON_COVER;
 }
@@ -4602,7 +4598,24 @@ document.addEventListener("click", (event) => {
     const fid = folderId();
     const row = menuHost(cover);
     const src = row?.querySelector("img")?.getAttribute("src") || "";
-    if (src) saveCovers(gid, fid, src);
+    if (src) {
+      saveCovers(gid, fid, src);
+      const settingsOpen = document.getElementById("card-settings");
+      const samePlace = !settingsFolder && !fid ? true : settingsFolder === fid;
+      const sameGallery = settingsFolder ? (settingsCard.split("::")[0] || galleryId()) === gid : settingsCard === gid || (!settingsFolder && gid === galleryId());
+      if (settingsOpen && !settingsOpen.hidden && sameGallery && samePlace) {
+        pendingCoverSrc = src;
+        const preview = document.getElementById("cover-preview");
+        if (preview) {
+          preview.hidden = false;
+          preview.src = src;
+        }
+        paintCoverChoices(gid, fid || "");
+        revealSave("save-card");
+      }
+    }
+    paintUserGalleryCards();
+    paintBuiltInCovers();
     mountFolderBrowser();
     return;
   }

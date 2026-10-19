@@ -963,7 +963,7 @@
       }
     });
     if (changed) saveParents(parents);
-    if (!localStorage.getItem("ft-last-parent")) localStorage.setItem("ft-last-parent", ship.id);
+    if (ship && !localStorage.getItem("ft-last-parent")) localStorage.setItem("ft-last-parent", ship.id);
   };
   const parentProviderId = (name) => {
     const all = readJson("ft-oauth-ids", {});

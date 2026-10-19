@@ -82,11 +82,14 @@
     return null;
   };
 
+  const cabinetUrl = () => new URL("cabinet.html", location.href).href;
+  const parentUrl = () => new URL("parent.html", location.href).href;
+
   const saveAccount = (account) => {
     if (account.role === "parent") {
       const list = readJson("ft-parents", []);
       const parents = Array.isArray(list) ? list : [];
-      const idx = parents.findIndex((row) => row.id === account.id || (account.phoneKey && row.phoneKey === account.phoneKey));
+      const idx = parents.findIndex((row) => row.id === account.id || (account.phoneKey && phoneKey(row.phoneKey || row.phone) === account.phoneKey));
       if (idx >= 0) account.id = parents[idx].id;
       const row = {
         id: account.id,
@@ -108,22 +111,27 @@
       localStorage.setItem("ft-parents", JSON.stringify(parents));
     } else {
       const prev = readJson("ft-user", {}) || {};
+      const same = prev.accountId === account.id;
       localStorage.setItem("ft-user", JSON.stringify({
-        ...prev,
-        first: account.first || prev.first || "",
-        last: account.last || prev.last || "",
-        email: account.email || prev.email || "",
-        phone: account.phone || prev.phone || "",
-        password: account.password || prev.password || "",
+        first: account.first || "",
+        last: account.last || "",
+        email: account.email || "",
+        phone: account.phone || "",
+        password: account.password || "",
         vkId: account.vkId || "",
         googleId: account.googleId || "",
         accountId: account.id,
         accountRole: "photo",
-        createdAt: account.createdAt || prev.createdAt || Date.now()
+        createdAt: account.createdAt || (same ? prev.createdAt : Date.now()) || Date.now(),
+        ...(same && prev.referredBy ? { referredBy: prev.referredBy } : {})
       }));
     }
     const all = loadAccounts().filter((row) => row.id !== account.id);
-    all.push(account);
+    all.push({
+      ...account,
+      emailKey: account.emailKey || emailKey(account.email),
+      phoneKey: account.phoneKey || phoneKey(account.phone)
+    });
     localStorage.setItem("ft-accounts", JSON.stringify(all));
   };
 
@@ -132,22 +140,25 @@
     if (account.role === "photo") {
       localStorage.removeItem("ft-parent-session");
       const prev = readJson("ft-user", {}) || {};
+      const same = prev.accountId === account.id;
       localStorage.setItem("ft-user", JSON.stringify({
-        ...prev,
-        first: account.first || prev.first || "",
-        last: account.last || prev.last || "",
-        email: account.email || prev.email || "",
-        phone: account.phone || prev.phone || "",
-        password: account.password || prev.password || "",
-        vkId: account.vkId || prev.vkId || "",
-        googleId: account.googleId || prev.googleId || "",
+        first: account.first || "",
+        last: account.last || "",
+        email: account.email || "",
+        phone: account.phone || "",
+        password: account.password || "",
+        vkId: account.vkId || "",
+        googleId: account.googleId || "",
         accountId: account.id,
-        accountRole: "photo"
+        accountRole: "photo",
+        createdAt: account.createdAt || (same ? prev.createdAt : Date.now()) || Date.now(),
+        ...(same && prev.referredBy ? { referredBy: prev.referredBy } : {})
       }));
-      return "cabinet.html";
+      return cabinetUrl();
     }
     localStorage.setItem("ft-parent-session", account.id);
-    return "parent.html";
+    localStorage.setItem("ft-last-parent", account.id);
+    return parentUrl();
   };
 
   const providerId = (name) => {
@@ -291,7 +302,9 @@
   };
 
   const register = (data) => {
-    const role = data.role === "photo" ? "photo" : data.role === "parent" ? "parent" : "";
+    ensureReadyAccounts();
+    const rawRole = String(data.role || "").trim();
+    const role = rawRole === "photo" ? "photo" : (rawRole === "parent" || rawRole === "user" ? "parent" : "");
     if (!role) return { ok: false, message: "Выберите роль: фотограф или пользователь." };
     if (!data.password || String(data.password).length < 8) return { ok: false, message: "Пароль — минимум 8 символов." };
     if (data.password !== data.password2) return { ok: false, message: "Пароли не совпадают." };
@@ -299,21 +312,21 @@
     const phone = phoneKey(data.phone);
     if (email && !email.includes("@")) return { ok: false, message: "Проверьте почту или оставьте поле пустым." };
     if (phone.length !== 11) return { ok: false, message: "Укажите номер: 10 цифр после +7." };
-    if (!data.first && !data.last) return { ok: false, message: "Укажите имя." };
-    if ((email && findByContact(email)) || findByContact(data.phone)) {
+    if (!String(data.first || "").trim() && !String(data.last || "").trim()) return { ok: false, message: "Укажите имя." };
+    if ((email && findByContact(email)) || findByContact(phone) || findByContact(data.phone)) {
       return { ok: false, message: "Этот телефон или почта уже есть. Войдите — роль не спрашиваем, кабинет останется прежним." };
     }
     const account = {
       id: makeId(role === "photo" ? "ph" : "p"),
       role,
-      first: data.first,
-      last: data.last,
-      name: [data.first, data.last].filter(Boolean).join(" "),
+      first: String(data.first || "").trim(),
+      last: String(data.last || "").trim(),
+      name: [data.first, data.last].map((part) => String(part || "").trim()).filter(Boolean).join(" "),
       email,
       emailKey: email,
-      phone: phone.length === 11 ? `+${phone}` : String(data.phone || "").trim(),
+      phone: `+${phone}`,
       phoneKey: phone,
-      password: data.password,
+      password: String(data.password),
       vkId: "",
       googleId: "",
       createdAt: Date.now()
@@ -353,7 +366,7 @@
         show("login-error", result.message);
         return;
       }
-      location.href = result.url;
+      location.assign(result.url);
     });
     const bindProvider = (id, provider) => {
       document.getElementById(id)?.addEventListener("click", () => {
@@ -362,7 +375,7 @@
           show("oauth-note", result.message);
           return;
         }
-        location.href = result.url;
+        location.assign(result.url);
       });
     };
     bindProvider("via-vk", "vk");
@@ -373,13 +386,19 @@
   if (registerForm) {
     registerForm.addEventListener("submit", (event) => {
       event.preventDefault();
+      event.stopPropagation();
+      const phoneInput = document.getElementById("reg-phone");
+      if (window.ftPhone && phoneInput) window.ftPhone.mount(phoneInput);
       const role = registerForm.querySelector("input[name='role']:checked")?.value || "";
+      const phoneValue = window.ftPhone
+        ? window.ftPhone.read(phoneInput)
+        : (phoneInput?.value.trim() || "");
       const result = register({
         role,
         first: document.getElementById("reg-first")?.value.trim() || "",
         last: document.getElementById("reg-last")?.value.trim() || "",
         email: document.getElementById("reg-email")?.value.trim() || "",
-        phone: window.ftPhone ? window.ftPhone.read(document.getElementById("reg-phone")) : (document.getElementById("reg-phone")?.value.trim() || ""),
+        phone: phoneValue,
         password: registerForm.querySelector("[name='password']")?.value || "",
         password2: registerForm.querySelector("[name='password2']")?.value || ""
       });
@@ -387,10 +406,10 @@
         show("reg-error", result.message);
         return;
       }
-      location.href = result.url;
+      location.assign(result.url);
     });
   }
 
   ensureReadyAccounts();
-  window.ftAuth = { phoneKey, findByContact, enter, login, connect, register };
+  window.ftAuth = { phoneKey, findByContact, enter, login, connect, register, ensureReadyAccounts };
 })();
