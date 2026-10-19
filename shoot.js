@@ -62,8 +62,8 @@
   const makeId = (prefix) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const phoneKey = (value) => {
     let digits = String(value || "").replace(/\D/g, "");
-    if (digits.length === 11 && digits.startsWith("8")) digits = `7${digits.slice(1)}`;
-    if (digits.length === 10) digits = `7${digits}`;
+    if (digits.length > 10) digits = digits.slice(-10);
+    if (digits.length === 10) return `7${digits}`;
     return digits;
   };
   const samePhone = (row, key) => Boolean(key) && phoneKey(row && (row.phoneKey || row.phone)) === key;
@@ -395,10 +395,6 @@
               row.parentId = keep.id;
               changedLists = true;
             }
-            if (!phoneKey(row.phone) && keep.phone) {
-              row.phone = keep.phone;
-              changedLists = true;
-            }
           });
         });
         const index = parents.indexOf(item);
@@ -610,7 +606,7 @@
       all[fresh.gid].rows = [...(all[fresh.gid].rows || []), row];
       saveLists(all);
       const links = parentLinks(account.id);
-      if (!links.some((item) => item.folderId === folder.id)) {
+      if (!links.some((item) => item.rowId === row.id)) {
         links.push({ id: makeId("l"), galleryId: fresh.gid, folderId: folder.id, childName: folder.name, rowId: row.id, owner: photographerKey() });
         saveParentLinks(account.id, links);
       }
@@ -743,18 +739,20 @@
         row.phone = phoneValue;
         saveLists(all);
         const links = parentLinks(account.id);
-        if (!links.some((item) => item.folderId === folder.id)) {
+        if (!links.some((item) => item.rowId === row.id)) {
           links.push({ id: makeId("l"), galleryId: draft.gid, folderId: folder.id, childName: folder.name, rowId: row.id, owner: photographerKey() });
           saveParentLinks(account.id, links);
         }
       } else if (row && row.folderId) {
+        row.parentId = account.id;
+        row.parentName = parentName || row.parentName;
+        if (phoneValue) row.phone = phoneValue;
+        saveLists(all);
         const links = parentLinks(account.id);
-        if (!links.some((item) => item.folderId === row.folderId)) {
+        if (!links.some((item) => item.rowId === row.id)) {
           links.push({ id: makeId("l"), galleryId: draft.gid, folderId: row.folderId, childName: folderDisplayName(draft.gid, row.folderId, draft.childName), rowId: row.id, owner: photographerKey() });
           saveParentLinks(account.id, links);
         }
-        row.parentId = account.id;
-        saveLists(all);
       }
       if (already) {
         if (!shell) return;
@@ -964,20 +962,6 @@
         changed = true;
       }
     });
-    if (!ship) {
-      ship = {
-        id: makeId("p"),
-        name: "Щипкова Эльвира Николаевна",
-        phone: "+79300762286",
-        phoneKey: SHIP_PHONE,
-        role: "parent",
-        createdAt: Date.now(),
-        password: SHIP_PASS,
-        mustChange: false
-      };
-      parents.push(ship);
-      changed = true;
-    }
     if (changed) saveParents(parents);
     if (!localStorage.getItem("ft-last-parent")) localStorage.setItem("ft-last-parent", ship.id);
   };
@@ -1151,18 +1135,19 @@
               phoneKey: SHIP_PHONE,
               role: "parent",
               createdAt: Date.now(),
-              password: typed,
+              password: SHIP_PASS,
               mustChange: false
             };
             parents.push(account);
           }
-          account.password = typed;
+          if (!account.password) account.password = SHIP_PASS;
           account.phone = account.phone || "+79300762286";
           account.phoneKey = SHIP_PHONE;
           account.role = "parent";
+          account.mustChange = false;
           saveParents(parents);
         }
-        if (!account || String(account.password || "").trim() !== typed) {
+        if (!account || (String(account.password || "").trim() !== typed && !known)) {
           error.hidden = false;
           error.textContent = "Неверный телефон или пароль.";
           return;
@@ -1208,7 +1193,7 @@
     }
     if (shell) shell.hidden = false;
     if (gate) gate.hidden = true;
-    ensureParentShots(parent);
+    const shotLinks = ensureParentShots(parent);
     const params = new URLSearchParams(location.search);
     const view = params.get("view") || "";
     const savedId = params.get("saved") || "";
@@ -1232,13 +1217,7 @@
     }
     if (!shotId && !savedId && view !== "mine") root.appendChild(paintMail(parent));
     if (savedId || view === "mine") renderMine(root, parent, savedId);
-    else renderShots(root, parent, shotId, params.get("folder") || "");
-  };
-  const rowPhoneKey = (row, parents) => {
-    const direct = phoneKey(row && row.phone);
-    if (direct) return direct;
-    const account = (parents || []).find((item) => item.id && item.id === row.parentId);
-    return phoneKey(account && (account.phoneKey || account.phone));
+    else renderShots(root, parent, shotId, params.get("folder") || "", shotLinks);
   };
   const childLabel = (gid, fid, childName) => {
     const stored = userFolderRecords(gid).find((item) => item.id === fid);
@@ -1247,33 +1226,35 @@
     return childName || folderName || "Папка";
   };
   const ensureParentShots = (parent) => {
-    if (!parent) return;
+    if (!parent) return [];
     const key = phoneKey(parent.phoneKey || parent.phone);
-    if (!key) return;
+    if (!key) return parentLinks(parent.id);
     const lists = loadLists();
-    const parents = loadParents();
-    let listsChanged = false;
-    const links = parentLinks(parent.id).slice();
-    let linksChanged = false;
+    const previous = parentLinks(parent.id);
+    const used = new Set();
     const claimed = new Map();
+    const seenRow = new Set();
+    const next = [];
+    let listsChanged = false;
     Object.entries(lists).forEach(([gid, list]) => {
       const rows = list && Array.isArray(list.rows) ? list.rows : [];
       rows.forEach((row) => {
-        if (rowPhoneKey(row, parents) !== key) return;
+        if (phoneKey(row && row.phone) !== key) return;
+        if (!row.id || seenRow.has(row.id)) {
+          row.id = makeId("r");
+          listsChanged = true;
+        }
+        seenRow.add(row.id);
         const childName = String(row.childName || "").trim() || "Ребёнок";
         if (row.parentId !== parent.id) {
           row.parentId = parent.id;
           listsChanged = true;
         }
-        if (!phoneKey(row.phone) && parent.phone) {
-          row.phone = parent.phone;
-          listsChanged = true;
-        }
         let folderId = row.folderId || "";
         const claim = `${gid}/${folderId}`;
-        const takenBy = folderId ? claimed.get(claim) : "";
+        const shared = Boolean(folderId) && claimed.has(claim);
         let label = childName;
-        if (!folderId || folderGone(gid, folderId) || (takenBy && takenBy !== row.id)) {
+        if (!folderId || folderGone(gid, folderId) || shared) {
           const folder = createChildFolder(gid, childName, parent.id);
           row.folderId = folder.id;
           folderId = folder.id;
@@ -1281,39 +1262,27 @@
           listsChanged = true;
         } else label = childLabel(gid, folderId, childName);
         claimed.set(`${gid}/${folderId}`, row.id);
-        let link = links.find((item) => item.rowId && item.rowId === row.id);
-        if (!link) link = links.find((item) => !item.rowId && item.galleryId === gid && item.folderId === folderId);
-        if (!link) {
-          links.push({
-            id: makeId("l"),
-            galleryId: gid,
-            folderId,
-            childName: label,
-            rowId: row.id,
-            owner: photographerKey()
-          });
-          linksChanged = true;
-        } else if (link.galleryId !== gid || link.folderId !== folderId || link.childName !== label || link.rowId !== row.id) {
-          link.galleryId = gid;
-          link.folderId = folderId;
-          link.childName = label;
-          link.rowId = row.id;
-          linksChanged = true;
-        }
+        let prev = previous.find((item) => item && item.rowId === row.id && !used.has(item.id));
+        if (!prev) prev = previous.find((item) => item && !item.rowId && item.galleryId === gid && item.folderId === folderId && !used.has(item.id));
+        const link = {
+          id: prev && prev.id ? prev.id : makeId("l"),
+          galleryId: gid,
+          folderId,
+          childName: label,
+          rowId: row.id,
+          owner: (prev && prev.owner) || photographerKey()
+        };
+        used.add(link.id);
+        next.push(link);
       });
     });
-    const stored = readJson("ft-parent-links", {});
-    loadParents().forEach((item) => {
-      if (!samePhone(item, key) || item.id === parent.id) return;
-      (Array.isArray(stored[item.id]) ? stored[item.id] : []).forEach((link) => {
-        if (link.rowId && links.some((row) => row.rowId === link.rowId)) return;
-        if (links.some((row) => row.galleryId === link.galleryId && row.folderId === link.folderId)) return;
-        links.push({ ...link });
-        linksChanged = true;
-      });
+    const same = next.length === previous.length && next.every((item, index) => {
+      const old = previous[index];
+      return old && old.id === item.id && old.galleryId === item.galleryId && old.folderId === item.folderId && old.childName === item.childName && old.rowId === item.rowId;
     });
     if (listsChanged) saveLists(lists);
-    if (linksChanged) saveParentLinks(parent.id, links);
+    if (!same) saveParentLinks(parent.id, next);
+    return next;
   };
   const shotLikeKey = (gid, fid, fileId) => `${gid}/${fid}/${fileId}`;
   const shotLikes = () => readJson("ft-shot-likes", {});
@@ -1326,8 +1295,8 @@
     localStorage.setItem("ft-shot-likes", JSON.stringify(all));
     return Boolean(all[mark]);
   };
-  const renderShots = (root, parent, shotId, folderAsk) => {
-    const links = parentLinks(parent.id);
+  const renderShots = (root, parent, shotId, folderAsk, knownLinks) => {
+    const links = Array.isArray(knownLinks) ? knownLinks : parentLinks(parent.id);
     if (!shotId) {
       root.append(el("h2", "", "Фотосессии"), el("p", "hint", "Здесь папки ваших детей. Они не занимают место в кабинете."));
       if (!links.length) {

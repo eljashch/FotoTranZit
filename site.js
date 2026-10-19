@@ -1858,7 +1858,7 @@ const cabinetName = document.getElementById("cabinet-name");
 if (cabinetName) {
   const profile = loadProfile();
   const saved = personName();
-  cabinetName.textContent = saved;
+  cabinetName.textContent = saved || "Фотограф";
   const place = document.getElementById("cabinet-place");
   const about = document.getElementById("cabinet-about");
   const placeText = [profile?.role, profile?.city].filter(Boolean).join(", ");
@@ -3567,8 +3567,8 @@ const ftEnsureShootRows = () => {
   const owner = user && user.email ? String(user.email).trim().toLowerCase() : "cabinet";
   const phoneKey = (value) => {
     let digits = String(value || "").replace(/\D/g, "");
-    if (digits.length === 11 && digits.startsWith("8")) digits = `7${digits.slice(1)}`;
-    if (digits.length === 10) digits = `7${digits}`;
+    if (digits.length > 10) digits = digits.slice(-10);
+    if (digits.length === 10) return `7${digits}`;
     return digits;
   };
   const makeId = (prefix) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -3577,14 +3577,21 @@ const ftEnsureShootRows = () => {
   let parentsChanged = false;
   let linksChanged = false;
   const folderUsed = new Map();
+  const seenRow = new Set();
+  const usedLinks = new Set();
   const accountPhone = (item) => phoneKey(item && (item.phoneKey || item.phone));
   Object.entries(lists).forEach(([gid, list]) => {
     if (!list || !Array.isArray(list.rows)) return;
     list.rows.forEach((row) => {
       const child = String(row.childName || "").trim();
       if (!child) return;
-      const known = Array.isArray(parents) ? parents.find((item) => item.id === row.parentId) : null;
-      const key = phoneKey(row.phone) || accountPhone(known);
+      const key = phoneKey(row.phone);
+      if (!key) return;
+      if (!row.id || seenRow.has(row.id)) {
+        row.id = makeId("r");
+        listsChanged = true;
+      }
+      seenRow.add(row.id);
       if (key && Array.isArray(parents)) {
         let account = parents.find((item) => accountPhone(item) === key);
         if (!account) {
@@ -3599,16 +3606,12 @@ const ftEnsureShootRows = () => {
           row.parentId = account.id;
           listsChanged = true;
         }
-        if (!phoneKey(row.phone) && account.phone) {
-          row.phone = account.phone;
-          listsChanged = true;
-        }
       }
       const bag = Array.isArray(folders[gid]) ? folders[gid] : [];
       const gone = new Set(read("ft-gone-folders", []));
       let folderId = row.folderId || "";
       const claim = `${gid}/${folderId}`;
-      const taken = folderId && folderUsed.get(claim) && folderUsed.get(claim) !== row.id;
+      const taken = Boolean(folderId) && folderUsed.has(claim);
       const exists = folderId && bag.some((item) => item.id === folderId) && !gone.has(claim);
       if (!folderId || taken || !exists) {
         const id = makeId("u");
@@ -3630,10 +3633,11 @@ const ftEnsureShootRows = () => {
       if (row.parentId && folderId) {
         const links = Array.isArray(linksAll[row.parentId]) ? linksAll[row.parentId] : [];
         const folderName = String((bag.find((item) => item.id === folderId) || {}).name || child);
-        let link = links.find((item) => item.rowId === row.id);
-        if (!link) link = links.find((item) => !item.rowId && item.galleryId === gid && item.folderId === folderId);
+        let link = links.find((item) => item.rowId === row.id && !usedLinks.has(item));
+        if (!link) link = links.find((item) => !item.rowId && item.galleryId === gid && item.folderId === folderId && !usedLinks.has(item));
         if (!link) {
-          links.push({ id: makeId("l"), galleryId: gid, folderId, childName: folderName, rowId: row.id, owner });
+          link = { id: makeId("l"), galleryId: gid, folderId, childName: folderName, rowId: row.id, owner };
+          links.push(link);
           linksAll[row.parentId] = links;
           linksChanged = true;
         } else if (link.galleryId !== gid || link.folderId !== folderId || link.childName !== folderName || link.rowId !== row.id) {
@@ -3643,6 +3647,7 @@ const ftEnsureShootRows = () => {
           link.rowId = row.id;
           linksChanged = true;
         }
+        usedLinks.add(link);
       }
     });
   });
