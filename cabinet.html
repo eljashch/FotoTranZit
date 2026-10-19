@@ -163,7 +163,10 @@
               <input id="new-gallery-tree" type="file" webkitdirectory directory multiple hidden>
             </div>
           </div>
-          <a class="btn btn-line" id="folder-back" href="cabinet.html" hidden>Назад</a>
+          <div class="row-actions" id="gallery-head-actions">
+            <a class="btn btn-line" id="folder-back" href="cabinet.html" hidden>Назад</a>
+            <a class="btn btn-dark" id="preview-client" href="gallery.html" target="_blank" rel="noopener" hidden>Как видит клиент</a>
+          </div>
         </div>
         <div class="gallery-cards" id="gallery-cards" style="margin-top:16px">
           <article class="gcard" data-gallery="wedding">
@@ -279,7 +282,7 @@
               <p class="hint">Пароль, доступ и секретный код только этой папки. Клиент открывает её по ссылке.</p>
             </div>
             <div class="row-actions">
-              <a class="btn btn-line" id="see-client" href="gallery.html">Как видит клиент</a>
+              <a class="btn btn-dark" id="see-client" href="gallery.html" target="_blank" rel="noopener">Как видит клиент</a>
               <button class="btn btn-line" type="button" id="copy-client" data-copy="">Ссылка</button>
               <a class="btn btn-line" id="qr-client" href="gallery.html">QR</a>
             </div>
@@ -407,6 +410,7 @@
           </div>
           </div>
           <div class="row-actions settings-pin">
+            <a class="btn btn-dark" id="card-see-client" href="gallery.html" target="_blank" rel="noopener">Как видит клиент</a>
             <a class="btn btn-line" id="card-files" href="project.html?id=wedding">Скрыть отдельные кадры</a>
             <button class="btn btn-dark" id="save-card" type="button">Сохранить</button>
             <button class="btn btn-line" type="button" data-close="card-settings">Готово</button>
@@ -482,7 +486,7 @@
     </main>
   </div>
   <script src="phone.js?v=lk5"></script>
-  <script src="site.js?v=lk5"></script>
+  <script src="site.js?v=clientview1"></script>
   <script src="shoot.js?v=lk5"></script>
 </body>
 </html>

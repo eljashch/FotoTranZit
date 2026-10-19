@@ -1460,6 +1460,12 @@ const fillCardSettings = (id, folder = "") => {
     if (folder) next.set("folder", folder);
     files.href = `project.html?${next.toString()}`;
   }
+  const seeCard = document.getElementById("card-see-client");
+  if (seeCard) {
+    seeCard.href = `gallery.html?${folderQuery(id, folder || "")}`;
+    seeCard.target = "_blank";
+    seeCard.rel = "noopener";
+  }
   const keepBox = document.getElementById("keep-box");
   if (keepBox) keepBox.hidden = Boolean(folder) || pageFile() === "gallery.html";
   const keepDays = document.getElementById("keep-days");
@@ -1490,7 +1496,13 @@ document.getElementById("cover-choices")?.addEventListener("click", (event) => {
   const src = coverChoiceSrcs[Number(button.dataset.coverIndex)] || "";
   if (!src) return;
   pendingCoverSrc = src;
+  const preview = document.getElementById("cover-preview");
+  if (preview) {
+    preview.hidden = false;
+    preview.src = src;
+  }
   [...button.parentElement.children].forEach((node) => node.classList.toggle("on", node === button));
+  revealSave("save-card");
 });
 document.querySelector("#card-settings form")?.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -2184,8 +2196,21 @@ const fillFolderManage = (gid, fid) => {
   document.querySelectorAll("[data-folder-opt]").forEach((field) => {
     field.checked = Boolean(state[field.dataset.folderOpt]);
   });
+  const clientHref = new URL(`gallery.html?${folderQuery(gid, fid)}`, location.href).href;
   const copy = document.getElementById("copy-client");
-  if (copy) copy.setAttribute("data-copy", new URL(`gallery.html?${folderQuery(gid, fid)}`, location.href).href);
+  if (copy) copy.setAttribute("data-copy", clientHref);
+  const see = document.getElementById("see-client");
+  if (see) {
+    see.href = clientHref;
+    see.target = "_blank";
+    see.rel = "noopener";
+  }
+  const qr = document.getElementById("qr-client");
+  if (qr) {
+    qr.href = clientHref;
+    qr.target = "_blank";
+    qr.rel = "noopener";
+  }
   const photos = document.getElementById("photo-tiles");
   if (photos && !photos.hidden && !photos.childElementCount) {
     FILE_CATALOG.forEach((file) => {
@@ -2474,6 +2499,16 @@ const mountFolderBrowser = () => {
     if (heading) heading.textContent = galleryGone ? "Галерея удалена" : (fid ? (folderTitle(gid, fid) || galleryMeta(gid).title) : galleryMeta(gid).title);
     if (galleriesEmpty) galleriesEmpty.hidden = true;
     document.title = `${heading?.textContent || "Папки"} — ФотоТранзит`;
+  }
+  const previewClient = document.getElementById("preview-client");
+  if (previewClient) {
+    const showPreview = inCabinet && drilled && !galleryGone && !removedHere;
+    previewClient.hidden = !showPreview;
+    if (showPreview) {
+      previewClient.href = `gallery.html?${folderQuery(gid, fid)}`;
+      previewClient.target = "_blank";
+      previewClient.rel = "noopener";
+    }
   }
 
   const manage = document.getElementById("folder-manage");
