@@ -162,16 +162,16 @@
 
   const providerLabel = (name) => (name === "vk" ? "ВКонтакте" : "Google");
 
-  const login = (contact, password) => {
-    const phone = phoneKey(contact);
-    const email = emailKey(contact);
-    let found = findByContact(contact);
-    const readyParent = phone === PARENT_PHONE && PARENT_PASSES.has(password);
-    const readyPhoto = email === PHOTO_EMAIL && password === PHOTO_PASS;
-    if (!found && readyParent) {
-      found = {
-        id: makeId("p"),
-        role: "parent",
+  const ensureReadyAccounts = () => {
+    const accounts = loadAccounts();
+    const parentList = readJson("ft-parents", []);
+    const parents = Array.isArray(parentList) ? parentList : [];
+    let accountsChanged = false;
+    let parentsChanged = false;
+    let parent = parents.find((row) => phoneKey(row && (row.phoneKey || row.phone)) === PARENT_PHONE);
+    if (!parent) {
+      parent = {
+        id: "p-ready",
         name: "Щипкова Эльвира Николаевна",
         first: "Эльвира",
         last: "Щипкова",
@@ -180,12 +180,40 @@
         email: "",
         emailKey: "",
         password: "twz8bryw",
+        role: "parent",
         createdAt: Date.now()
       };
-      saveAccount(found);
+      parents.push(parent);
+      parentsChanged = true;
+    } else if (!parent.password) {
+      parent.password = "twz8bryw";
+      parent.phoneKey = PARENT_PHONE;
+      parentsChanged = true;
     }
-    if (!found && readyPhoto) {
-      found = {
+    const parentAccount = accounts.find((row) => phoneKey(row && (row.phoneKey || row.phone)) === PARENT_PHONE);
+    if (!parentAccount) {
+      accounts.push({
+        id: parent.id,
+        role: "parent",
+        name: parent.name || "Щипкова Эльвира Николаевна",
+        first: parent.first || "Эльвира",
+        last: parent.last || "Щипкова",
+        phone: parent.phone || "+79300762286",
+        phoneKey: PARENT_PHONE,
+        email: parent.email || "",
+        emailKey: emailKey(parent.email),
+        password: parent.password || "twz8bryw",
+        createdAt: parent.createdAt || Date.now()
+      });
+      accountsChanged = true;
+    } else if (!parentAccount.password) {
+      parentAccount.password = parent.password || "twz8bryw";
+      parentAccount.phoneKey = PARENT_PHONE;
+      accountsChanged = true;
+    }
+    const photoAccount = accounts.find((row) => emailKey(row && (row.emailKey || row.email)) === PHOTO_EMAIL);
+    if (!photoAccount) {
+      accounts.push({
         id: "photo-main",
         role: "photo",
         first: "",
@@ -197,15 +225,47 @@
         phoneKey: "",
         password: PHOTO_PASS,
         createdAt: Date.now()
-      };
-      saveAccount(found);
+      });
+      accountsChanged = true;
+    } else if (!photoAccount.password) {
+      photoAccount.password = PHOTO_PASS;
+      photoAccount.emailKey = PHOTO_EMAIL;
+      accountsChanged = true;
+    }
+    const user = readJson("ft-user", null);
+    if (!user || (!String(user.email || "").trim() && !String(user.phone || "").trim())) {
+      localStorage.setItem("ft-user", JSON.stringify({
+        email: PHOTO_EMAIL,
+        password: PHOTO_PASS,
+        accountId: "photo-main",
+        accountRole: "photo",
+        createdAt: Date.now()
+      }));
+    }
+    if (parentsChanged) localStorage.setItem("ft-parents", JSON.stringify(parents));
+    if (accountsChanged) localStorage.setItem("ft-accounts", JSON.stringify(accounts));
+  };
+
+  const login = (contact, password) => {
+    ensureReadyAccounts();
+    const typed = String(password || "").trim();
+    const phone = phoneKey(contact);
+    const email = emailKey(contact);
+    let found = findByContact(contact);
+    const readyParent = phone === PARENT_PHONE && PARENT_PASSES.has(typed);
+    const readyPhoto = email === PHOTO_EMAIL && typed === PHOTO_PASS;
+    if (!found && readyParent) {
+      found = findByContact("+79300762286");
+    }
+    if (!found && readyPhoto) {
+      found = findByContact(PHOTO_EMAIL);
     }
     if (!found) {
       return { ok: false, message: "Такого аккаунта нет. Зарегистрируйтесь и укажите роль: фотограф или пользователь." };
     }
-    const parentOk = found.role === "parent" && (found.phoneKey === PARENT_PHONE || phone === PARENT_PHONE) && PARENT_PASSES.has(password);
-    const photoOk = found.role === "photo" && emailKey(found.email) === PHOTO_EMAIL && password === PHOTO_PASS;
-    if (found.password && found.password !== password && !parentOk && !photoOk) return { ok: false, message: "Неверный пароль." };
+    const parentOk = found.role === "parent" && (found.phoneKey === PARENT_PHONE || phone === PARENT_PHONE) && PARENT_PASSES.has(typed);
+    const photoOk = found.role === "photo" && emailKey(found.email) === PHOTO_EMAIL && typed === PHOTO_PASS;
+    if (found.password && found.password !== typed && !parentOk && !photoOk) return { ok: false, message: "Неверный пароль." };
     return { ok: true, url: enter(found) };
   };
 
@@ -331,5 +391,6 @@
     });
   }
 
+  ensureReadyAccounts();
   window.ftAuth = { phoneKey, findByContact, enter, login, connect, register };
 })();
