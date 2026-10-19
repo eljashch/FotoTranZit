@@ -1070,6 +1070,10 @@ document.addEventListener("click", (event) => {
   const heart = event.target.closest(".photo-tile .heart");
   if (!heart) return;
   event.preventDefault();
+  if (heart.dataset.parentLike === "1") {
+    event.stopPropagation();
+    return;
+  }
   heart.classList.toggle("on");
   heart.textContent = heart.classList.contains("on") ? "♥" : "♡";
 });
@@ -2118,6 +2122,15 @@ const buildPhotoTile = (file) => {
   heart.className = "heart";
   heart.setAttribute("aria-label", "Отметить");
   heart.textContent = "♡";
+  try {
+    const marks = JSON.parse(localStorage.getItem("ft-shot-likes") || "{}");
+    if (marks[`${galleryId()}/${folderId() || ""}/${file.id}`]) {
+      heart.classList.add("on");
+      heart.textContent = "♥";
+      heart.dataset.parentLike = "1";
+      heart.setAttribute("aria-label", "Родитель отметил");
+    }
+  } catch (error) {}
   const more = document.createElement("button");
   more.type = "button";
   more.className = "tile-more";
@@ -2323,6 +2336,100 @@ const paintClient = (gid, fid) => {
   }
   document.title = `${fid ? (folderTitle(gid, fid) || galleryMeta(gid).title) : galleryMeta(gid).title} — ФотоТранзит`;
 };
+const readShotLikes = () => {
+  try {
+    const value = JSON.parse(localStorage.getItem("ft-shot-likes") || "{}");
+    return value && typeof value === "object" ? value : {};
+  } catch (error) { return {}; }
+};
+const likedFilesHere = (gid, fid) => {
+  const marks = readShotLikes();
+  return filesInFolder(gid, fid).filter((file) => marks[`${gid}/${fid || ""}/${file.id}`]);
+};
+const zipEntryName = (name, used) => {
+  const raw = String(name || "file").replace(/[\\/]/g, "-") || "file";
+  if (!used.has(raw)) {
+    used.add(raw);
+    return raw;
+  }
+  const dot = raw.lastIndexOf(".");
+  const base = dot > 0 ? raw.slice(0, dot) : raw;
+  const ext = dot > 0 ? raw.slice(dot) : "";
+  let index = 2;
+  let next = `${base}-${index}${ext}`;
+  while (used.has(next)) {
+    index += 1;
+    next = `${base}-${index}${ext}`;
+  }
+  used.add(next);
+  return next;
+};
+const downloadLikedFiles = async (button) => {
+  const gid = galleryId();
+  const fid = folderId();
+  const files = likedFilesHere(gid, fid);
+  const old = button ? button.textContent : "";
+  if (!files.length) {
+    if (button) {
+      button.textContent = "Нет лайков";
+      setTimeout(() => { button.textContent = old; }, 1200);
+    }
+    return;
+  }
+  if (files.length === 1) {
+    const file = files[0];
+    if (!file.src) {
+      const blob = new Blob([file.name || "файл"], { type: "text/plain" });
+      saveLink(URL.createObjectURL(blob), file.name || "файл.txt");
+      return;
+    }
+    await deliverDownload("file", file.src, file.name || "file", button);
+    return;
+  }
+  const used = new Set();
+  const packed = [];
+  for (const file of files) {
+    let data;
+    if (file.src) {
+      const response = await fetch(file.src);
+      data = new Uint8Array(await response.arrayBuffer());
+    } else data = new TextEncoder().encode(file.name || "файл");
+    packed.push({ name: zipEntryName(file.name || "file", used), data });
+  }
+  const raw = zipStore(packed);
+  const blob = new Blob([await raw.arrayBuffer()], { type: "application/zip" });
+  saveLink(URL.createObjectURL(blob), "лайки.zip");
+  if (button) {
+    button.textContent = "Скачивается";
+    setTimeout(() => { button.textContent = old || "Скачать лайки"; }, 1200);
+  }
+};
+const paintParentMarks = (gid, fid, inside) => {
+  let button = document.getElementById("download-likes");
+  if (!button) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.id = "download-likes";
+    button.className = "btn btn-line";
+    button.textContent = "Скачать лайки";
+    button.addEventListener("click", () => { downloadLikedFiles(button); });
+    const tools = document.getElementById("explorer-tools");
+    const comments = document.getElementById("folder-comments");
+    if (tools) tools.appendChild(button);
+    else if (comments && comments.parentElement) comments.parentElement.insertBefore(button, comments);
+  }
+  button.hidden = !inside || !fid;
+  if (!inside || !fid) return;
+  const marks = readShotLikes();
+  document.querySelectorAll("#photo-tiles .photo-tile").forEach((tile) => {
+    const heart = tile.querySelector(".heart");
+    if (!heart || !marks[`${gid}/${fid || ""}/${tile.dataset.file}`]) return;
+    heart.classList.add("on");
+    heart.textContent = "♥";
+    heart.dataset.parentLike = "1";
+    heart.setAttribute("aria-label", "Родитель отметил");
+  });
+};
 const mountFolderBrowser = () => {
   const file = pageFile();
   const gid = galleryId();
@@ -2407,6 +2514,7 @@ const mountFolderBrowser = () => {
     }
   }
   if (emptyTiles) emptyTiles.hidden = !showTiles || filesInFolder(gid, fid).length > 0;
+  paintParentMarks(gid, fid, inside);
 
   const splitWrap = document.getElementById("split-switch-wrap");
   const splitToggle = document.getElementById("split-toggle");
@@ -3468,43 +3576,71 @@ const ftEnsureShootRows = () => {
   let foldersChanged = false;
   let parentsChanged = false;
   let linksChanged = false;
+  const folderUsed = new Map();
+  const accountPhone = (item) => phoneKey(item && (item.phoneKey || item.phone));
   Object.entries(lists).forEach(([gid, list]) => {
     if (!list || !Array.isArray(list.rows)) return;
     list.rows.forEach((row) => {
       const child = String(row.childName || "").trim();
       if (!child) return;
-      const key = phoneKey(row.phone);
-      if (!row.parentId && key && Array.isArray(parents)) {
-        let account = parents.find((item) => item.phoneKey === key);
+      const known = Array.isArray(parents) ? parents.find((item) => item.id === row.parentId) : null;
+      const key = phoneKey(row.phone) || accountPhone(known);
+      if (key && Array.isArray(parents)) {
+        let account = parents.find((item) => accountPhone(item) === key);
         if (!account) {
-          account = { id: makeId("p"), name: row.parentName || "", phone: row.phone || "", phoneKey: key, role: "parent", createdAt: Date.now() };
+          account = { id: row.parentId || makeId("p"), name: row.parentName || "", phone: row.phone || "", phoneKey: key, role: "parent", createdAt: Date.now() };
           parents.push(account);
           parentsChanged = true;
         } else if (!account.name && row.parentName) {
           account.name = row.parentName;
           parentsChanged = true;
         }
-        row.parentId = account.id;
-        listsChanged = true;
-      }
-      if (!row.folderId) {
-        const bag = Array.isArray(folders[gid]) ? folders[gid] : [];
-        const exact = bag.find((item) => String(item.name || "").trim() === child && !(item.parent || ""));
-        if (exact) row.folderId = exact.id;
-        else {
-          const id = makeId("u");
-          bag.push({ id, name: child, parent: "", cover: "img/folder-neon.svg", meta: "", created: Date.now(), shootOwner: row.parentId || "list" });
-          folders[gid] = bag;
-          row.folderId = id;
-          foldersChanged = true;
+        if (row.parentId !== account.id) {
+          row.parentId = account.id;
+          listsChanged = true;
         }
+        if (!phoneKey(row.phone) && account.phone) {
+          row.phone = account.phone;
+          listsChanged = true;
+        }
+      }
+      const bag = Array.isArray(folders[gid]) ? folders[gid] : [];
+      const gone = new Set(read("ft-gone-folders", []));
+      let folderId = row.folderId || "";
+      const claim = `${gid}/${folderId}`;
+      const taken = folderId && folderUsed.get(claim) && folderUsed.get(claim) !== row.id;
+      const exists = folderId && bag.some((item) => item.id === folderId) && !gone.has(claim);
+      if (!folderId || taken || !exists) {
+        const id = makeId("u");
+        const names = new Set(bag.map((item) => String(item.name || "").trim()));
+        let name = child;
+        if (names.has(name)) {
+          let index = 2;
+          while (names.has(`${child} (${index})`)) index += 1;
+          name = `${child} (${index})`;
+        }
+        bag.push({ id, name, parent: "", cover: "img/folder-neon.svg", meta: "", created: Date.now(), shootOwner: row.parentId || "list" });
+        folders[gid] = bag;
+        row.folderId = id;
+        folderId = id;
+        foldersChanged = true;
         listsChanged = true;
       }
-      if (row.parentId && row.folderId) {
+      folderUsed.set(`${gid}/${folderId}`, row.id);
+      if (row.parentId && folderId) {
         const links = Array.isArray(linksAll[row.parentId]) ? linksAll[row.parentId] : [];
-        if (!links.some((item) => item.folderId === row.folderId || item.rowId === row.id)) {
-          links.push({ id: makeId("l"), galleryId: gid, folderId: row.folderId, childName: child, rowId: row.id, owner });
+        const folderName = String((bag.find((item) => item.id === folderId) || {}).name || child);
+        let link = links.find((item) => item.rowId === row.id);
+        if (!link) link = links.find((item) => !item.rowId && item.galleryId === gid && item.folderId === folderId);
+        if (!link) {
+          links.push({ id: makeId("l"), galleryId: gid, folderId, childName: folderName, rowId: row.id, owner });
           linksAll[row.parentId] = links;
+          linksChanged = true;
+        } else if (link.galleryId !== gid || link.folderId !== folderId || link.childName !== folderName || link.rowId !== row.id) {
+          link.galleryId = gid;
+          link.folderId = folderId;
+          link.childName = folderName;
+          link.rowId = row.id;
           linksChanged = true;
         }
       }

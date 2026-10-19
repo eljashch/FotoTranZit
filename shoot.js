@@ -359,7 +359,11 @@
         const extra = Array.isArray(linksAll[item.id]) ? linksAll[item.id] : [];
         const base = Array.isArray(linksAll[keep.id]) ? linksAll[keep.id] : [];
         extra.forEach((link) => {
-          if (!base.some((row) => row.folderId === link.folderId && row.galleryId === link.galleryId)) base.push(link);
+          const same = base.some((row) => {
+            if (link.rowId && row.rowId) return row.rowId === link.rowId;
+            return row.folderId === link.folderId && row.galleryId === link.galleryId;
+          });
+          if (!same) base.push(link);
         });
         if (extra.length || linksAll[item.id]) {
           linksAll[keep.id] = base;
@@ -382,16 +386,24 @@
         });
         if (localStorage.getItem("ft-parent-session") === item.id) localStorage.setItem("ft-parent-session", keep.id);
         if (localStorage.getItem("ft-last-parent") === item.id) localStorage.setItem("ft-last-parent", keep.id);
+        Object.values(lists).forEach((list) => {
+          (list && list.rows || []).forEach((row) => {
+            const owned = row.parentId === item.id;
+            const same = phoneKey(row.phone) === key;
+            if (!owned && !same) return;
+            if (row.parentId !== keep.id) {
+              row.parentId = keep.id;
+              changedLists = true;
+            }
+            if (!phoneKey(row.phone) && keep.phone) {
+              row.phone = keep.phone;
+              changedLists = true;
+            }
+          });
+        });
         const index = parents.indexOf(item);
         if (index >= 0) parents.splice(index, 1);
         changedParents = true;
-      });
-      Object.values(lists).forEach((list) => {
-        (list && list.rows || []).forEach((row) => {
-          if (phoneKey(row.phone) !== key || row.parentId === keep.id) return;
-          row.parentId = keep.id;
-          changedLists = true;
-        });
       });
     });
     if (changedParents) saveParents(parents);
@@ -1196,6 +1208,7 @@
     }
     if (shell) shell.hidden = false;
     if (gate) gate.hidden = true;
+    ensureParentShots(parent);
     const params = new URLSearchParams(location.search);
     const view = params.get("view") || "";
     const savedId = params.get("saved") || "";
@@ -1221,10 +1234,102 @@
     if (savedId || view === "mine") renderMine(root, parent, savedId);
     else renderShots(root, parent, shotId, params.get("folder") || "");
   };
+  const rowPhoneKey = (row, parents) => {
+    const direct = phoneKey(row && row.phone);
+    if (direct) return direct;
+    const account = (parents || []).find((item) => item.id && item.id === row.parentId);
+    return phoneKey(account && (account.phoneKey || account.phone));
+  };
+  const childLabel = (gid, fid, childName) => {
+    const stored = userFolderRecords(gid).find((item) => item.id === fid);
+    const folderName = stored ? String(stored.name || "").trim() : "";
+    if (folderName && childName && folderName !== childName && folderName.startsWith(childName)) return folderName;
+    return childName || folderName || "Папка";
+  };
+  const ensureParentShots = (parent) => {
+    if (!parent) return;
+    const key = phoneKey(parent.phoneKey || parent.phone);
+    if (!key) return;
+    const lists = loadLists();
+    const parents = loadParents();
+    let listsChanged = false;
+    const links = parentLinks(parent.id).slice();
+    let linksChanged = false;
+    const claimed = new Map();
+    Object.entries(lists).forEach(([gid, list]) => {
+      const rows = list && Array.isArray(list.rows) ? list.rows : [];
+      rows.forEach((row) => {
+        if (rowPhoneKey(row, parents) !== key) return;
+        const childName = String(row.childName || "").trim() || "Ребёнок";
+        if (row.parentId !== parent.id) {
+          row.parentId = parent.id;
+          listsChanged = true;
+        }
+        if (!phoneKey(row.phone) && parent.phone) {
+          row.phone = parent.phone;
+          listsChanged = true;
+        }
+        let folderId = row.folderId || "";
+        const claim = `${gid}/${folderId}`;
+        const takenBy = folderId ? claimed.get(claim) : "";
+        let label = childName;
+        if (!folderId || folderGone(gid, folderId) || (takenBy && takenBy !== row.id)) {
+          const folder = createChildFolder(gid, childName, parent.id);
+          row.folderId = folder.id;
+          folderId = folder.id;
+          label = folder.name || childName;
+          listsChanged = true;
+        } else label = childLabel(gid, folderId, childName);
+        claimed.set(`${gid}/${folderId}`, row.id);
+        let link = links.find((item) => item.rowId && item.rowId === row.id);
+        if (!link) link = links.find((item) => !item.rowId && item.galleryId === gid && item.folderId === folderId);
+        if (!link) {
+          links.push({
+            id: makeId("l"),
+            galleryId: gid,
+            folderId,
+            childName: label,
+            rowId: row.id,
+            owner: photographerKey()
+          });
+          linksChanged = true;
+        } else if (link.galleryId !== gid || link.folderId !== folderId || link.childName !== label || link.rowId !== row.id) {
+          link.galleryId = gid;
+          link.folderId = folderId;
+          link.childName = label;
+          link.rowId = row.id;
+          linksChanged = true;
+        }
+      });
+    });
+    const stored = readJson("ft-parent-links", {});
+    loadParents().forEach((item) => {
+      if (!samePhone(item, key) || item.id === parent.id) return;
+      (Array.isArray(stored[item.id]) ? stored[item.id] : []).forEach((link) => {
+        if (link.rowId && links.some((row) => row.rowId === link.rowId)) return;
+        if (links.some((row) => row.galleryId === link.galleryId && row.folderId === link.folderId)) return;
+        links.push({ ...link });
+        linksChanged = true;
+      });
+    });
+    if (listsChanged) saveLists(lists);
+    if (linksChanged) saveParentLinks(parent.id, links);
+  };
+  const shotLikeKey = (gid, fid, fileId) => `${gid}/${fid}/${fileId}`;
+  const shotLikes = () => readJson("ft-shot-likes", {});
+  const shotLiked = (gid, fid, fileId) => Boolean(shotLikes()[shotLikeKey(gid, fid, fileId)]);
+  const toggleShotLike = (gid, fid, fileId, parentId) => {
+    const all = shotLikes();
+    const mark = shotLikeKey(gid, fid, fileId);
+    if (all[mark]) delete all[mark];
+    else all[mark] = { parentId, at: Date.now() };
+    localStorage.setItem("ft-shot-likes", JSON.stringify(all));
+    return Boolean(all[mark]);
+  };
   const renderShots = (root, parent, shotId, folderAsk) => {
     const links = parentLinks(parent.id);
     if (!shotId) {
-      root.append(el("h2", "", "Фотосессии"), el("p", "hint", "Здесь только папка вашего ребёнка. Она не занимает место в кабинете."));
+      root.append(el("h2", "", "Фотосессии"), el("p", "hint", "Здесь папки ваших детей. Они не занимают место в кабинете."));
       if (!links.length) {
         root.append(el("p", "hint", "Пока нет фотосессий. Запишитесь по ссылке фотографа."));
         return;
@@ -1308,10 +1413,10 @@
         img.alt = file.name || "";
         shot.appendChild(img);
       }
-      const heart = el("button", liked(`${parent.id}/${file.id}`) ? "heart on" : "heart", liked(`${parent.id}/${file.id}`) ? "♥" : "♡");
+      const heart = el("button", shotLiked(link.galleryId, fid, file.id) ? "heart on" : "heart", shotLiked(link.galleryId, fid, file.id) ? "♥" : "♡");
       heart.type = "button";
       heart.addEventListener("click", () => {
-        const on = toggleLike(`${parent.id}/${file.id}`);
+        const on = toggleShotLike(link.galleryId, fid, file.id, parent.id);
         heart.classList.toggle("on", on);
         heart.textContent = on ? "♥" : "♡";
       });
@@ -1593,10 +1698,10 @@
       (list && list.rows || []).forEach((row) => {
         const name = String(row.parentName || "").trim();
         const phone = String(row.phone || "").trim();
-        const key = phoneKey(phone);
-        if (!name && !key) return;
+        const account = findParentByPhone(loadParents(), phone) || loadParents().find((item) => item.id === row.parentId) || null;
+        const key = phoneKey(phone || (account && (account.phoneKey || account.phone)));
+        if (!name && !key && !(account && account.name)) return;
         const id = key || row.parentId || row.id;
-        const account = key ? findParentByPhone(loadParents(), phone) : null;
         const parentId = (account && account.id) || row.parentId || id;
         if (!map.has(id)) {
           map.set(id, {
@@ -1609,11 +1714,12 @@
         const group = map.get(id);
         if (name) group.name = name;
         if (account && account.name) group.name = account.name;
+        if (!group.phone) group.phone = phone || (account && account.phone) || "";
         group.parentId = parentId;
         const child = String(row.childName || "").trim();
         const gallery = galleryTitle(gid);
-        if (child && !group.children.some((item) => item.name === child && item.gallery === gallery)) {
-          group.children.push({ name: child, gallery });
+        if (child && !group.children.some((item) => item.name === child && item.gallery === gallery && item.at === row.at)) {
+          group.children.push({ name: child, gallery, at: row.at || 0, shot: Boolean(row.shot) });
         }
       });
     });
@@ -1646,21 +1752,36 @@
       }
       rows.forEach((row) => {
         const card = el("article", "lists-card client-card");
+        const line = el("div", "client-line");
         const fresh = unreadFor("photo", row.parentId);
-        if (row.children.length) {
-          row.children.forEach((child, index) => {
-            const title = el("strong", "", child.name);
-            if (index === 0 && fresh) title.append(el("span", "ft-new", " новое"));
-            card.append(title, el("p", "hint", child.gallery));
-          });
-        } else {
-          card.append(el("strong", "", "Ребёнок"));
-        }
-        card.append(el("p", "", row.name || "Родитель"), el("p", "hint", row.phone || ""));
+        const title = el("strong", "", row.name || "Родитель");
+        if (fresh) title.append(el("span", "ft-new", " новое"));
+        const actions = el("div", "parent-actions");
         const write = el("button", "btn btn-line", "Написать");
         write.type = "button";
         write.addEventListener("click", () => openChat(row.parentId, row.name));
-        card.append(write);
+        const info = el("button", "btn btn-line", "Инфо");
+        info.type = "button";
+        info.addEventListener("click", () => {
+          const open = card.querySelector(".client-history");
+          if (open) {
+            open.remove();
+            return;
+          }
+          const sheet = el("div", "client-history");
+          sheet.append(el("p", "", "История"));
+          if (!row.children.length) sheet.append(el("p", "hint", "Записей пока нет."));
+          row.children.forEach((child) => {
+            const when = child.at ? new Date(child.at) : null;
+            const date = when && !Number.isNaN(when.getTime()) ? `${when.getDate()} ${MONTHS[when.getMonth()]} ${when.getFullYear()}` : "";
+            const mark = child.shot ? "снят" : "записан";
+            sheet.append(el("p", "hint", [child.name, child.gallery, date, mark].filter(Boolean).join(" · ")));
+          });
+          card.appendChild(sheet);
+        });
+        actions.append(write, info);
+        line.append(title, el("p", "hint", row.phone || ""), actions);
+        card.appendChild(line);
         board.appendChild(card);
       });
     };

@@ -2464,9 +2464,51 @@ body.light-app select {
 .shoot-draft .light-btn { min-height: 48px; }
 .shoot-head h1, .join-form h1 { overflow-wrap: anywhere; }
 .client-find { width: min(420px, 100%); margin: 12px 0 16px; }
-.client-board { display: grid; gap: 10px; }
-.client-card { align-items: start; }
-.client-card .btn { justify-self: start; min-height: 38px; }
+.client-board { display: grid; gap: 8px; }
+.client-card { align-items: stretch; padding: 8px 12px; gap: 6px; color: #fff; }
+.client-card,
+.client-card strong,
+.client-card .hint,
+.client-history,
+.client-history p { color: #fff; }
+.client-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.client-line strong {
+  flex: 1 1 auto;
+  font-size: 16px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+}
+.client-line > .hint { margin: 0; white-space: nowrap; flex: 0 0 auto; color: #fff; }
+.client-line .parent-actions { margin: 0 0 0 auto; flex: 0 0 auto; gap: 8px; }
+.client-line .btn { height: 36px; min-height: 36px; padding: 0 12px; }
+.client-history { display: grid; gap: 4px; }
+.client-history p { margin: 0; color: #fff; }
+@media (max-width: 430px) {
+  .client-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 10px;
+  }
+  .client-line strong { flex: none; }
+  .client-line .parent-actions {
+    grid-column: 1 / -1;
+    margin: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .client-line .parent-actions .btn { width: 100%; height: 36px; min-height: 36px; }
+}
 .client-write { display: grid; gap: 8px; width: min(480px, 100%); margin-top: 8px; }
 .client-write textarea { min-height: 88px; resize: vertical; }
 .parent-mail {
